@@ -48,6 +48,8 @@ jobs:
       run_macos: ${{ steps.matrix.outputs.run_macos }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ inputs.ref }}
     - id: matrix
       env:
         DESKTOP_TARGET: ${{ inputs.desktop_target || 'all' }}
