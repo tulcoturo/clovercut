@@ -213,3 +213,19 @@ rustc --edition 2024 --test -D warnings crates/concat/src/performance_metrics.rs
 
 These four cases and the four Python collector cases run in **Headless quality
 checks**. They qualify reporting logic, not graphical runtime performance.
+
+## Missing-media search without the graphical application
+
+From `src/`, test the same search helper used by the relink dialog:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings crates/concat/src/relink_search.rs -o /tmp/clovercut-relink-search-tests
+/tmp/clovercut-relink-search-tests
+```
+
+Five cases cover nearest duplicate selection, stable equal-depth selection,
+broken links, valid links with directory cycles, and empty/missing searches.
+The two symlink cases run on Unix; other targets compile the applicable cases.
+The headless CI runs these checks on relevant changes without Slint/native media
+libraries. It does not execute the graphical dialog, decode candidate files or
+prove that identical filenames refer to the same recording.

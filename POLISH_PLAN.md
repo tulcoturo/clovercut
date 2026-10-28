@@ -150,6 +150,22 @@ the existing gRPC second pass for now: its measured cost is only 5.644 seconds.
   also passed on `3d58d24a`. This is storage qualification, not an interactive
   graphical walkthrough.
 
+## Execution record — sixth increment
+
+- Extracted missing-media search from the dialog into a pure filesystem helper.
+  Three regressions reproduced the previous depth-first algorithm's deeper-match
+  selection, filesystem-order-dependent ties and acceptance of broken links.
+- Search now uses breadth-first traversal and sorted folder entries, preserving
+  the documented nearest-root preference with deterministic equal-depth ties.
+  It indexes only requested names and stops when they are all found.
+- Canonical directory identities prevent symlink cycles and repeated alias scans;
+  working file/folder links remain usable and non-file targets are excluded.
+  Exact-basename matching and the existing undoable relink batch are preserved.
+- Five focused cases, direct Clippy, formatting and workflow lint passed locally.
+  Symlink cases are Unix-specific. The search remains synchronous; this increment
+  does not qualify large-tree UI responsiveness or candidate recording identity.
+  Graphical relink/undo qualification remains pending.
+
 ## Priorities
 
 - **P0:** validation that can incorrectly report success, or omit required release checks.

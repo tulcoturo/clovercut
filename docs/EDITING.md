@@ -147,3 +147,16 @@ poster and hash-named waveform entries. Other cache entries remain, including
 enhanced copies, reversed clips and freeze frames needed by unsaved edits or undo. Audio/proxy
 working directories also remain. The cache folder therefore travels with the
 project: it contains generated source media as well as disposable previews.
+
+## Relinking missing media
+
+Choose a search folder in the missing-media dialog. Relinking matches exact
+filenames and prefers the candidate closest to that folder; equal-depth matches
+use folder-name order. It searches valid linked folders without revisiting cycles
+and ignores broken links and non-file entries. The search stops once all requested
+names are found. Filename matching does not establish that two copies contain the
+same recording; review the result when folders contain duplicate names.
+
+Successful replacements remain one undoable batch. Files that cannot be found
+stay in the missing-media dialog. Interactive qualification of this workflow
+remains separate from the filesystem-search checks.

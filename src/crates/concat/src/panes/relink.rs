@@ -4,7 +4,7 @@
 //! The missing media dialog: what a project cannot find, and one folder
 //! to look for it in.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use concat_project::Command;
@@ -15,6 +15,9 @@ use crate::i18n::t;
 use crate::platform;
 use crate::studio::Studio;
 use crate::ui::{MissingMediaItem, RelinkData};
+
+#[path = "../relink_search.rs"]
+mod search;
 
 /// Everything that can happen to the relink dialog.
 #[derive(Clone, Debug)]
@@ -115,29 +118,20 @@ impl RelinkPane {
             return;
         }
 
-        // Build a basename -> full path index of every file under the folder
-        // so the per-item lookup is O(1) rather than a walk each time.
-        let mut index: HashMap<String, PathBuf> = HashMap::new();
-        let mut stack = vec![folder.clone()];
-        while let Some(dir) = stack.pop() {
-            let Ok(entries) = std::fs::read_dir(&dir) else {
-                continue;
-            };
-            for entry in entries.filter_map(|e| e.ok()) {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    // First match wins: if the user has duplicates, the one
-                    // closest to the root is the most likely correct copy.
-                    index.entry(name.to_owned()).or_insert(path);
-                }
-            }
-        }
-
         if studio.session.is_none() {
             return;
         }
+
+        let wanted: HashSet<String> = items
+            .iter()
+            .filter_map(|(_, path)| {
+                std::path::Path::new(path)
+                    .file_name()?
+                    .to_str()
+                    .map(str::to_owned)
+            })
+            .collect();
+        let index = search::find_named_files(&folder, &wanted);
 
         let mut relinked = 0usize;
         let mut commands: Vec<Command> = Vec::new();
