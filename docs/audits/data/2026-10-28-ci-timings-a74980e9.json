@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "source_sha": "a74980e9c3793b76ba11cb235a34328b4ca209b7",
+  "run_url": "https://github.com/tulcoturo/clovercut/actions/runs/40708333274",
+  "cache_state": "unknown",
+  "runner_label": "ubuntu-24.04",
+  "limitations": [
+    "Step wall time includes command overhead; it is not CPU time.",
+    "Build-and-execution steps do not separate compilation from test runtime.",
+    "Jobs can overlap; their durations are not total workflow wall time.",
+    "Compare only equivalent runner, toolchain, profile, dependencies and cache conditions.",
+    "Skipped, incomplete and missing intervals are null, not zero."
+  ],
+  "jobs": [
+    {
+      "name": "Audio connector regressions",
+      "status": "completed",
+      "conclusion": "success",
+      "wall_seconds": 6.0,
+      "observed_step_seconds_by_category": {
+        "other": 5.0
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 2.0
+        },
+        {
+          "name": "Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Catalogue, session and Studio preview regressions",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Post Run actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Complete job",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        }
+      ]
+    },
+    {
+      "name": "Engine tests and lints",
+      "status": "completed",
+      "conclusion": "success",
+      "wall_seconds": 2582.0,
+      "observed_step_seconds_by_category": {
+        "other": 44.0,
+        "native_dependencies": 47.0,
+        "workspace_lint": 1399.0,
+        "test_build": 843.0,
+        "test_execution": 143.0,
+        "documentation_build_and_execution": 56.0,
+        "grpc_lint": 14.0,
+        "grpc_build_and_execution": 34.0
+      },
+      "steps": [
+        {
+          "name": "Set up job",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "The pinned toolchain",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 9.0
+        },
+        {
+          "name": "Run taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 29.0
+        },
+        {
+          "name": "System libraries",
+          "category": "native_dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 36.0
+        },
+        {
+          "name": "FFmpeg development libraries",
+          "category": "native_dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 6.0
+        },
+        {
+          "name": "ONNX Runtime",
+          "category": "native_dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "sherpa-onnx libraries",
+          "category": "native_dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 4.0
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 2.0
+        },
+        {
+          "name": "Run python3 -m unittest discover -s scripts -p test_locales.py",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Run python3 scripts/locales.py --check --strict",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Run python3 scripts/models.py --check",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Run cargo clippy --workspace --all-targets -- -D warnings",
+          "category": "workspace_lint",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1399.0
+        },
+        {
+          "name": "Build the tests",
+          "category": "test_build",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 843.0
+        },
+        {
+          "name": "Run the tests",
+          "category": "test_execution",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 143.0
+        },
+        {
+          "name": "Run the documentation's examples",
+          "category": "documentation_build_and_execution",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 56.0
+        },
+        {
+          "name": "Run cargo clippy -p concat-server -p concat-cli --features grpc --all-targets -- -D warnings",
+          "category": "grpc_lint",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 14.0
+        },
+        {
+          "name": "Run the gRPC tests",
+          "category": "grpc_build_and_execution",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 34.0
+        },
+        {
+          "name": "Keep test results and timings",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 1.0
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        },
+        {
+          "name": "Complete job",
+          "category": "other",
+          "status": "completed",
+          "conclusion": "success",
+          "seconds": 0.0
+        }
+      ]
+    }
+  ]
+}
