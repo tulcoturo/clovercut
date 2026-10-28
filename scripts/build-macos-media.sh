@@ -29,7 +29,25 @@ export LDFLAGS="-mmacosx-version-min=12.0 -isysroot $sdk -L$prefix/lib"
 unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH CMAKE_PREFIX_PATH PKG_CONFIG_PATH
 export PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig"
 work=$(mktemp -d)
-trap 'status=$?; trap - EXIT; rm -rf "$work"; exit "$status"' EXIT
+cleanup() {
+  local status=$?
+  trap - EXIT
+  if [ "$status" -ne 0 ]; then
+    # Configure errors often only name config.log. Keep the actual compiler
+    # diagnostics before removing the temporary source trees.
+    while IFS= read -r logfile; do
+      local relative=${logfile#"$work"/}
+      mkdir -p "$prefix/share/build-failure/$(dirname "$relative")"
+      cp "$logfile" "$prefix/share/build-failure/$relative"
+    done < <(find "$work" -type f \( -name config.log -o -name meson-log.txt \))
+    if [ -f "$work/ffmpeg-build/ffbuild/config.log" ]; then
+      tail -100 "$work/ffmpeg-build/ffbuild/config.log" >&2
+    fi
+  fi
+  rm -rf "$work"
+  exit "$status"
+}
+trap cleanup EXIT
 mkdir -p "$prefix/lib" "$prefix/include" "$prefix/share/licenses"
 
 source_of() {
@@ -119,6 +137,7 @@ source_of ffmpeg
 mkdir "$work/ffmpeg-build"
 (cd "$work/ffmpeg-build" && "$work/ffmpeg/configure" \
   --prefix="$prefix" --cc="$CC" --cxx="$CXX" \
+  --host-cc="$CC" --host-cflags="$CFLAGS" --host-ldflags="$LDFLAGS" \
   --enable-shared --disable-static --enable-pic --disable-debug --disable-doc --disable-ffplay \
   --disable-autodetect --enable-gpl --enable-version3 --enable-pthreads \
   --enable-libx264 --enable-libx265 --enable-libvpx --enable-libopus \

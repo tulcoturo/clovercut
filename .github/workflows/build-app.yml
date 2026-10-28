@@ -749,6 +749,14 @@ jobs:
       run: |
         scripts/build-macos-media.sh ${{ matrix.target }} "src/vendor/macos-media/${{ matrix.target }}"
         test -f "src/vendor/macos-media/${{ matrix.target }}/.clovercut-media-complete"
+    - name: Keep media configure diagnostics
+      if: failure()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: media-configure-${{ matrix.target }}
+        retention-days: 14
+        if-no-files-found: ignore
+        path: src/vendor/macos-media/${{ matrix.target }}/share/build-failure/
     - name: Validate media runtime and codecs
       run: |
         set -euo pipefail
