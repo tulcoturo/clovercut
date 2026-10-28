@@ -14,16 +14,19 @@ pub struct Pending<T> {
     value: T,
 }
 
+/// Whether an arriving result still owns a usable destination.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Completion<T> {
     /// Another request (or cancellation) owns the slot; leave it untouched.
     Obsolete,
     /// This request completed after its destination changed; consume it safely.
     ContextChanged,
+    /// The current request's captured payload, delivered once.
     Ready(T),
 }
 
 impl<T> Pending<T> {
+    /// Capture a destination and payload with a fresh process-wide identity.
     pub fn begin(timeline: String, value: T) -> Self {
         Self {
             id: NEXT_REQUEST.fetch_add(1, Ordering::Relaxed),
@@ -32,14 +35,17 @@ impl<T> Pending<T> {
         }
     }
 
+    /// The identity to attach to progress and completion messages.
     pub fn id(&self) -> u64 {
         self.id
     }
 
+    /// Whether this message belongs to this owner and the active destination.
     pub fn accepts(&self, id: u64, timeline: &str) -> bool {
         self.id == id && self.timeline == timeline
     }
 
+    /// Consume the matching owner only; preserve another request's slot.
     pub fn finish(slot: &mut Option<Self>, id: u64, timeline: &str) -> Completion<T> {
         if slot.as_ref().is_none_or(|pending| pending.id != id) {
             return Completion::Obsolete;
