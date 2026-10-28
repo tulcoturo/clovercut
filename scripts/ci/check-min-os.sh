@@ -67,8 +67,8 @@ minimum_of() {
   otool -l "$1" 2>/dev/null | awk '
     /LC_BUILD_VERSION/ { build = 1; next }
     /LC_VERSION_MIN_/  { legacy = 1; next }
-    build  && $1 == "minos"   { print $2; exit }
-    legacy && $1 == "version" { print $2; exit }'
+    build  && $1 == "minos" && !found   { print $2; found = 1 }
+    legacy && $1 == "version" && !found { print $2; found = 1 }'
 }
 
 for path in ${lazy[@]+"${lazy[@]}"}; do

@@ -80,7 +80,7 @@ for depth in 12 10; do
   extra=()
   [ "$depth" != 12 ] || extra=(-DMAIN12=ON)
   cmake -S "$work/x265/source" -B "$work/x265-$depth" "${x265_options[@]}" \
-    -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF "${extra[@]}"
+    -DHIGH_BIT_DEPTH=ON -DEXPORT_C_API=OFF ${extra[@]+"${extra[@]}"}
   cmake --build "$work/x265-$depth" --parallel "$jobs"
 done
 mkdir "$work/x265-8"
@@ -109,9 +109,11 @@ source_of svt-av1
 cmake_library svt-av1 -DBUILD_APPS=OFF -DBUILD_TESTING=OFF -DNATIVE=OFF
 source_of dav1d
 meson_library dav1d -Denable_tools=false -Denable_examples=false -Denable_tests=false
+source_of libsamplerate
+cmake_library libsamplerate -DLIBSAMPLERATE_EXAMPLES=OFF -DBUILD_TESTING=OFF
 source_of rubberband
-# Built-in resampling and Apple's vDSP avoid dragging in Homebrew's libsndfile chain.
-meson_library rubberband -Dfft=vdsp -Dresampler=builtin -Djni=disabled -Dladspa=disabled \
+# Preserve the previous libsamplerate backend without Homebrew's libsndfile/CLI chain.
+meson_library rubberband -Dfft=vdsp -Dresampler=libsamplerate -Djni=disabled -Dladspa=disabled \
   -Dlv2=disabled -Dvamp=disabled -Dcmdline=disabled -Dtests=disabled
 
 source_of ffmpeg
@@ -130,7 +132,8 @@ mkdir "$work/ffmpeg-build"
   && make -j "$jobs" && make install)
 # transpose_vt needs VTPixelRotationSessionCreate (macOS 13). Clovercut rotates
 # with its own renderer; retain VideoToolbox decoding/encoding on Monterey.
-if nm -u "$prefix"/lib/libavfilter*.dylib | grep -q VTPixelRotationSession; then
+nm -u "$prefix"/lib/libavfilter*.dylib > "$work/filter-imports.txt"
+if grep -q VTPixelRotationSession "$work/filter-imports.txt"; then
   echo 'Monterey-incompatible rotation API remains in libavfilter' >&2
   exit 1
 fi

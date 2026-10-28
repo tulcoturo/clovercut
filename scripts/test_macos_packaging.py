@@ -17,6 +17,7 @@ else:
  data=json.loads(path.read_text())
  if data.get('minimum'):
   print('cmd LC_VERSION_MIN_MACOSX\\nversion '+data['minimum'] if data.get('legacy') else 'cmd LC_BUILD_VERSION\\nminos '+data['minimum'])
+ if data.get('large'): print('unused load command details\\n' * 100000)
 '''
 
 
@@ -85,3 +86,8 @@ class MinimumOS(unittest.TestCase):
 
     def test_no_macho_files_is_not_a_qualified_bundle(self):
         self.assertNotEqual(self.check('--enforce').returncode, 0)
+
+    def test_large_load_command_output_does_not_fail_with_a_broken_pipe(self):
+        self.binary('large.macho', '12.0', large=True)
+        result = self.check('--enforce')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
