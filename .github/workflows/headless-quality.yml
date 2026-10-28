@@ -12,6 +12,8 @@ on:
   push:
     paths:
       - '.github/workflows/headless-quality.yml'
+      - 'scripts/ci/check-min-os.sh'
+      - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
       - 'src/crates/concat-host/src/projects.rs'
@@ -36,6 +38,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/headless-quality.yml'
+      - 'scripts/ci/check-min-os.sh'
+      - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
       - 'src/crates/concat-host/src/projects.rs'
@@ -76,6 +80,7 @@ jobs:
           persist-credentials: false
       - name: Structured report regressions
         run: |
+          python3 -m unittest discover -s scripts -p test_macos_packaging.py -v
           python3 -m unittest discover -s scripts -p test_ci_timings.py -v
           python3 -m unittest discover -s scripts -p test_performance_report.py -v
       - name: The pinned toolchain
