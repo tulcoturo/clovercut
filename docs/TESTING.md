@@ -264,3 +264,23 @@ documentation-test overhead. Reported child RSS high-water marks were below
 520 MiB; they are not aggregate concurrent-process memory. All commands passed.
 This establishes a repeatable headless development baseline, not a before/after
 desktop speedup or a runtime performance budget.
+
+## Transcription and speech request ownership
+
+The caption and speech panes share a small completion owner. From `src/`:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings crates/concat/src/request_owner.rs -o /tmp/clovercut-request-owner-tests
+/tmp/clovercut-request-owner-tests
+```
+
+Three cases cover cancelled/reset owners, an old completion arriving after a
+replacement on the same timeline, and completion after switching timelines.
+An obsolete completion must leave the current payload intact; a valid result can
+be consumed only once. These checks run in headless CI. Two ordinary pane cases
+also verify that obsolete replies do not clear the newer busy state and that
+destination changes release the completed job without applying it.
+
+These are deterministic ownership checks, not model inference or interactive
+transcription/playback qualification. Speech placement and style are captured
+with the initiating request; existing project-epoch guards remain in place.

@@ -120,7 +120,8 @@ preserves that media.
   link cycles/broken targets, and treats directories as missing media. A match
   by name does not establish recording identity.
 - **Implemented:** project-scoped picker results and project/timeline-owned
-  sound/sticker actions reject obsolete replies. Preview request revisions
+  sound/sticker actions reject obsolete replies. Transcription/speech results own
+  a distinct request and timeline, and cannot consume newer job state. Preview request revisions
   preserve newer choices. Owned audio reuse compares content, preserving distinct
   equal-sized recordings and symbolic-link targets.
 - **Verified fixtures:** 20 offline catalogue/API/session cases cover pagination,

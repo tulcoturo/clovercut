@@ -42,6 +42,7 @@ use crate::panes::Msg;
 use crate::panes::captions::CHARS_PER_SECOND;
 use crate::panes::pace::{Pace, Stage, Timings};
 use crate::panes::settings::installed;
+use crate::request_owner::{Completion, Pending};
 use crate::studio::Studio;
 use crate::ui::{NewVoiceData, SpeechSheetData};
 
@@ -177,10 +178,10 @@ pub enum SpeechMsg {
     Begin,
     Cancel,
     /// The synthesiser's worker reporting where it is, `0..=1`.
-    Progress(JobStage),
+    Progress(u64, JobStage),
     /// The synthesiser's worker is done: the file it wrote, probed, or
     /// why not.
-    Finished(Box<Result<MediaSummary, String>>),
+    Finished(u64, Box<Result<MediaSummary, String>>),
 }
 
 /// The Voices shelf's New voice sheet: a recording from the system's
@@ -207,6 +208,15 @@ pub struct NewVoice {
     listening: bool,
     /// A save running.
     saving: bool,
+}
+
+/// Immutable destination and settings owned by one speech worker.
+#[derive(Clone, Debug)]
+struct Reading {
+    model: String,
+    chars: f32,
+    landing: f64,
+    style: Option<usize>,
 }
 
 /// The speech sheet's state.
@@ -244,12 +254,10 @@ pub struct SpeechPane {
     pub pace: Pace,
     /// The model and the length of the running read: what its timing is
     /// kept by.
-    reading: Option<(String, f32)>,
+    reading: Option<Pending<Reading>>,
     /// How long each model took this session, for the next read's bar.
     timings: Timings,
     pub message: String,
-    /// Where the running read will land on the timeline, in seconds.
-    landing: f64,
     /// Who can speak, from the voice model on disk.
     pub speakers: Vec<VoiceInfo>,
     /// The voices the user saved, newest first: rows of the voice list
@@ -493,13 +501,25 @@ impl SpeechPane {
             SpeechMsg::Cancel => {
                 studio.host.speech.cancel();
                 self.running = false;
+                self.reading = None;
                 self.open = false;
             }
-            SpeechMsg::Progress(stage) => self.pace.report(stage),
-            SpeechMsg::Finished(result) => {
-                self.running = false;
-                if let (Ok(_), Some((model, chars))) = (result.as_ref(), self.reading.take()) {
-                    self.timings.keep(&model, self.pace.learned(chars));
+            SpeechMsg::Progress(request, stage) => {
+                if self.reading.as_ref().is_some_and(|reading| {
+                    reading.accepts(request, &studio.project().active_timeline_id)
+                }) {
+                    self.pace.report(stage);
+                }
+            }
+            SpeechMsg::Finished(request, result) => {
+                let Some(reading) =
+                    self.take_finished_reading(request, &studio.project().active_timeline_id)
+                else {
+                    return;
+                };
+                if result.is_ok() {
+                    self.timings
+                        .keep(&reading.model, self.pace.learned(reading.chars));
                 }
                 match *result {
                     Ok(summary) => {
@@ -520,12 +540,12 @@ impl SpeechPane {
                         if let Some(media_id) = media_id {
                             let clip = studio.apply(Command::AddClipAtFirstFree {
                                 media_id,
-                                start: self.landing,
+                                start: reading.landing,
                             });
                             // In a style: its effects on the clip, as the
                             // library would put them there.
                             if let (Some(clip_id), Some(style)) =
-                                (clip, self.style.and_then(|row| STYLES.get(row)))
+                                (clip, reading.style.and_then(|row| STYLES.get(row)))
                             {
                                 studio.apply(Command::UpdateClip {
                                     clip_id,
@@ -559,9 +579,28 @@ impl SpeechPane {
         }
     }
 
+    /// An obsolete completion must not consume a newer read's destination.
+    fn take_finished_reading(&mut self, request: u64, timeline: &str) -> Option<Reading> {
+        match Pending::finish(&mut self.reading, request, timeline) {
+            Completion::Obsolete => None,
+            Completion::ContextChanged => {
+                self.running = false;
+                self.open = false;
+                None
+            }
+            Completion::Ready(value) => {
+                self.running = false;
+                Some(value)
+            }
+        }
+    }
+
     /// Reads the script on a worker: the WAV lands in the bin and on the
     /// timeline, at the title's start or at the playhead.
     fn run(&mut self, studio: &mut Studio) {
+        if self.running {
+            return;
+        }
         let text = self.text.trim().to_owned();
         if text.is_empty() {
             self.message = t("speech.nothingToReadYet");
@@ -639,7 +678,7 @@ impl SpeechPane {
             studio.prefs.tts_voice = Some(voice);
             studio.prefs.save(&studio.host.dirs);
         }
-        self.landing = self
+        let landing = self
             .clip
             .as_ref()
             .and_then(|id| studio.clip(id))
@@ -666,7 +705,16 @@ impl SpeechPane {
         }
         plan.push((Stage::Working, chars * per_char));
         self.pace = Pace::new(plan);
-        self.reading = Some((model.clone(), chars));
+        self.reading = Some(Pending::begin(
+            studio.project().active_timeline_id.clone(),
+            Reading {
+                model: model.clone(),
+                chars,
+                landing,
+                style: self.style,
+            },
+        ));
+        let request_id = self.reading.as_ref().unwrap().id();
         let request = concat_speech::tts::SpeakRequest {
             model_id: model,
             voice,
@@ -687,14 +735,17 @@ impl SpeechPane {
             move || {
                 let spoken = speech.speak(&dirs, &request, move |stage| {
                     on_ui_in_project(epoch, move |studio, _, _| {
-                        studio.handle(Msg::Speech(SpeechMsg::Progress(stage)));
+                        studio.handle(Msg::Speech(SpeechMsg::Progress(request_id, stage)));
                     });
                 })?;
                 let summary = media::probe(&spoken.path)?;
                 Ok::<_, String>(summary)
             },
-            |studio, _, _, result| {
-                studio.handle(Msg::Speech(SpeechMsg::Finished(Box::new(result))))
+            move |studio, _, _, result| {
+                studio.handle(Msg::Speech(SpeechMsg::Finished(
+                    request_id,
+                    Box::new(result),
+                )))
             },
         );
     }
@@ -1347,7 +1398,42 @@ fn avatar_hue(name: &str) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{avatar_hue, avatar_letter, insert_tag, voice_label};
+    use super::{Pending, Reading, SpeechPane, avatar_hue, avatar_letter, insert_tag, voice_label};
+
+    #[test]
+    fn delayed_speech_results_cannot_consume_a_new_destination_or_change_timeline() {
+        let old = Pending::begin("timeline-a".into(), ());
+        let reading = Pending::begin(
+            "timeline-a".into(),
+            Reading {
+                model: "fixture".into(),
+                chars: 12.0,
+                landing: 4.0,
+                style: Some(1),
+            },
+        );
+        let request = reading.id();
+        let mut pane = SpeechPane {
+            open: true,
+            running: true,
+            reading: Some(reading),
+            ..Default::default()
+        };
+        assert!(pane.take_finished_reading(old.id(), "timeline-a").is_none());
+        assert!(pane.running);
+        assert_eq!(pane.reading.as_ref().unwrap().id(), request);
+        let reading = pane.take_finished_reading(request, "timeline-a").unwrap();
+        assert_eq!((reading.landing, reading.style), (4.0, Some(1)));
+        assert!(!pane.running);
+        assert!(pane.take_finished_reading(request, "timeline-a").is_none());
+        pane.reading = Some(Pending::begin("timeline-a".into(), reading));
+        pane.running = true;
+        let request = pane.reading.as_ref().unwrap().id();
+        assert!(pane.take_finished_reading(request, "timeline-b").is_none());
+        assert!(!pane.running);
+        assert!(!pane.open);
+        assert!(pane.reading.is_none());
+    }
 
     /// An avatar is the first letter of the first name, in a colour the
     /// name settles: the same every time, one of the palette's eight.

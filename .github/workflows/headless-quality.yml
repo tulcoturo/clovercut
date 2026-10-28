@@ -21,6 +21,9 @@ on:
       - 'src/crates/concat/src/performance_metrics.rs'
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
+      - 'src/crates/concat/src/request_owner.rs'
+      - 'src/crates/concat/src/panes/captions.rs'
+      - 'src/crates/concat/src/panes/speech.rs'
       - 'src/crates/concat/src/panes/sounds.rs'
       - 'src/crates/concat/src/panes/relink.rs'
       - 'src/crates/concat/src/phase6_performance_tests.rs'
@@ -41,6 +44,9 @@ on:
       - 'src/crates/concat/src/performance_metrics.rs'
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
+      - 'src/crates/concat/src/request_owner.rs'
+      - 'src/crates/concat/src/panes/captions.rs'
+      - 'src/crates/concat/src/panes/speech.rs'
       - 'src/crates/concat/src/panes/sounds.rs'
       - 'src/crates/concat/src/panes/relink.rs'
       - 'src/crates/concat/src/phase6_performance_tests.rs'
@@ -96,6 +102,11 @@ jobs:
         run: |
           clippy-driver --edition 2024 --test -D warnings crates/concat/src/owned_audio.rs -o /tmp/clovercut-owned-audio-tests
           /tmp/clovercut-owned-audio-tests
+      - name: Background request ownership regressions
+        working-directory: src
+        run: |
+          clippy-driver --edition 2024 --test -D warnings crates/concat/src/request_owner.rs -o /tmp/clovercut-request-owner-tests
+          /tmp/clovercut-request-owner-tests
       - name: Lint editing and document logic
         working-directory: src
         run: cargo clippy --locked -p concat-core -p concat-project --all-targets -- -D warnings

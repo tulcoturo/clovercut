@@ -59,6 +59,11 @@ to confirm reusable cached downloads still work. Place two different recordings
 with the same filename and byte length: neither may silently reuse the other's
 owned copy. Time longer-file adoption to detect synchronous UI stalls.
 
+Repeat delayed-work checks for automatic captions and generated speech: cancel
+and start a new request, switch timeline before completion, and reopen the panel.
+Old progress/results must not end the new job or add captions/voice to another
+timeline. A successful speech result must retain its requested start and style.
+
 Exercise offline browsing, expired URLs, explicit login/reconnect, unavailable
 browser/runtime, port conflict and startup timeout where the environment permits.
 Record which cases use local fixtures and which use an actual provider. Check
