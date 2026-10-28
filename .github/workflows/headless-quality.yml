@@ -18,6 +18,7 @@ on:
       - 'scripts/test_ci_timings.py'
       - 'scripts/performance_report.py'
       - 'scripts/test_performance_report.py'
+      - 'src/crates/concat/src/enhance_plan.rs'
       - 'src/crates/concat/src/performance_metrics.rs'
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
@@ -41,6 +42,7 @@ on:
       - 'scripts/test_ci_timings.py'
       - 'scripts/performance_report.py'
       - 'scripts/test_performance_report.py'
+      - 'src/crates/concat/src/enhance_plan.rs'
       - 'src/crates/concat/src/performance_metrics.rs'
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
@@ -87,6 +89,11 @@ jobs:
         with:
           workspaces: src
           shared-key: headless-project
+      - name: Enhance request and estimate planning regressions
+        working-directory: src
+        run: |
+          clippy-driver --edition 2024 --test -D warnings crates/concat/src/enhance_plan.rs -o /tmp/clovercut-enhance-plan-tests
+          /tmp/clovercut-enhance-plan-tests
       - name: Pure performance measurement regressions
         working-directory: src
         run: |
