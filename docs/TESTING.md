@@ -62,6 +62,17 @@ For connector-only changes, the manual **CI** dispatch offers `connector_only`.
 That run is labelled **Audio connector checks** and skips Rust compilation.
 Reusable release calls do not expose this selector and always run the engine.
 
+Manual **CI** dispatch also offers `desktop_qa` for the selected ignored desktop
+regressions, after the ordinary engine checks. It provisions Xvfb, a PulseAudio
+null sink and Mesa software rendering on the disposable runner. Twelve cases
+cover timeline policy/history/geometry/transport, playback sync/robustness,
+preview/export parity, source preview, durability, lifecycle and clipboard.
+They run serially and produce a separate JUnit report; absent/skipped cases fail
+qualification. Hardware/model/live-provider probes and the performance benchmark
+are excluded. This option does not establish visual, physical-device, real audio
+output, screen-reader or Windows/macOS qualification. A workflow definition alone
+does not establish that its selected tests have passed.
+
 Linux builds separately run `scripts/ci/smoke-native-linux.sh` in clean Debian 12
 and Fedora 43 containers: install, dependency resolution, version, graphical
 startup, reinstall, remove and user-data preservation. These checks require Docker
