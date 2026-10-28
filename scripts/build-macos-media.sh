@@ -7,7 +7,7 @@ set -euo pipefail
 [ "$(uname -s)" = Darwin ] || { echo 'macOS/Xcode build tools required' >&2; exit 2; }
 target=$1
 case "$target" in
-  aarch64-apple-darwin) arch=arm64; vpx_target=arm64-darwin-gcc;;
+  aarch64-apple-darwin) arch=arm64; vpx_target=arm64-darwin21-gcc;;
   x86_64-apple-darwin) arch=x86_64; vpx_target=x86_64-darwin20-gcc;;
   *) echo "unsupported target: $target" >&2; exit 2;;
 esac
