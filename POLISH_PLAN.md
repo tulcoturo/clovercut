@@ -24,8 +24,11 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Tooling and docs | Walkthrough opt-in; release/site/install metadata aligned; concise plan and portable QA checklist | State-driven screenshot driver and interactive checklist execution |
 
 Implemented behaviour is distinguished from interactive qualification below.
-The newest desktop changes are undergoing full CI and Linux/Windows candidate
-builds; the fast headless checks have passed. Release 0.1.9 binaries do not include
+The caption/speech changes passed 1,323 ordinary tests, 30 gRPC tests and
+workspace lint at `06438c6a`; Linux/Windows candidates passed at `4303d845`.
+The first virtual desktop attempt failed because its runner lacked an X11
+library; the corrected environment is being retested. macOS 12 packaging is
+being rebuilt from pinned sources after issue #2 exposed incompatible bottles. Release 0.1.9 binaries do not include
 these later fixes. In particular, avoid **Clear project cache** in 0.1.9: its broad
 cleanup can remove generated source media. The corrected development version
 preserves that media.
