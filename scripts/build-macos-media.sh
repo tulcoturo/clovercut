@@ -36,7 +36,6 @@ source_of() {
   local name=$1 strip=1
   "$root/scripts/ci/fetch.sh" "macos-source-$name" "$work/$name.tar"
   mkdir -p "$work/$name"
-  [ "$name" != aom ] || strip=0
   tar -xf "$work/$name.tar" -C "$work/$name" --strip-components="$strip"
   local license
   for license in "$work/$name"/COPYING* "$work/$name"/LICENSE* "$work/$name"/PATENTS* "$work/$name"/AUTHORS* "$work/$name"/NOTICE*; do

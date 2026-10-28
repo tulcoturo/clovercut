@@ -258,7 +258,7 @@ jobs:
         if: inputs.desktop_qa && !inputs.connector_only
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            xvfb xauth pulseaudio pulseaudio-utils libasound2-plugins vulkan-tools
+            xvfb xauth libxkbcommon-x11-0 pulseaudio pulseaudio-utils libasound2-plugins vulkan-tools
       - name: Selected desktop regressions with virtual display and audio
         if: inputs.desktop_qa && !inputs.connector_only
         timeout-minutes: 30
