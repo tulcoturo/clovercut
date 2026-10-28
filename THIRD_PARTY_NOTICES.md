@@ -11,10 +11,14 @@ FFmpeg is licensed under the LGPL-2.1-or-later; builds that include x264
 (which the H.264 export uses) are GPL-2.0-or-later. Concat's own sources are
 AGPL-3.0-or-later, and section 13 of the GPL-3.0 and AGPL-3.0 expressly
 permits linking the two, so a distributed build may be conveyed on those
-terms. Which FFmpeg a binary carries depends on the machine that built it:
-Homebrew's on macOS, a BtbN `gpl-shared` build
-(https://github.com/BtbN/FFmpeg-Builds) on Windows and Linux and in CI, and
-on Android and iOS an LGPL build without x264, compiled from FFmpeg's source
+terms.
+
+The macOS packaging recipe now builds pinned FFmpeg/codec sources for macOS 12
+using `scripts/build-macos-media.sh`, including their licences and source manifest
+in the app bundle. Published 0.1.9 macOS packages still carry Homebrew's build.
+Windows/Linux packages and their CI use a BtbN `gpl-shared` build
+(https://github.com/BtbN/FFmpeg-Builds). Android and iOS use an LGPL build
+without x264, compiled from FFmpeg's source
 by `src/scripts/ffmpeg-mobile.sh` and linked statically.
 FFmpeg source code: https://ffmpeg.org/download.html
 

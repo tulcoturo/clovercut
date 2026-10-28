@@ -49,6 +49,7 @@ cases still require Windows qualification; Linux runs do not execute them.
 | Models | `python3 scripts/models.py --check` | Python; no model inference |
 | Connector | `for file in src/crates/concat-host/audio-service/test/*.test.mjs; do node "$file" || exit; done` | Node 22+; loopback HTTP fixtures, no browser/account/external service |
 | Linux packages | `python3 -m unittest discover -s scripts -p test_linux_packaging.py -v` | Linux, dpkg-deb, RPM tools, makepkg/pacman; does not install on the host |
+| macOS minimum gate | `python3 -m unittest discover -s scripts -p test_macos_packaging.py -v` | Python/Bash; tool fixtures run without macOS |
 
 The Node suites report 20 cases at this increment: 11 catalogue/API, 6 preview
 language cases and 3 session-recovery cases. The API/session fixtures are shared
