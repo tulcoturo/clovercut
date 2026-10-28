@@ -757,7 +757,7 @@ fn subtest_multitrack_audio_and_gain() {
             insert_at: None,
         })
         .unwrap();
-    let clip2 = harness
+    harness
         .studio
         .apply(Command::AddClip {
             media_id: media2,
