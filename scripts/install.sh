@@ -44,6 +44,15 @@ privileged() {
  if [ "$(id -u)" -eq 0 ]; then "$@"
  else need sudo; sudo "$@"; fi
 }
+native_launcher() {
+ # An earlier portable install can precede /usr/bin in PATH. Keep custom
+ # launchers intact and identify the executable the shell will actually use.
+ launcher=$(command -v clovercut || :)
+ case "$launcher" in
+  ''|/usr/bin/clovercut|/bin/clovercut) ;;
+  *) echo "Your PATH selects $launcher. Run /usr/bin/clovercut to use the native package; review the existing launcher before removing it.";;
+ esac
+}
 appimage() {
  download AppImage
  if [ -n "${PREFIX:-}" ]; then prefix=$PREFIX
@@ -72,7 +81,7 @@ case "$distro" in
        'https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=clovercut-bin' 2>/dev/null \
        | sed -n 's/.*"Version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
      case "$aur_version" in
-      "$ver"-*) "$helper" -S clovercut-bin; echo 'AUR installation complete. Run clovercut.'; exit 0;;
+      "$ver"-*) "$helper" -S clovercut-bin; echo 'AUR installation complete. Run clovercut.'; native_launcher; exit 0;;
       *) echo "AUR version $ver is not confirmed; using the verified AppImage."; break;;
      esac
     fi
@@ -80,12 +89,12 @@ case "$distro" in
   fi;;
  *debian*|*ubuntu*|*mint*|*pop*)
   if have apt-get && [ -n "$(checksum "Clovercut-$ver-$arch.deb")" ]; then
-   download deb; privileged apt-get install -y "$work/$file"; exit 0
+   download deb; privileged apt-get install -y "$work/$file"; native_launcher; exit 0
   fi;;
  *fedora*|*rhel*|*centos*|*suse*|*opensuse*)
   if [ -n "$(checksum "Clovercut-$ver-$arch.rpm")" ]; then
-   if have dnf; then download rpm; privileged dnf install -y "$work/$file"; exit 0
-   elif have zypper; then download rpm; privileged zypper --non-interactive install "$work/$file"; exit 0; fi
+   if have dnf; then download rpm; privileged dnf install -y "$work/$file"; native_launcher; exit 0
+   elif have zypper; then download rpm; privileged zypper --non-interactive install "$work/$file"; native_launcher; exit 0; fi
   fi;;
 esac
 echo 'Using the portable AppImage (no supported native package/manager for this release).'

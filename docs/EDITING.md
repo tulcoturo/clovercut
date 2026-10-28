@@ -15,6 +15,21 @@ to use the same cut command as the toolbar and keyboard shortcut, respecting
 the current selection, track targeting and locked tracks. Its hover label follows
 the interface language. The button hides while using the hand tool or touch.
 
+### Cut timing
+
+The toolbar, menu, keyboard shortcut and playhead button use the playhead time
+without adding frame rounding. The razor rounds its pointer position to the
+nearest frame on the timeline's rational frame grid, including fractional rates
+such as 24000/1001. Frame stepping also follows that grid. Both cut paths respect
+locked tracks and reject cuts too close to a clip's ends.
+
+Moving and trimming can use continuous time with snapping disabled, including
+audio edits between video frames. This polish preserves those timing rules;
+the existing cut-characterisation suite records the differences between entry
+points. Align the playhead with frame stepping when a frame-aligned cut is needed.
+
+### Layout
+
 The timeline toolbar's plus button adds a timeline. Tabs appear when there is
 more than one timeline; existing rename, close and reorder actions remain.
 Automatic track heights use 80 px for the main video (the manual Medium height),
@@ -158,5 +173,8 @@ names are found. Filename matching does not establish that two copies contain th
 same recording; review the result when folders contain duplicate names.
 
 Successful replacements remain one undoable batch. Files that cannot be found
-stay in the missing-media dialog. Interactive qualification of this workflow
-remains separate from the filesystem-search checks.
+stay in the missing-media dialog. Searching runs in the background; Cancel or a
+project change prevents its results from being applied. A delayed result cannot
+replace media whose path has since changed or which has already been restored.
+Interactive qualification of this workflow remains separate from the filesystem
+and request-ownership checks.

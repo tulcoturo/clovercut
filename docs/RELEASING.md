@@ -53,6 +53,12 @@ Missing fixture generation or screenshots fail the run. The driver still uses
 timed steps; captures require visual review and do not replace interactive focus,
 accessibility or cross-platform checks.
 
+This is a screenshot fixture, not an end-to-end qualification: asynchronous
+imports can outlast a step, missing-media and save-warning dialogs are staged,
+and the export steps configure a dialog without completing an export. Do not
+use its completion or screenshots as evidence of successful recovery or export.
+State-driven waits and real failure scenarios remain open work.
+
 ## Prepare a release
 
 1. Set the workspace version in `src/Cargo.toml` and the workspace lockfile entries.

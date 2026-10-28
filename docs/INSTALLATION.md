@@ -12,6 +12,11 @@ On Arch-based distributions, an AUR helper is used only if the AUR reports the
 selected release version. If the AUR is behind or unavailable, the installer uses
 the checksum-verified AppImage instead.
 
+When moving from an AppImage to a native package, an existing launcher in
+`~/.local/bin` or `/usr/local/bin` may still come first in `PATH`. The installer
+reports that path and preserves it. Run `/usr/bin/clovercut` to use the native
+package, then review the older launcher before removing it.
+
 Manual installation (x86_64 examples; use `aarch64` for ARM64):
 
 ```bash

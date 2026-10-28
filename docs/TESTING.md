@@ -223,9 +223,41 @@ clippy-driver --edition 2024 --test -D warnings crates/concat/src/relink_search.
 /tmp/clovercut-relink-search-tests
 ```
 
-Five cases cover nearest duplicate selection, stable equal-depth selection,
-broken links, valid links with directory cycles, and empty/missing searches.
+Eight cases cover nearest duplicate selection, stable equal-depth selection,
+broken links, valid links with directory cycles, empty/missing searches,
+cancellation, request ownership and delayed replacement eligibility.
 The two symlink cases run on Unix; other targets compile the applicable cases.
 The headless CI runs these checks on relevant changes without Slint/native media
 libraries. It does not execute the graphical dialog, decode candidate files or
 prove that identical filenames refer to the same recording.
+
+## Project-owned audio copies
+
+From `src/`, check the same destination-selection helper used by the sound library:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings crates/concat/src/owned_audio.rs -o /tmp/clovercut-owned-audio-tests
+/tmp/clovercut-owned-audio-tests
+```
+
+Two cases verify reuse of identical content, separation of equally sized but
+different recordings, and preservation of valid/broken symbolic-link targets.
+Comparison streams fixed-size blocks rather than loading a recording into memory.
+These checks run in headless CI. They do not qualify interactive download,
+playback or large-file copy latency.
+
+## Controlled headless build baseline
+
+The [three-pair local baseline](audits/data/2026-10-28-headless-build-baseline.json)
+uses Rust 1.93.1, two CPU cores/build jobs and the same debug/codegen settings for
+each repetition. Each pair starts with a new Cargo target directory and cached
+offline dependencies, then repeats compilation and runs the tests with the same
+target. OS disk caches are uncontrolled. Wall times include process setup and up
+to 0.1 seconds of observation delay; short warm timings are approximate.
+
+Artifact-cold test compilation took 17.337–17.443 seconds, warm compilation about
+0.2 seconds, and the warm test command about 0.7 seconds, including Cargo and
+documentation-test overhead. Reported child RSS high-water marks were below
+520 MiB; they are not aggregate concurrent-process memory. All commands passed.
+This establishes a repeatable headless development baseline, not a before/after
+desktop speedup or a runtime performance budget.

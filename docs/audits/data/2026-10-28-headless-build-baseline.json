@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "source_sha": "a74980e9c3793b76ba11cb235a34328b4ca209b7",
+  "rust_source_dirty": false,
+  "scope": "concat-core and concat-project only; no generated UI or native media libraries",
+  "platform": "Linux-7.2.8-9-omarchy-x86_64-with-glibc2.44",
+  "rustc": "rustc 1.93.1 (01f6ddf75 2026-02-11)",
+  "cargo": "cargo 1.93.1 (083ac5135 2025-12-15)",
+  "affinity_cpu_ids": [
+    0,
+    1
+  ],
+  "build_jobs": 2,
+  "address_space_limit_bytes_per_process": 4294967296,
+  "available_memory_guard_bytes": 2621440000,
+  "profile": {
+    "dev_and_test_debug": 0,
+    "dev_and_test_codegen_units": 16
+  },
+  "cache_policy": {
+    "dependencies": "already downloaded, offline",
+    "cold": "fresh Cargo target directory for each repetition",
+    "warm": "same target immediately after cold command",
+    "os_disk_cache": "uncontrolled"
+  },
+  "rss_definition": "wait4 ru_maxrss, Linux KiB; reported child high-water mark, not aggregate concurrent process memory",
+  "execution_definition": "warm cargo test, includes Cargo and documentation-test overhead",
+  "full_desktop_or_runtime_budget_qualified": false,
+  "samples": [
+    {
+      "repetition": 1,
+      "cold_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 17.443,
+        "reported_max_rss_kib": 510868,
+        "exit_code": 0
+      },
+      "warm_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 0.201,
+        "reported_max_rss_kib": 103612,
+        "exit_code": 0
+      },
+      "warm_test_command": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project"
+        ],
+        "wall_seconds": 0.702,
+        "reported_max_rss_kib": 177244,
+        "exit_code": 0
+      }
+    },
+    {
+      "repetition": 2,
+      "cold_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 17.345,
+        "reported_max_rss_kib": 519008,
+        "exit_code": 0
+      },
+      "warm_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 0.201,
+        "reported_max_rss_kib": 105260,
+        "exit_code": 0
+      },
+      "warm_test_command": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project"
+        ],
+        "wall_seconds": 0.702,
+        "reported_max_rss_kib": 175360,
+        "exit_code": 0
+      }
+    },
+    {
+      "repetition": 3,
+      "cold_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 17.337,
+        "reported_max_rss_kib": 518596,
+        "exit_code": 0
+      },
+      "warm_artifact_compile": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project",
+          "--no-run",
+          "--timings"
+        ],
+        "wall_seconds": 0.201,
+        "reported_max_rss_kib": 103032,
+        "exit_code": 0
+      },
+      "warm_test_command": {
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "concat-core",
+          "-p",
+          "concat-project"
+        ],
+        "wall_seconds": 0.702,
+        "reported_max_rss_kib": 175800,
+        "exit_code": 0
+      }
+    }
+  ],
+  "observation_interval_seconds": 0.1,
+  "wall_time_definition": "monotonic elapsed from fork to wait4 observation; includes process setup and up to 0.1 seconds polling delay"
+}

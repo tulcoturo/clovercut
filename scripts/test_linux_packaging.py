@@ -86,6 +86,17 @@ class Installer(unittest.TestCase):
         self.assertTrue(sudo[-1].endswith('.deb'))
         self.assertFalse((self.r / 'home/.local/bin/clovercut').exists())
 
+    def test_native_install_reports_existing_launcher_that_shadows_package(self):
+        launcher = self.mock / 'clovercut'
+        original = b'#!/bin/sh\necho previous portable installation\n'
+        launcher.write_bytes(original)
+        launcher.chmod(0o755)
+        result = self.run_install(RELEASE='0.1.9', NATIVE='1')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(launcher.read_bytes(), original)
+        self.assertIn(str(launcher), result.stdout)
+        self.assertIn('/usr/bin/clovercut', result.stdout)
+
     def test_opensuse_uses_zypper(self):
         (self.mock / 'dnf').unlink()
         result = self.run_install('opensuse', RELEASE='0.1.9', NATIVE='1')
