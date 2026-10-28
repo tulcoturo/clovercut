@@ -16,7 +16,7 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Area | Result | Remaining qualification |
 |---|---|---|
 | Test correctness | Seek timeouts cannot count as success; export matrix probes encoded output and final content; misleading parity name corrected | Ignored graphical/audio transport and parity suites need a dedicated session |
-| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | Prior-version native upgrade needs a second native release; reinstall is already qualified |
+| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | macOS 12 source-runtime candidates still need successful packages and Monterey execution; prior-version native upgrade needs a second native release |
 | Development cost | Headless core/project/storage feedback; CI timing report; three controlled headless cold/warm pairs | Full desktop cold/warm comparison and any UI extraction prototype remain unqualified |
 | Desktop feedback | Shared icon accessibility, translated recovery/cache feedback, documented cut policy | Keyboard, screen reader, scaling, RTL and complete mouse/keyboard journey |
 | Responsiveness | Shared Enhance estimate policy; cancellable background relink; structured runtime probes | Runtime baselines, repeated lifecycle/memory plateau and large-file audio-copy latency |
@@ -26,8 +26,9 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 Implemented behaviour is distinguished from interactive qualification below.
 The caption/speech changes passed 1,323 ordinary tests, 30 gRPC tests and
 workspace lint at `06438c6a`; Linux/Windows candidates passed at `4303d845`.
-The first virtual desktop attempt failed because its runner lacked an X11
-library; the corrected environment is being retested. macOS 12 packaging is
+The virtual desktop environment now executes twelve cases: six passed and six
+failed. Track/gain fixtures and device-clock assertions have been corrected;
+the corrected cases are being retested. macOS 12 packaging is
 being rebuilt from pinned sources after issue #2 exposed incompatible bottles. Release 0.1.9 binaries do not include
 these later fixes. In particular, avoid **Clear project cache** in 0.1.9: its broad
 cleanup can remove generated source media. The corrected development version
@@ -43,9 +44,11 @@ preserves that media.
   execution of ignored tests.
 - **Decision:** keep shader, output-preservation, ownership, cancellation and
   undo coverage. Keep 4K fixtures where resolution is part of the contract.
-- **Pending environment:** execute the applicable ignored desktop transport,
-  preview/export, clipboard and shutdown suites in an isolated graphical/audio
-  session. Preserve evidence by source, platform and adapter.
+- **In validation:** the isolated virtual desktop job now executes twelve
+  transport, preview/export, clipboard and shutdown cases. Its first functional
+  run passed six and failed six; fixture and device-clock corrections need a
+  successful rerun. Preserve exact source/platform/adapter evidence. Physical
+  audio, accessibility and visual qualification remain separate.
 
 ## 2. CI and releases — P0
 
