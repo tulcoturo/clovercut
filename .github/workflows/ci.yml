@@ -1,5 +1,5 @@
 name: CI
-run-name: ${{ inputs.connector_only && 'Audio connector checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
 
 # Run the full engine checks manually or when preparing a release.
 # Ordinary pushes and pull requests do not start this graphical build.
@@ -19,6 +19,10 @@ on:
         default: ""
       connector_only:
         description: Check only the bundled audio connector (no Rust compilation)
+        type: boolean
+        default: false
+      desktop_qa:
+        description: Also run the selected ignored desktop regressions with virtual display/audio
         type: boolean
         default: false
   # release.yml runs this before it builds anything: a tag on a red tree
@@ -249,6 +253,51 @@ jobs:
           cargo nextest run -p concat-server --features grpc --profile ci 2>&1 | tee nextest-grpc.log || status=$?
           mv target/nextest/ci/junit.xml target/nextest/ci/junit-grpc.xml 2>/dev/null || true
           exit "$status"
+
+      - name: Virtual desktop prerequisites (isolated runner only)
+        if: inputs.desktop_qa && !inputs.connector_only
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            xvfb xauth pulseaudio pulseaudio-utils libasound2-plugins vulkan-tools
+      - name: Selected desktop regressions with virtual display and audio
+        if: inputs.desktop_qa && !inputs.connector_only
+        timeout-minutes: 30
+        working-directory: src
+        run: |
+          set -euo pipefail
+          qa_root=$(mktemp -d)
+          export XDG_RUNTIME_DIR="$qa_root/runtime"
+          export XDG_CONFIG_HOME="$qa_root/config"
+          export XDG_DATA_HOME="$qa_root/data"
+          export XDG_CACHE_HOME="$qa_root/cache"
+          export XDG_STATE_HOME="$qa_root/state"
+          mkdir -m 700 "$XDG_RUNTIME_DIR"
+          mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME"
+          trap 'pulseaudio --kill || true; rm -rf "$qa_root"' EXIT
+          pulseaudio --start --exit-idle-time=-1 --load='module-null-sink sink_name=clovercut_qa'
+          export PULSE_SERVER="unix:$XDG_RUNTIME_DIR/pulse/native"
+          export PULSE_COOKIE="$XDG_CONFIG_HOME/pulse/cookie"
+          pactl set-default-sink clovercut_qa
+          export ALSA_CONFIG_PATH="$qa_root/asound.conf"
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$ALSA_CONFIG_PATH"
+          export CONCAT_GPU=software
+          status=0
+          xvfb-run -a -s '-screen 0 1920x1080x24' bash -euo pipefail -c '
+            rustc --version
+            vulkaninfo --summary
+            pactl info
+            cargo nextest run --locked -p concat --lib --profile ci --build-jobs 1 \
+              --test-threads 1 --run-ignored only \
+              -E "test(phase3_timeline_tests::) | test(phase4_) | test(new_project_library_and_timeline_playback) | test(committed_warning_preserves_edits_and_allows_close) | test(switch_and_shutdown_with_running_work) | test(clipboard_tests::)"
+          ' 2>&1 | tee nextest-desktop.log || status=$?
+          mv target/nextest/ci/junit.xml target/nextest/ci/junit-desktop.xml 2>/dev/null || true
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          cases = ET.parse('target/nextest/ci/junit-desktop.xml').findall('.//testcase')
+          assert len(cases) >= 12, f'Expected the 12 selected desktop cases, got {len(cases)}'
+          assert not any(case.find('skipped') is not None for case in cases), 'Selected desktop cases were skipped'
+          PY
 
       - name: Keep test results and timings
         if: always()
