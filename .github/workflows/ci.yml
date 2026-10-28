@@ -1,5 +1,5 @@
 name: CI
-run-name: ${{ inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.macos_toolchain_probe && 'macOS toolchain probe' || inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
 
 # Run the full engine checks manually or when preparing a release.
 # Ordinary pushes and pull requests do not start this graphical build.
@@ -41,7 +41,7 @@ on:
 
 # Manual checks and release checks keep independent source refs.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ inputs.macos_toolchain_probe && 'macos-probe' || inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -327,6 +327,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - name: Compare default and explicit host SDK configuration
         shell: bash
