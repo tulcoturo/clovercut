@@ -746,11 +746,14 @@ jobs:
     - name: Build pinned media runtime for macOS 12
       if: steps.macos-media.outputs.cache-hit != 'true'
       timeout-minutes: 60
-      run: scripts/build-macos-media.sh ${{ matrix.target }} "src/vendor/macos-media/${{ matrix.target }}"
+      run: |
+        scripts/build-macos-media.sh ${{ matrix.target }} "src/vendor/macos-media/${{ matrix.target }}"
+        test -f "src/vendor/macos-media/${{ matrix.target }}/.clovercut-media-complete"
     - name: Validate media runtime and codecs
       run: |
         set -euo pipefail
         prefix="$PWD/src/vendor/macos-media/${{ matrix.target }}"
+        test -f "$prefix/.clovercut-media-complete"
         scripts/ci/check-min-os.sh "$prefix" "$MACOSX_DEPLOYMENT_TARGET" --enforce
         python3 scripts/ci/smoke-macos-media.py "$prefix"
     - name: Monterey media runtime (save)

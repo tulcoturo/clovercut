@@ -29,7 +29,7 @@ export LDFLAGS="-mmacosx-version-min=12.0 -isysroot $sdk -L$prefix/lib"
 unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH CMAKE_PREFIX_PATH PKG_CONFIG_PATH
 export PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig"
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+trap 'status=$?; trap - EXIT; rm -rf "$work"; exit "$status"' EXIT
 mkdir -p "$prefix/lib" "$prefix/include" "$prefix/share/licenses"
 
 source_of() {
@@ -144,4 +144,5 @@ awk '$1 ~ /^macos-source-/ { print }' "$root/scripts/ci/deps.lock" > "$prefix/sh
   "$prefix/bin/ffmpeg" -hide_banner -buildconf
 } > "$prefix/share/media-build.txt" 2>&1
 "$root/scripts/ci/check-min-os.sh" "$prefix" 12.0 --enforce
+touch "$prefix/.clovercut-media-complete"
 printf 'Built Monterey media runtime at %s\n' "$prefix"
