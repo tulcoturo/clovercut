@@ -162,7 +162,9 @@ the existing gRPC second pass for now: its measured cost is only 5.644 seconds.
   working file/folder links remain usable and non-file targets are excluded.
   Exact-basename matching and the existing undoable relink batch are preserved.
 - Five focused cases, direct Clippy, formatting and workflow lint passed locally.
-  Symlink cases are Unix-specific. The search remains synchronous; this increment
+  The [expanded headless CI](https://github.com/tulcoturo/clovercut/actions/runs/40702927565)
+  also passed on `c657bfbc`. Symlink cases are Unix-specific.
+  The search remains synchronous; this increment
   does not qualify large-tree UI responsiveness or candidate recording identity.
   Graphical relink/undo qualification remains pending.
 
