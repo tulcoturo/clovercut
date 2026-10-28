@@ -46,9 +46,10 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
+          package-manager-cache: false
       - name: Catalogue, session and Studio preview regressions
         # Direct execution uses node:test and propagates assertion failures.
         # Uses fixtures and loopback HTTP; no browser, credentials or external service.
