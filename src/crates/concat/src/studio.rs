@@ -15559,6 +15559,16 @@ mod lifecycle_tests {
             let root =
                 std::env::temp_dir().join(format!("clovercut-lifecycle-{}", std::process::id()));
             std::fs::create_dir(&root).unwrap();
+            let expected_tracks = ["Project A", "Project B"].map(|name| {
+                let info = projects::create(root.to_str().unwrap(), name, 64, 36, 10, 1).unwrap();
+                let initial = concat_host::Session::open_info(&info)
+                    .unwrap()
+                    .project()
+                    .active()
+                    .tracks
+                    .len();
+                (name, initial + 1)
+            });
             let output = std::process::Command::new(std::env::current_exe().unwrap())
                 .args([
                     "studio::lifecycle_tests::switch_and_shutdown_with_running_work",
@@ -15579,7 +15589,7 @@ mod lifecycle_tests {
             let success = output.status.success()
                 && String::from_utf8_lossy(&output.stdout).contains("lifecycle: ok");
             if success {
-                for name in ["Project A", "Project B"] {
+                for (name, expected) in expected_tracks {
                     let info = projects::open(root.join(name).to_str().unwrap()).unwrap();
                     assert_eq!(
                         concat_host::Session::open_info(&info)
@@ -15588,7 +15598,7 @@ mod lifecycle_tests {
                             .active()
                             .tracks
                             .len(),
-                        5
+                        expected
                     );
                 }
                 assert_eq!(
@@ -15635,8 +15645,8 @@ mod lifecycle_tests {
         let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
         let app = crate::ui::App::new().unwrap();
-        let a = projects::create(root.to_str().unwrap(), "Project A", 64, 36, 10, 1).unwrap();
-        let b = projects::create(root.to_str().unwrap(), "Project B", 64, 36, 10, 1).unwrap();
+        let a = projects::open(root.join("Project A").to_str().unwrap()).unwrap();
+        let b = projects::open(root.join("Project B").to_str().unwrap()).unwrap();
         studio.open_project(a.clone()).unwrap();
         let item = concat_host::media::probe(video.to_str().unwrap())
             .unwrap()
