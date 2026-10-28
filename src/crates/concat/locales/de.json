@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Ganzer Titel",
   "common.linkage": "Verknüpfung",
   "tray.linkage": "Verknüpfung: Untertitel, Titel, Overlays und Töne bewegen sich mit der Hauptspur",
-  "clipInspector.soundLayerTreatsTheMix": "Eine Tonebene bearbeitet alles, was zu hören ist, solange sie läuft. Kürze sie auf der Zeitleiste, um zu ändern, was sie abdeckt."
+  "clipInspector.soundLayerTreatsTheMix": "Eine Tonebene bearbeitet alles, was zu hören ist, solange sie läuft. Kürze sie auf der Zeitleiste, um zu ändern, was sie abdeckt.",
+  "relink.searching": "Medien werden gesucht…",
+  "relink.relinkedFiles": "Neu verknüpfte Medien: {0}/{1}",
+  "studio.cacheCleared": "Entfernte Vorschau-Cachedateien: {0}",
+  "studio.cacheClearFailed": "Vorschau-Cache konnte nicht geleert werden: {0}"
 }

@@ -269,7 +269,7 @@ impl CaptionsPane {
             }
             // Asked with the studio unborrowed, on a turn of its own; see
             // `host::after_dialog`.
-            CaptionsMsg::ImportSrt => crate::host::pick_files_then(
+            CaptionsMsg::ImportSrt => crate::host::pick_files_in_project(
                 t("captions.importSrt"),
                 Some((t("captions.subRipSubtitles"), &["srt"])),
                 |studio, _, _, paths| {
@@ -347,7 +347,7 @@ impl CaptionsPane {
         }
         let title = t("captions.exportSrt");
         let family = t("captions.subRipSubtitles");
-        crate::host::after_dialog(
+        crate::host::after_dialog_in_project(
             move || {
                 let chosen = crate::platform::save_file(
                     &title,

@@ -390,6 +390,38 @@ pub fn after_dialog<T: Send + 'static>(
     });
 }
 
+/// A project-owned dialog: discard it or its reply if the project changes.
+/// Native dialogs may pump timers, so capture the epoch before asking.
+pub fn after_dialog_in_project<T: Send + 'static>(
+    ask: impl FnOnce() -> Option<T> + Send + 'static,
+    then: impl FnOnce(&mut Studio, &App, &Models, T) + Send + 'static,
+) {
+    let epoch = project_epoch();
+    after_dialog(
+        move || if stale(Some(epoch)) { None } else { ask() },
+        move |studio, app, models, answer| {
+            if !stale(Some(epoch)) {
+                then(studio, app, models, answer);
+            }
+        },
+    );
+}
+
+/// A file picker whose result belongs only to the initiating project.
+/// Works for the asynchronous phone picker as well as the desktop dialog.
+pub fn pick_files_in_project(
+    title: String,
+    filter: Option<(String, &'static [&'static str])>,
+    then: impl FnOnce(&mut Studio, &App, &Models, Vec<std::path::PathBuf>) + Send + 'static,
+) {
+    let epoch = project_epoch();
+    pick_files_then(title, filter, move |studio, app, models, paths| {
+        if !stale(Some(epoch)) {
+            then(studio, app, models, paths);
+        }
+    });
+}
+
 /// [`after_dialog`] for files, on every platform. The desktop's dialog is
 /// asked on a turn of its own with the studio unborrowed. A phone's picker
 /// is another screen, which answers later from whichever thread it likes,

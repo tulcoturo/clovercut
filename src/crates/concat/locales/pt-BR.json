@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Título inteiro",
   "common.linkage": "Vinculação",
   "tray.linkage": "Vinculação: legendas, títulos, sobreposições e sons acompanham a faixa principal",
-  "clipInspector.soundLayerTreatsTheMix": "Uma camada de som trata tudo o que se ouve enquanto dura. Corte-a na linha do tempo para mudar o que ela cobre."
+  "clipInspector.soundLayerTreatsTheMix": "Uma camada de som trata tudo o que se ouve enquanto dura. Corte-a na linha do tempo para mudar o que ela cobre.",
+  "relink.searching": "Buscando arquivos de mídia…",
+  "relink.relinkedFiles": "Arquivos de mídia reconectados: {0}/{1}",
+  "studio.cacheCleared": "Arquivos removidos do cache de prévia: {0}",
+  "studio.cacheClearFailed": "Não foi possível limpar o cache de prévia: {0}"
 }

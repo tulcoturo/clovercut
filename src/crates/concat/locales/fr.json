@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Tout le titre",
   "common.linkage": "Liaison",
   "tray.linkage": "Liaison : sous-titres, titres, incrustations et sons suivent la piste principale",
-  "clipInspector.soundLayerTreatsTheMix": "Un calque sonore traite tout ce qu’on entend tant qu’il dure. Raccourcissez-le sur la timeline pour changer ce qu’il couvre."
+  "clipInspector.soundLayerTreatsTheMix": "Un calque sonore traite tout ce qu’on entend tant qu’il dure. Raccourcissez-le sur la timeline pour changer ce qu’il couvre.",
+  "relink.searching": "Recherche des médias…",
+  "relink.relinkedFiles": "Médias reliés : {0}/{1}",
+  "studio.cacheCleared": "Fichiers supprimés du cache d’aperçu : {0}",
+  "studio.cacheClearFailed": "Impossible de vider le cache d’aperçu : {0}"
 }

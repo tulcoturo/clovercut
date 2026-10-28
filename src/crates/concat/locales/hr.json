@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Cijeli naslov",
   "common.linkage": "Povezivanje",
   "tray.linkage": "Povezivanje: titlovi, naslovi, slojevi i zvukovi kreću se s glavnom stazom",
-  "clipInspector.soundLayerTreatsTheMix": "Zvučni sloj obrađuje sve što se čuje dok traje. Skrati ga na vremenskoj crti da promijeniš što pokriva."
+  "clipInspector.soundLayerTreatsTheMix": "Zvučni sloj obrađuje sve što se čuje dok traje. Skrati ga na vremenskoj crti da promijeniš što pokriva.",
+  "relink.searching": "Traženje medijskih datoteka…",
+  "relink.relinkedFiles": "Ponovno povezane medijske datoteke: {0}/{1}",
+  "studio.cacheCleared": "Uklonjene datoteke predmemorije pregleda: {0}",
+  "studio.cacheClearFailed": "Nije moguće očistiti predmemoriju pregleda: {0}"
 }

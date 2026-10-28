@@ -5250,7 +5250,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_media_ignores_existing_paths() {
+    fn missing_media_requires_regular_file_targets() {
         let mut project = Project::new();
 
         // Koristi Cargo.toml koji sigurno postoji
@@ -5283,6 +5283,15 @@ mod tests {
 
         let missing = project.missing_media();
         assert_eq!(missing.len(), 0);
+        // An existing directory cannot replace a media file. It must still
+        // appear in recovery rather than silently looking available.
+        project.media[0].path = std::env::current_dir()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let missing = project.missing_media();
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0].id, "m2");
     }
 
     #[test]

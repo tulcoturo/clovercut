@@ -971,7 +971,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             if shell.studio.borrow().session.is_none() {
                 return;
             }
-            host::pick_files_then(
+            host::pick_files_in_project(
                 i18n::t("lib.importMedia"),
                 Some((
                     i18n::t("common.media"),
@@ -2625,7 +2625,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                         // Asked with the studio unborrowed - it is
                         // borrowed for this whole match - and on a turn of
                         // its own; see `host::after_dialog`.
-                        "import" => host::pick_files_then(
+                        "import" => host::pick_files_in_project(
                             i18n::t("lib.importMedia"),
                             None,
                             |studio, _, _, paths| {

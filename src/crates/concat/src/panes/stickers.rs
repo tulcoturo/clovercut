@@ -30,13 +30,15 @@ pub enum StickersMsg {
     Thumbnail(u64, String, concat_core::frame::Frame),
     Fetched(
         u64,
+        u64,
         String,
-        bool,
+        Option<u64>,
         Option<String>,
         f64,
         Result<PathBuf, String>,
     ),
     Adopted(
+        u64,
         u64,
         String,
         String,
@@ -79,6 +81,9 @@ pub struct StickersPane {
     pub more: bool,
     pub loading: bool,
     pub pending: String,
+    pending_request: u64,
+    pending_epoch: u64,
+    pending_timeline: String,
     pub error: String,
 }
 impl Default for StickersPane {
@@ -100,6 +105,9 @@ impl Default for StickersPane {
             more: false,
             loading: false,
             pending: String::new(),
+            pending_request: 0,
+            pending_epoch: 0,
+            pending_timeline: String::new(),
             error: String::new(),
         }
     }
@@ -129,6 +137,7 @@ impl StickersPane {
         self.generation.fetch_add(1, Ordering::Relaxed);
         self.loading = false;
         self.pending.clear();
+        self.pending_request = self.pending_request.wrapping_add(1);
         self.results.clear();
         self.known.clear();
         self.thumbnails.clear();
@@ -243,8 +252,16 @@ impl StickersPane {
             },
         );
     }
-    fn fetch(&mut self, id: &str, preview: bool, track: Option<String>, start: f64) {
-        if !self.pending.is_empty() {
+    fn fetch(
+        &mut self,
+        id: &str,
+        preview: Option<u64>,
+        track: Option<String>,
+        start: f64,
+        timeline: String,
+    ) {
+        let epoch = crate::host::project_epoch();
+        if !self.pending.is_empty() && self.pending_epoch == epoch {
             return;
         }
         let Some(sticker) = self.get(id).cloned() else {
@@ -263,12 +280,15 @@ impl StickersPane {
         self.pending = id.to_owned();
         self.error.clear();
         let id = id.to_owned();
-        let epoch = crate::host::project_epoch();
+        self.pending_epoch = epoch;
+        self.pending_timeline = timeline;
+        self.pending_request = self.pending_request.wrapping_add(1);
+        let request = self.pending_request;
         crate::host::spawn(
             move || giphy::original(&sticker, &scratch),
             move |studio, _, _, result| {
                 studio.handle(Msg::Stickers(StickersMsg::Fetched(
-                    epoch, id, preview, track, start, result,
+                    epoch, request, id, preview, track, start, result,
                 )))
             },
         );
@@ -340,8 +360,25 @@ impl StickersPane {
                     let _ = crate::platform::open_link(&sticker.source);
                 }
             }
-            StickersMsg::Preview(id) => self.fetch(&id, true, None, 0.0),
-            StickersMsg::Place(id, track, start) => self.fetch(&id, false, track, start),
+            StickersMsg::Preview(id) => {
+                if self.pending.is_empty() || self.pending_epoch != crate::host::project_epoch() {
+                    let request = studio.next_preview_request();
+                    self.fetch(
+                        &id,
+                        Some(request),
+                        None,
+                        0.0,
+                        studio.project().active_timeline_id.clone(),
+                    );
+                }
+            }
+            StickersMsg::Place(id, track, start) => self.fetch(
+                &id,
+                None,
+                track,
+                start,
+                studio.project().active_timeline_id.clone(),
+            ),
             StickersMsg::Loaded(generation, result) => {
                 if generation != self.generation.load(Ordering::Relaxed) {
                     return;
@@ -386,9 +423,14 @@ impl StickersPane {
                     self.thumbnails.insert(id, crate::host::image_of(&frame));
                 }
             }
-            StickersMsg::Fetched(epoch, id, preview, track, start, result) => {
+            StickersMsg::Fetched(epoch, request, id, preview, track, start, result) => {
+                if request != self.pending_request {
+                    return;
+                }
                 self.pending.clear();
-                if epoch != crate::host::project_epoch() {
+                if epoch != crate::host::project_epoch()
+                    || self.pending_timeline != studio.project().active_timeline_id
+                {
                     return;
                 }
                 match result {
@@ -399,8 +441,10 @@ impl StickersPane {
                         let Some(sticker) = self.get(&id).cloned() else {
                             return;
                         };
-                        if preview {
-                            studio.preview_file(&format!("giphy:{id}"), &sticker.title, &path);
+                        if let Some(request) = preview {
+                            if request == studio.source_revision {
+                                studio.preview_file(&format!("giphy:{id}"), &sticker.title, &path);
+                            }
                         } else {
                             let Some(project) =
                                 studio.session.as_ref().map(|s| PathBuf::from(s.path()))
@@ -415,6 +459,7 @@ impl StickersPane {
                                 move |studio, _, _, result| {
                                     studio.handle(Msg::Stickers(StickersMsg::Adopted(
                                         epoch,
+                                        request,
                                         id,
                                         name,
                                         track,
@@ -427,9 +472,14 @@ impl StickersPane {
                     }
                 }
             }
-            StickersMsg::Adopted(epoch, sticker_id, name, track, start, result) => {
+            StickersMsg::Adopted(epoch, request, sticker_id, name, track, start, result) => {
+                if request != self.pending_request {
+                    return;
+                }
                 self.pending.clear();
-                if epoch != crate::host::project_epoch() {
+                if epoch != crate::host::project_epoch()
+                    || self.pending_timeline != studio.project().active_timeline_id
+                {
                     return;
                 }
                 match *result {

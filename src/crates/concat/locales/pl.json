@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Cały tytuł",
   "common.linkage": "Powiązanie",
   "tray.linkage": "Powiązanie: napisy, tytuły, nakładki i dźwięki przesuwają się z główną ścieżką",
-  "clipInspector.soundLayerTreatsTheMix": "Warstwa dźwięku przetwarza wszystko, co słychać, dopóki trwa. Przytnij ją na osi czasu, aby zmienić, co obejmuje."
+  "clipInspector.soundLayerTreatsTheMix": "Warstwa dźwięku przetwarza wszystko, co słychać, dopóki trwa. Przytnij ją na osi czasu, aby zmienić, co obejmuje.",
+  "relink.searching": "Wyszukiwanie multimediów…",
+  "relink.relinkedFiles": "Ponownie połączone multimedia: {0}/{1}",
+  "studio.cacheCleared": "Usunięte pliki pamięci podręcznej podglądu: {0}",
+  "studio.cacheClearFailed": "Nie udało się wyczyścić pamięci podręcznej podglądu: {0}"
 }

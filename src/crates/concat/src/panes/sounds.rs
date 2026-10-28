@@ -32,6 +32,9 @@ use crate::panes::Msg;
 use crate::studio::Studio;
 use crate::ui::{SoundCardData, VoiceCardData};
 
+#[path = "../owned_audio.rs"]
+mod owned_audio;
+
 /// The prefix of a card id on the Mine shelf.
 const MINE: &str = "mine-";
 /// The prefix of a card id on the Concat shelf.
@@ -59,7 +62,7 @@ pub enum ConcatState {
 #[derive(Clone, Debug)]
 pub enum Then {
     /// Play it.
-    Preview,
+    Preview(u64),
     /// Lay it on this lane, or the first with room, at this moment.
     Place(Option<String>, f64),
 }
@@ -104,6 +107,14 @@ pub enum SoundsMsg {
     Fetched(String, Result<PathBuf, String>),
 }
 
+struct Download {
+    progress: f32,
+    epoch: u64,
+    timeline: String,
+    action: Then,
+    listed: sounds::Listed,
+}
+
 /// The page's state.
 #[derive(Default)]
 pub struct SoundsPane {
@@ -125,7 +136,7 @@ pub struct SoundsPane {
     /// Search text last submitted to the source.
     pub query: String,
     /// Downloads running, by card: how far, and what to do once in.
-    fetching: HashMap<String, (f32, Then, sounds::Listed)>,
+    fetching: HashMap<String, Download>,
     /// Stops the downloads when the window goes.
     cancel: Arc<AtomicBool>,
     /// Where the downloads go: the app's data folder.
@@ -300,14 +311,23 @@ impl SoundsPane {
                 }
             }
             SoundsMsg::Fetching(card, done) => {
-                if let Some((progress, _, _)) = self.fetching.get_mut(&card) {
-                    *progress = done;
+                if let Some(download) = self.fetching.get_mut(&card) {
+                    download.progress = done;
                 }
             }
             SoundsMsg::Fetched(card, result) => {
-                let Some((_, then, listed)) = self.fetching.remove(&card) else {
+                let Some(download) = self.fetching.remove(&card) else {
                     return;
                 };
+                let Download {
+                    epoch,
+                    timeline,
+                    action: then,
+                    listed,
+                    ..
+                } = download;
+                let current = epoch == crate::host::project_epoch()
+                    && timeline == studio.project().active_timeline_id;
                 let name = listed.name.clone();
                 match result {
                     Ok(path) => {
@@ -325,14 +345,21 @@ impl SoundsPane {
                                 *row = resolved;
                             }
                         }
+                        if !current {
+                            return;
+                        }
                         match then {
-                            Then::Preview => studio.preview_file(&card, &name, &path),
+                            Then::Preview(request) => {
+                                if request == studio.source_revision {
+                                    studio.preview_file(&card, &name, &path);
+                                }
+                            }
                             Then::Place(track_id, start) => {
                                 studio.place_sound(&name, &path, track_id, start);
                             }
                         }
                     }
-                    Err(error) if error == "cancelled" => {}
+                    Err(error) if error == "cancelled" || !current => {}
                     Err(error) => {
                         let error = if listed.id.starts_with("ytcc-") {
                             youtube_error(&error)
@@ -390,7 +417,12 @@ impl SoundsPane {
                 if let Some((name, path)) = self.file_of(&card) {
                     studio.preview_file(&card, &name, &path);
                 } else {
-                    self.fetch(&card, Then::Preview);
+                    let request = studio.next_preview_request();
+                    self.fetch(
+                        &card,
+                        Then::Preview(request),
+                        studio.project().active_timeline_id.clone(),
+                    );
                 }
             }
             SoundsMsg::Add(card) => {
@@ -398,7 +430,11 @@ impl SoundsPane {
                 if let Some((name, path)) = self.file_of(&card) {
                     studio.place_sound(&name, &path, None, start);
                 } else {
-                    self.fetch(&card, Then::Place(None, start));
+                    self.fetch(
+                        &card,
+                        Then::Place(None, start),
+                        studio.project().active_timeline_id.clone(),
+                    );
                 }
             }
             SoundsMsg::Remove(card) => {
@@ -458,16 +494,26 @@ impl SoundsPane {
 
     /// Downloads a Concat sound on a worker, then does `then` with it. A
     /// second ask while it comes only changes what is done with it.
-    pub fn fetch(&mut self, card: &str, then: Then) {
+    pub fn fetch(&mut self, card: &str, then: Then, timeline: String) {
         let (Some(sound), Some(dirs)) = (self.listed(card).cloned(), self.dirs.clone()) else {
             return;
         };
-        if let Some((_, held, _)) = self.fetching.get_mut(card) {
-            *held = then;
+        if let Some(held) = self.fetching.get_mut(card) {
+            held.action = then;
+            held.epoch = crate::host::project_epoch();
+            held.timeline = timeline;
             return;
         }
-        self.fetching
-            .insert(card.to_owned(), (0.0, then, sound.clone()));
+        self.fetching.insert(
+            card.to_owned(),
+            Download {
+                progress: 0.0,
+                epoch: crate::host::project_epoch(),
+                timeline,
+                action: then,
+                listed: sound.clone(),
+            },
+        );
         let cancel = Arc::clone(&self.cancel);
         let (key, done) = (card.to_owned(), card.to_owned());
         crate::host::spawn(
@@ -529,7 +575,10 @@ impl SoundsPane {
             .iter()
             .map(|sound| {
                 let card = format!("{CONCAT}{}", sound.id);
-                let progress = self.fetching.get(&card).map_or(-1.0, |(done, _, _)| *done);
+                let progress = self
+                    .fetching
+                    .get(&card)
+                    .map_or(-1.0, |download| download.progress);
                 SoundCardData {
                     ready: sounds::cached_file(dirs, sound).is_file(),
                     id: card.into(),
@@ -750,7 +799,9 @@ impl Studio {
         } else {
             // One of Concat's not downloaded yet: it lands where it was
             // dropped once it is in.
-            self.sounds.fetch(card, Then::Place(track_id, start));
+            let timeline = self.project().active_timeline_id.clone();
+            self.sounds
+                .fetch(card, Then::Place(track_id, start), timeline);
         }
     }
 
@@ -784,8 +835,8 @@ impl Studio {
 
     /// The bin's id for a library sound in this project: its copy in the
     /// project's `audio` folder, made and imported when it is not there
-    /// yet. A file of that name that is not this sound - another size -
-    /// leaves it alone and the copy takes a numbered name.
+    /// yet. A file of that name with different content is left alone,
+    /// even when its byte length matches; the new copy takes a numbered name.
     fn adopt_sound(&mut self, name: &str, path: &Path) -> Result<String, String> {
         let project = self
             .session
@@ -793,9 +844,6 @@ impl Studio {
             .map(|session| PathBuf::from(session.path()))
             .ok_or_else(|| t("sounds.openProjectFirst"))?;
         let folder = project.join("audio");
-        let size = std::fs::metadata(path)
-            .map_err(|error| format!("{}: {error}", path.display()))?
-            .len();
         let stem = path
             .file_stem()
             .map(|stem| stem.to_string_lossy().into_owned())
@@ -804,14 +852,7 @@ impl Studio {
             .extension()
             .map(|extension| format!(".{}", extension.to_string_lossy()))
             .unwrap_or_default();
-        let mut target = folder.join(format!("{stem}{extension}"));
-        let mut n = 2;
-        while target.exists()
-            && std::fs::metadata(&target).map(|meta| meta.len()).ok() != Some(size)
-        {
-            target = folder.join(format!("{stem} {n}{extension}"));
-            n += 1;
-        }
+        let target = owned_audio::destination(path, &folder, &stem, &extension);
         let target_text = target.to_string_lossy().into_owned();
         if let Some(item) = self
             .project()

@@ -99,9 +99,16 @@ pub(crate) fn picture_name<'a>(
 }
 
 impl Studio {
+    /// Invalidate pending previews when a newer preview or timeline action wins.
+    pub fn next_preview_request(&mut self) -> u64 {
+        self.source_revision = self.source_revision.wrapping_add(1);
+        self.source_revision
+    }
+
     /// A card was clicked. A sound plays, or pauses when it is the one
     /// playing; a picture goes on the monitor, paused at its start.
     pub fn preview_media(&mut self, media_id: &str, row: i32) {
+        self.next_preview_request();
         if let Some(source) = self.source.as_ref()
             && source.media_id == media_id
             && source.card.is_empty()
@@ -167,6 +174,7 @@ impl Studio {
     /// pauses when it is the one playing. `card` names it for its card's
     /// playing line.
     pub fn preview_file(&mut self, card: &str, name: &str, path: &std::path::Path) {
+        self.next_preview_request();
         if let Some(source) = self.source.as_ref()
             && source.card == card
         {
@@ -243,6 +251,7 @@ impl Studio {
     /// Back to the timeline: its picture on the monitor, its sound in the
     /// speakers, the transport where the playhead was.
     pub fn close_source(&mut self) {
+        self.next_preview_request();
         let Some(source) = self.source.take() else {
             return;
         };

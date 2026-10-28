@@ -1112,6 +1112,8 @@ pub struct Studio {
     /// A file from the library lent the monitor and the speakers; see
     /// `crate::source`.
     pub source: Option<crate::source::Source>,
+    /// Latest user intent for library/bin preview; late downloads cannot replace it.
+    pub(crate) source_revision: u64,
     /// The VU meters' feed; see `crate::meters`.
     pub meters: crate::meters::MeterFeed,
     /// The voiceover take, while one runs.
@@ -2502,6 +2504,7 @@ impl Studio {
             sounds: crate::panes::sounds::SoundsPane::open(&host.dirs),
             stickers: crate::panes::stickers::StickersPane::open(&host.dirs),
             source: None,
+            source_revision: 0,
             meters: crate::meters::MeterFeed::default(),
             voiceover: crate::panes::voiceover::VoiceoverPane::default(),
             text_presets,
@@ -8455,7 +8458,7 @@ impl Studio {
         let title = t("lib.exportAudio");
         let family = t("lib.wavAudio");
         let ask_in = out_dir.clone();
-        crate::host::after_dialog(
+        crate::host::after_dialog_in_project(
             move || {
                 if cfg!(any(target_os = "android", target_os = "ios")) {
                     return Some(ask_in.join(&suggested));
@@ -9528,7 +9531,7 @@ impl Studio {
         let title = t("lib.saveFrame");
         let family = t("lib.pngImage");
         // With the studio unborrowed too; see `host::after_dialog`.
-        crate::host::after_dialog(
+        crate::host::after_dialog_in_project(
             move || {
                 if cfg!(any(target_os = "android", target_os = "ios")) {
                     return Some(out_dir.join(&suggested));
@@ -10280,8 +10283,8 @@ impl Studio {
             return;
         };
         match concat_host::projects::clear_cache(&path) {
-            Ok(count) => self.notify(&format!("Cleared {count} cache files"), false),
-            Err(error) => self.notify(&format!("Cache clear failed: {error}"), true),
+            Ok(count) => self.notify(&tf("studio.cacheCleared", &[&count]), false),
+            Err(error) => self.notify(&tf("studio.cacheClearFailed", &[&error]), true),
         }
         self.request_media_art();
         self.request_preview();

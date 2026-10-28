@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "제목 전체",
   "common.linkage": "연결",
   "tray.linkage": "연결: 자막, 제목, 오버레이, 소리가 메인 트랙과 함께 움직입니다",
-  "clipInspector.soundLayerTreatsTheMix": "사운드 레이어는 재생되는 동안 들리는 모든 소리를 처리합니다. 적용 범위를 바꾸려면 타임라인에서 잘라 주세요."
+  "clipInspector.soundLayerTreatsTheMix": "사운드 레이어는 재생되는 동안 들리는 모든 소리를 처리합니다. 적용 범위를 바꾸려면 타임라인에서 잘라 주세요.",
+  "relink.searching": "미디어 검색 중…",
+  "relink.relinkedFiles": "다시 연결된 미디어: {0}/{1}",
+  "studio.cacheCleared": "삭제된 미리보기 캐시 파일: {0}",
+  "studio.cacheClearFailed": "미리보기 캐시를 지울 수 없습니다: {0}"
 }

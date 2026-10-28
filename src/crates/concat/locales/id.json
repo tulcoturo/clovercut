@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Seluruh judul",
   "common.linkage": "Tautan",
   "tray.linkage": "Tautan: teks, judul, overlay, dan suara ikut bergeser bersama trek utama",
-  "clipInspector.soundLayerTreatsTheMix": "Lapisan suara mengolah semua yang terdengar selama ia berjalan. Pangkas di linimasa untuk mengubah bagian yang dicakupnya."
+  "clipInspector.soundLayerTreatsTheMix": "Lapisan suara mengolah semua yang terdengar selama ia berjalan. Pangkas di linimasa untuk mengubah bagian yang dicakupnya.",
+  "relink.searching": "Mencari media…",
+  "relink.relinkedFiles": "Media ditautkan ulang: {0}/{1}",
+  "studio.cacheCleared": "Berkas cache pratinjau dihapus: {0}",
+  "studio.cacheClearFailed": "Tidak dapat menghapus cache pratinjau: {0}"
 }

@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "整个标题",
   "common.linkage": "联动",
   "tray.linkage": "联动：字幕、文字、画中画和音频随主轨道一起移动",
-  "clipInspector.soundLayerTreatsTheMix": "声音图层在播放期间会处理听到的所有声音。在时间线上修剪它即可改变覆盖范围。"
+  "clipInspector.soundLayerTreatsTheMix": "声音图层在播放期间会处理听到的所有声音。在时间线上修剪它即可改变覆盖范围。",
+  "relink.searching": "正在搜索媒体…",
+  "relink.relinkedFiles": "已重新链接的媒体：{0}/{1}",
+  "studio.cacheCleared": "已删除的预览缓存文件：{0}",
+  "studio.cacheClearFailed": "无法清除预览缓存：{0}"
 }

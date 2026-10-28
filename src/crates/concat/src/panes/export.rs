@@ -170,7 +170,7 @@ impl ExportPane {
             ExportMsg::Browse => {
                 let title = i18n::t("export.exportTo");
                 let current = self.folder.clone();
-                crate::host::after_dialog(
+                crate::host::after_dialog_in_project(
                     move || platform::pick_folder(&title, &current),
                     |studio, _, _, folder| {
                         studio.handle(Msg::Export(ExportMsg::FolderChosen(

@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "タイトル全体",
   "common.linkage": "リンク",
   "tray.linkage": "リンク：字幕・テキスト・オーバーレイ・音声がメイントラックと一緒に動く",
-  "clipInspector.soundLayerTreatsTheMix": "サウンドレイヤーは、再生されている間に聞こえるすべての音を処理します。範囲を変えるにはタイムラインでトリミングしてください。"
+  "clipInspector.soundLayerTreatsTheMix": "サウンドレイヤーは、再生されている間に聞こえるすべての音を処理します。範囲を変えるにはタイムラインでトリミングしてください。",
+  "relink.searching": "メディアを検索中…",
+  "relink.relinkedFiles": "再リンクしたメディア: {0}/{1}",
+  "studio.cacheCleared": "削除したプレビューキャッシュファイル: {0}",
+  "studio.cacheClearFailed": "プレビューキャッシュを消去できませんでした: {0}"
 }

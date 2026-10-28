@@ -4,14 +4,15 @@
 //! The missing media dialog: what a project cannot find, and one folder
 //! to look for it in.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::{Arc, atomic::AtomicBool};
 
 use concat_project::Command;
 use concat_project::model::MissingMedia;
 use slint::VecModel;
 
-use crate::i18n::t;
+use crate::i18n::{t, tf};
 use crate::platform;
 use crate::studio::Studio;
 use crate::ui::{MissingMediaItem, RelinkData};
@@ -31,6 +32,12 @@ pub enum RelinkMsg {
     RelinkAll,
     /// The folder the picker answered with: look inside it.
     RelinkIn(PathBuf),
+    /// A project-owned worker replied; only the current request may apply it.
+    SearchFinished {
+        token: Arc<AtomicBool>,
+        items: Vec<(String, String)>,
+        index: HashMap<String, PathBuf>,
+    },
     Dismiss,
 }
 
@@ -42,6 +49,7 @@ pub struct RelinkPane {
     /// The media whose dialog the user closed: no dialog mentions them
     /// again until they come back and go missing anew.
     dismissed: HashSet<String>,
+    job: Option<search::Job>,
 }
 
 impl RelinkPane {
@@ -58,7 +66,7 @@ impl RelinkPane {
             // message of its own; see `host::after_dialog`.
             RelinkMsg::RelinkAll => {
                 let title = t("relink.selectFolderContainingMedia");
-                crate::host::after_dialog(
+                crate::host::after_dialog_in_project(
                     move || platform::pick_folder(&title, ""),
                     |studio, _, _, folder| {
                         studio.handle(crate::panes::Msg::Relink(RelinkMsg::RelinkIn(folder)));
@@ -66,6 +74,11 @@ impl RelinkPane {
                 );
             }
             RelinkMsg::RelinkIn(folder) => self.relink_in(studio, folder),
+            RelinkMsg::SearchFinished {
+                token,
+                items,
+                index,
+            } => self.finish_relink(studio, token, items, index),
             RelinkMsg::Dismiss => self.dismiss(),
         }
     }
@@ -74,7 +87,8 @@ impl RelinkPane {
     /// does. A dismissal is about the project it was made in, so one from
     /// an earlier project is forgotten here.
     fn show(&mut self, items: Vec<MissingMedia>) {
-        self.open = true;
+        self.job = None;
+        self.open = !items.is_empty();
         self.items = items;
         self.dismissed.clear();
     }
@@ -85,16 +99,26 @@ impl RelinkPane {
     fn recheck(&mut self, missing: Vec<MissingMedia>) {
         let still: HashSet<&str> = missing.iter().map(|item| item.id.as_str()).collect();
         self.dismissed.retain(|id| still.contains(id.as_str()));
-        self.items = missing
+        let items: Vec<_> = missing
             .into_iter()
             .filter(|item| !self.dismissed.contains(&item.id))
             .collect();
+        if !self
+            .items
+            .iter()
+            .map(|item| (&item.id, &item.path))
+            .eq(items.iter().map(|item| (&item.id, &item.path)))
+        {
+            self.job = None;
+        }
+        self.items = items;
         self.open = !self.items.is_empty();
     }
 
     /// Closes the dialog, and keeps it closed for what it was listing
     /// until those files are back and go missing again.
     fn dismiss(&mut self) {
+        self.job = None;
         self.dismissed
             .extend(self.items.iter().map(|item| item.id.clone()));
         self.open = false;
@@ -105,6 +129,9 @@ impl RelinkPane {
     /// inside it. Successful relinks go through the editor as
     /// `UpdateMediaPath`, so undo covers the whole batch.
     fn relink_in(&mut self, studio: &mut Studio, folder: PathBuf) {
+        if !self.open || studio.session.is_none() {
+            return;
+        }
         // Snapshot the missing list now: as relinks land the list shrinks,
         // and we want a stable target for the toast count.
         let items: Vec<(String, String)> = self
@@ -118,10 +145,6 @@ impl RelinkPane {
             return;
         }
 
-        if studio.session.is_none() {
-            return;
-        }
-
         let wanted: HashSet<String> = items
             .iter()
             .filter_map(|(_, path)| {
@@ -131,26 +154,51 @@ impl RelinkPane {
                     .map(str::to_owned)
             })
             .collect();
-        let index = search::find_named_files(&folder, &wanted);
+        let job = search::Job::default();
+        let token = job.token();
+        let worker_cancel = Arc::clone(&token);
+        self.job = Some(job);
+        crate::host::spawn_in_project(
+            move || search::find_named_files(&folder, &wanted, &worker_cancel),
+            move |studio, _, _, index| {
+                studio.handle(crate::panes::Msg::Relink(RelinkMsg::SearchFinished {
+                    token,
+                    items,
+                    index,
+                }));
+            },
+        );
+    }
 
-        let mut relinked = 0usize;
-        let mut commands: Vec<Command> = Vec::new();
-        for (id, path) in items {
-            let Some(basename) = std::path::Path::new(&path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_owned())
-            else {
-                continue;
-            };
-            if let Some(found) = index.get(&basename) {
-                commands.push(Command::UpdateMediaPath {
-                    media_id: id,
-                    new_path: found.to_string_lossy().to_string(),
-                });
-                relinked += 1;
-            }
+    fn finish_relink(
+        &mut self,
+        studio: &mut Studio,
+        token: Arc<AtomicBool>,
+        items: Vec<(String, String)>,
+        index: HashMap<String, PathBuf>,
+    ) {
+        if !self.job.as_ref().is_some_and(|job| job.accepts(&token)) {
+            return;
         }
+        self.job = None;
+        if studio.session.is_none() || !self.open {
+            return;
+        }
+        let total = items.len();
+        let missing: HashMap<_, _> = studio
+            .project()
+            .missing_media()
+            .into_iter()
+            .map(|item| (item.id, item.path))
+            .collect();
+        let proposed = search::replacements(&items, &missing, &index);
+        let commands: Vec<_> = proposed
+            .iter()
+            .map(|(id, target)| Command::UpdateMediaPath {
+                media_id: id.clone(),
+                new_path: target.clone(),
+            })
+            .collect();
 
         if !commands.is_empty() {
             studio.apply(Command::Batch { commands });
@@ -162,6 +210,16 @@ impl RelinkPane {
         // relinked here and lost again is news.
         let remaining = studio.project().missing_media();
         let still: HashSet<&str> = remaining.iter().map(|item| item.id.as_str()).collect();
+        let relinked = proposed
+            .iter()
+            .filter(|(id, target)| {
+                !still.contains(id.as_str())
+                    && studio
+                        .project()
+                        .media_by_id(id)
+                        .is_some_and(|item| &item.path == target)
+            })
+            .count();
         self.dismissed.retain(|id| still.contains(id.as_str()));
         if remaining.is_empty() {
             self.open = false;
@@ -170,13 +228,7 @@ impl RelinkPane {
             self.items = remaining;
         }
 
-        studio.notify(
-            &format!(
-                "Relinked {relinked} of {total} file{}",
-                if total == 1 { "" } else { "s" }
-            ),
-            false,
-        );
+        studio.notify(&tf("relink.relinkedFiles", &[&relinked, &total]), false);
         studio.request_media_art();
         studio.request_preview();
     }
@@ -185,6 +237,7 @@ impl RelinkPane {
     pub fn data(&self) -> RelinkData {
         RelinkData {
             open: self.open,
+            searching: self.job.is_some(),
             items: slint::ModelRc::new(VecModel::from(
                 self.items
                     .iter()
@@ -224,7 +277,15 @@ mod tests {
     fn a_dismissed_file_stays_quiet_while_it_is_missing() {
         let mut pane = RelinkPane::default();
         pane.recheck(vec![missing("m1", "/gone/a.mp4")]);
+        pane.job = Some(search::Job::default());
+        let token = pane.job.as_ref().unwrap().token();
+        pane.recheck(vec![missing("m1", "/gone/a.mp4")]);
+        assert!(
+            pane.job.as_ref().unwrap().accepts(&token),
+            "unchanged focus checks must not cancel work"
+        );
         pane.dismiss();
+        assert!(token.load(std::sync::atomic::Ordering::Relaxed));
         assert!(!pane.open, "dismissing closes the dialog");
 
         pane.recheck(vec![missing("m1", "/gone/a.mp4")]);

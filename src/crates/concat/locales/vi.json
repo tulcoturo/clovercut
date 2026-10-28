@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Cả tiêu đề",
   "common.linkage": "Liên kết",
   "tray.linkage": "Liên kết: phụ đề, tiêu đề, lớp phủ và âm thanh di chuyển cùng track chính",
-  "clipInspector.soundLayerTreatsTheMix": "Lớp âm thanh xử lý mọi thứ nghe được trong suốt thời gian nó chạy. Cắt nó trên dòng thời gian để thay đổi phần nó bao phủ."
+  "clipInspector.soundLayerTreatsTheMix": "Lớp âm thanh xử lý mọi thứ nghe được trong suốt thời gian nó chạy. Cắt nó trên dòng thời gian để thay đổi phần nó bao phủ.",
+  "relink.searching": "Đang tìm tệp phương tiện…",
+  "relink.relinkedFiles": "Tệp phương tiện đã liên kết lại: {0}/{1}",
+  "studio.cacheCleared": "Tệp bộ nhớ đệm xem trước đã xóa: {0}",
+  "studio.cacheClearFailed": "Không thể xóa bộ nhớ đệm xem trước: {0}"
 }

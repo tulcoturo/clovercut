@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Tüm başlık",
   "common.linkage": "Bağlantı",
   "tray.linkage": "Bağlantı: altyazılar, başlıklar, katmanlar ve sesler ana parçayla birlikte kayar",
-  "clipInspector.soundLayerTreatsTheMix": "Ses katmanı sürdüğü boyunca duyulan her şeyi işler. Kapsadığı yeri değiştirmek için zaman çizelgesinde kırpın."
+  "clipInspector.soundLayerTreatsTheMix": "Ses katmanı sürdüğü boyunca duyulan her şeyi işler. Kapsadığı yeri değiştirmek için zaman çizelgesinde kırpın.",
+  "relink.searching": "Medya aranıyor…",
+  "relink.relinkedFiles": "Yeniden bağlanan medya: {0}/{1}",
+  "studio.cacheCleared": "Silinen önizleme önbelleği dosyaları: {0}",
+  "studio.cacheClearFailed": "Önizleme önbelleği temizlenemedi: {0}"
 }

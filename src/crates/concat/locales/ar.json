@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "العنوان كله",
   "common.linkage": "الربط",
   "tray.linkage": "الربط: تتحرك الترجمات والعناوين والطبقات والأصوات مع المسار الرئيسي",
-  "clipInspector.soundLayerTreatsTheMix": "تعالج طبقة الصوت كل ما تسمعه طوال مدة تشغيلها. قصّها على المخطط الزمني لتغيير ما تغطيه."
+  "clipInspector.soundLayerTreatsTheMix": "تعالج طبقة الصوت كل ما تسمعه طوال مدة تشغيلها. قصّها على المخطط الزمني لتغيير ما تغطيه.",
+  "relink.searching": "جارٍ البحث عن الوسائط…",
+  "relink.relinkedFiles": "الوسائط المعاد ربطها: {0}/{1}",
+  "studio.cacheCleared": "ملفات ذاكرة المعاينة المؤقتة المحذوفة: {0}",
+  "studio.cacheClearFailed": "تعذر مسح ذاكرة المعاينة المؤقتة: {0}"
 }

@@ -1096,5 +1096,9 @@
   "textPanel.wholeTitle": "Whole title",
   "common.linkage": "Linkage",
   "tray.linkage": "Linkage: captions, titles, overlays and sounds move with the main track",
-  "clipInspector.soundLayerTreatsTheMix": "A sound layer treats everything you hear for as long as it runs. Trim it on the timeline to change what it covers."
+  "clipInspector.soundLayerTreatsTheMix": "A sound layer treats everything you hear for as long as it runs. Trim it on the timeline to change what it covers.",
+  "relink.searching": "Searching for media…",
+  "relink.relinkedFiles": "Media relinked: {0}/{1}",
+  "studio.cacheCleared": "Preview cache files removed: {0}",
+  "studio.cacheClearFailed": "Could not clear preview cache: {0}"
 }
