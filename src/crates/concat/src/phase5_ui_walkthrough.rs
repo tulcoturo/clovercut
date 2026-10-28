@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
-//! Phase 5 Task 5.1: Baseline UI/UX Walkthrough Driver.
+//! Optional Hyprland/grim screenshot fixture for editor states and layouts.
 //!
-//! Automated sequence driving the real Slint/Vulkan window to exercise
-//! and capture visual evidence for all 9 required workflows:
-//! 1. First launch and project creation (start screen & compose dialog)
-//! 2. Media import and library browsing (media pane, cards, metadata)
-//! 3. Timeline editing, selection, split, trim, and undo/redo
-//! 4. Inspector controls and property editing (transform, opacity, speed)
-//! 5. Caption creation and styling (captions sheet & text inspector)
-//! 6. Media relinking and missing-file handling (relink dialog)
-//! 7. Save failure and recovery feedback (confirm dialog / durability warning)
-//! 8. Playback, monitor controls, and seeking (GPU monitor, playhead, VU meters)
-//! 9. Export configuration, progress, completion, and error feedback (export dialog)
-//! 10. Maximized 1080p layout comparison.
+//! Timed steps do not wait for asynchronous imports or assert every edit.
+//! Missing-media and save-warning dialogs are staged; export steps configure
+//! the dialog without completing an export. Captures require visual review.
+//! Fixture or screenshot failure stops the driver, but reaching its last step
+//! does not qualify recovery, playback, export, keyboard or accessibility.
+//! Use docs/DESKTOP_QA.md for the interactive qualification checklist.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
