@@ -428,6 +428,7 @@ fn run_audio_device_recovery() {
 
     let began = Instant::now();
     let mut error_injected = false;
+    let mut injected_position = 0.0;
     let mut initial_rebuild_count = 0;
     let timer = slint::Timer::default();
 
@@ -437,8 +438,14 @@ fn run_audio_device_recovery() {
         move || {
             let studio = shell.studio.borrow_mut();
 
-            // After 300ms of active playback, record baseline and inject failure
-            if !error_injected && began.elapsed() >= Duration::from_millis(300) {
+            let pos = studio.host.playback.position_now();
+            let rebuilds = studio.host.playback.rebuild_count();
+            assert!(
+                began.elapsed() < Duration::from_secs(5),
+                "Timed out waiting for playback/recovery: position={pos:.3}, injected={error_injected}, rebuilds={rebuilds}"
+            );
+            // Inject after actual device-clock progress, allowing sink startup.
+            if !error_injected && pos >= 0.3 {
                 initial_rebuild_count = studio.host.playback.rebuild_count();
                 println!("Initial stream build count: {initial_rebuild_count}");
                 assert!(
@@ -448,12 +455,13 @@ fn run_audio_device_recovery() {
 
                 println!("Injecting controlled audio stream error...");
                 studio.host.playback.inject_stream_error();
+                injected_position = pos;
                 error_injected = true;
                 return;
             }
 
-            // After 1000ms, verify that supervisor recovered the stream
-            if error_injected && began.elapsed() >= Duration::from_millis(1200) {
+            // Require both a replacement stream and further transport progress.
+            if error_injected && rebuilds > initial_rebuild_count && pos >= injected_position + 0.5 {
                 let new_rebuild_count = studio.host.playback.rebuild_count();
                 println!("Current stream build count after recovery: {new_rebuild_count}");
                 assert!(
@@ -466,7 +474,7 @@ fn run_audio_device_recovery() {
                     "Playback position after recovery: {pos:.3} s (playing={})",
                     studio.playing
                 );
-                assert!(pos > 0.5, "Playback position must advance through recovery");
+                assert!(studio.playing, "Recovery must leave transport playing");
 
                 let _ = std::fs::remove_dir_all(&dir);
                 println!("Audio device error & supervisor recovery: PASS");

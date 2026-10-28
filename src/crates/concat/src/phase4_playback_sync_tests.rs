@@ -708,10 +708,15 @@ fn run_cuts_and_transitions() {
             let mut studio = shell.studio.borrow_mut();
             let pos = studio.host.playback.position_now();
 
-            if pos >= 3.5 || began.elapsed() >= Duration::from_millis(1500) {
+            // Sink startup is separate from transport progress. A deadline
+            // is a failure; only the device clock crossing the cut can pass.
+            assert!(
+                began.elapsed() < Duration::from_secs(5),
+                "Timed out before transport crossed the cut: position={pos:.3}"
+            );
+            if pos >= 3.5 {
                 studio.pause();
-                println!("Playback smoothly crossed 3.0s cut boundary to position {pos:.3} s");
-                assert!(pos >= 3.2, "Transport must play through cut");
+                println!("Playback crossed 3.0s cut boundary to position {pos:.3} s");
                 let _ = std::fs::remove_dir_all(&dir);
                 println!("Cuts test: PASS");
                 slint::quit_event_loop().unwrap();
