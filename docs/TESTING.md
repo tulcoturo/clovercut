@@ -5,6 +5,9 @@ in [building](RELEASING.md). Run Python/Node commands from the repository root.
 Use full commit SHAs for workflow `ref` inputs; checkout does not resolve an
 abbreviated SHA as a commit.
 
+Use the [desktop qualification checklist](DESKTOP_QA.md) for a fresh-profile,
+cross-platform editing journey. Its unexecuted rows are not passing results.
+
 ## Fast editing/document feedback
 
 Changes to `concat-core` and `concat-project` run **Headless quality checks** on

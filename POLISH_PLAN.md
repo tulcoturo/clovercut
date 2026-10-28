@@ -4,6 +4,8 @@ Updated 28 October 2026. Baseline: release 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
+The [desktop checklist](docs/DESKTOP_QA.md) defines the remaining interactive
+acceptance cases across platforms.
 
 The objective is predictable editing, trustworthy validation and fast feedback.
 There is no test-count reduction target. Preserve data, ownership, cancellation,
@@ -19,7 +21,7 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Desktop feedback | Shared icon accessibility, translated recovery/cache feedback, documented cut policy | Keyboard, screen reader, scaling, RTL and complete mouse/keyboard journey |
 | Responsiveness | Shared Enhance estimate policy; cancellable background relink; structured runtime probes | Runtime baselines, repeated lifecycle/memory plateau and large-file audio-copy latency |
 | Data and services | Recents/caches/relink fixes; project/timeline/request guards; audio content identity; deterministic service fixtures | Real graphical recovery, provider credentials and interactive playback |
-| Tooling and docs | Walkthrough opt-in; release/site/install metadata aligned; concise plan with linked evidence | State-driven screenshot driver and Windows/macOS interactive checklist execution |
+| Tooling and docs | Walkthrough opt-in; release/site/install metadata aligned; concise plan and portable QA checklist | State-driven screenshot driver and interactive checklist execution |
 
 Implemented behaviour is distinguished from interactive qualification below.
 The newest desktop changes are undergoing full CI and Linux/Windows candidate
