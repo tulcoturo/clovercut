@@ -318,7 +318,9 @@ jobs:
           export XDG_STATE_HOME="$qa_root/state"
           mkdir -m 700 "$XDG_RUNTIME_DIR"
           mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME"
-          trap 'pulseaudio --kill || true; rm -rf "$qa_root"' EXIT
+          # Hosted-runner teardown owns scratch disposal. Background daemons
+          # can race rm; cleanup must preserve the actual test result.
+          trap 'status=$?; trap - EXIT; pulseaudio --kill || true; exit "$status"' EXIT
           pulseaudio --start --exit-idle-time=-1 --load='module-null-sink sink_name=clovercut_qa'
           export PULSE_SERVER="unix:$XDG_RUNTIME_DIR/pulse/native"
           export PULSE_COOKIE="$XDG_CONFIG_HOME/pulse/cookie"
