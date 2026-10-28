@@ -15423,6 +15423,7 @@ mod save_durability_ui_tests {
         )
         .unwrap();
         studio.open_project(info.clone()).unwrap();
+        let initial_tracks = studio.timeline().tracks.len();
         studio.apply(Command::AddTrack {
             bottom: false,
             kind: None,
@@ -15451,7 +15452,7 @@ mod save_durability_ui_tests {
             studio.session.is_some(),
             "pre-commit failure blocks release"
         );
-        assert_eq!(studio.timeline().tracks.len(), 6);
+        assert_eq!(studio.timeline().tracks.len(), initial_tracks + 2);
         assert_eq!(
             studio.host.open_projects.holder(&info.path),
             Some(concat_api::Holder::Window)
@@ -15474,7 +15475,7 @@ mod save_durability_ui_tests {
                 .active()
                 .tracks
                 .len(),
-            6
+            initial_tracks + 2
         );
         assert_eq!(
             std::fs::read(&recovery).unwrap(),
@@ -15490,7 +15491,7 @@ mod save_durability_ui_tests {
             kind: None,
             insert_at: None,
         });
-        assert_eq!(studio.timeline().tracks.len(), 7);
+        assert_eq!(studio.timeline().tracks.len(), initial_tracks + 3);
         assert!(studio.dirty);
         studio.saved(result, false);
         assert!(studio.dirty);
@@ -15523,7 +15524,7 @@ mod save_durability_ui_tests {
                 .active()
                 .tracks
                 .len(),
-            7
+            initial_tracks + 3
         );
         println!("durability UI: ok");
         crate::leave(0);

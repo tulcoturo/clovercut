@@ -769,14 +769,14 @@ fn subtest_multitrack_audio_and_gain() {
 
     // Volume fade on Track 1: 0.0 -> 1.0
     harness.studio.apply(Command::SetClipKey {
-        clip_id: clip1,
+        clip_id: clip1.clone(),
         property: KeyProperty::Volume,
         at: 0.0,
         value: 0.0,
         ease: KeyEase::LINEAR,
     });
     harness.studio.apply(Command::SetClipKey {
-        clip_id: clip2.clone(),
+        clip_id: clip1,
         property: KeyProperty::Volume,
         at: 1.0,
         value: 1.0,
