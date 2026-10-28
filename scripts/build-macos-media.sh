@@ -146,7 +146,7 @@ mkdir "$work/ffmpeg-build"
   --enable-zlib --enable-bzlib --enable-iconv \
   --disable-filter=transpose_vt \
   --pkg-config-flags=--static --extra-cflags="$CFLAGS -I$prefix/include" \
-  --extra-cxxflags="$CXXFLAGS -I$prefix/include" --extra-ldflags="$LDFLAGS" --extra-libs=-lc++ \
+  --extra-cxxflags="$CXXFLAGS -I$prefix/include" --extra-ldflags="$LDFLAGS" '--extra-libs=-lc++ -liconv' \
   && make -j "$jobs" && make install)
 # transpose_vt needs VTPixelRotationSessionCreate (macOS 13). Clovercut rotates
 # with its own renderer; retain VideoToolbox decoding/encoding on Monterey.
