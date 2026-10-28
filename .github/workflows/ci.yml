@@ -49,7 +49,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  selection:
+    name: Validate check selection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CONNECTOR_ONLY: ${{ inputs.connector_only }}
+      MACOS_PROBE: ${{ inputs.macos_toolchain_probe }}
+      DESKTOP_ONLY: ${{ inputs.desktop_only }}
+      DESKTOP_QA: ${{ inputs.desktop_qa }}
+    steps:
+      - name: Reject conflicting manual selectors
+        shell: bash
+        run: |
+          modes=0
+          for value in "$CONNECTOR_ONLY" "$MACOS_PROBE" "$DESKTOP_ONLY"; do
+            if [ "$value" = true ]; then modes=$((modes + 1)); fi
+          done
+          if [ "$modes" -gt 1 ] || { [ "$DESKTOP_QA" = true ] && { [ "$CONNECTOR_ONLY" = true ] || [ "$MACOS_PROBE" = true ]; }; }; then
+            echo '::error::Choose one standalone check mode, or full CI with optional desktop QA.'
+            exit 1
+          fi
   connector:
+    needs: selection
     if: inputs.macos_toolchain_probe != true && inputs.desktop_only != true
     name: Audio connector regressions
     runs-on: ubuntu-24.04
@@ -71,6 +93,7 @@ jobs:
             node "$file"
           done
   engine:
+    needs: selection
     # This selector is dispatch-only: reusable release calls cannot pass it.
     # They always run the engine as well as the connector.
     if: inputs.connector_only != true && inputs.macos_toolchain_probe != true
@@ -201,6 +224,8 @@ jobs:
           test -d "sherpa/$stem/lib"
           echo "SHERPA_ONNX_LIB_DIR=$PWD/sherpa/$stem/lib" >> "$GITHUB_ENV"
 
+      - name: Clear reports restored with the build cache
+        run: rm -f src/target/nextest/ci/junit*.xml src/nextest-*.log
       - run: cargo fmt --check
         working-directory: src
       # Every string the interface shows is a key in a locale file; this
@@ -330,6 +355,7 @@ jobs:
             src/nextest-*.log
           if-no-files-found: ignore
   macos-toolchain:
+    needs: selection
     if: inputs.macos_toolchain_probe == true
     strategy:
       fail-fast: false

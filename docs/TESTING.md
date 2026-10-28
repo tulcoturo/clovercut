@@ -74,6 +74,18 @@ are excluded. This option does not establish visual, physical-device, real audio
 output, screen-reader or Windows/macOS qualification. A workflow definition alone
 does not establish that its selected tests have passed.
 
+For focused repairs, `desktop_only` compiles and executes those same twelve
+cases under **Selected desktop functional checks**, skipping workspace/gRPC
+checks. This is functional feedback, not full CI or release qualification.
+Standalone selectors are mutually exclusive; combining one with incompatible
+options fails before any suite can be silently skipped. Reusable release calls
+expose only `ref` and keep the complete engine and connector gates. Reports
+restored with a build cache are removed before generating fresh evidence.
+
+The manual `macos_toolchain_probe` mode compares FFmpeg's default host compiler
+configuration with explicit SDK flags on native Macs, retaining configure logs.
+It does not build or qualify a desktop package.
+
 Linux builds separately run `scripts/ci/smoke-native-linux.sh` in clean Debian 12
 and Fedora 43 containers: install, dependency resolution, version, graphical
 startup, reinstall, remove and user-data preservation. These checks require Docker
