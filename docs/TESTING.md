@@ -74,6 +74,17 @@ are excluded. This option does not establish visual, physical-device, real audio
 output, screen-reader or Windows/macOS qualification. A workflow definition alone
 does not establish that its selected tests have passed.
 
+The ten-minute playback drift measurement is a separate ignored test, excluded
+from the twelve functional cases. In a prepared isolated desktop/audio session,
+run it explicitly from `src/` (the CI profile allows fifteen minutes):
+
+```sh
+cargo nextest run --locked -p concat --lib --profile ci --test-threads 1 --run-ignored only -E 'test(=studio::phase4_playback_sync_tests::ten_minute_playback_drift)'
+```
+
+It is unqualified until executed; the short functional suite does not establish
+long-run drift or physical A/V synchronization.
+
 For focused repairs, `desktop_only` compiles and executes those same twelve
 cases under **Selected desktop functional checks**, skipping workspace/gRPC
 checks. This is functional feedback, not full CI or release qualification.

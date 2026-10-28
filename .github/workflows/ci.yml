@@ -333,7 +333,7 @@ jobs:
             pactl info
             cargo nextest run --locked -p concat --lib --profile ci --build-jobs 1 \
               --test-threads 1 --run-ignored only \
-              -E "test(phase3_timeline_tests::) | test(phase4_) | test(new_project_library_and_timeline_playback) | test(committed_warning_preserves_edits_and_allows_close) | test(switch_and_shutdown_with_running_work) | test(clipboard_tests::)"
+              -E "test(phase3_timeline_tests::) | test(phase4_playback_sync_tests::av_sync_and_drift_measurement) | test(phase4_playback_robustness_tests::playback_robustness_and_recovery) | test(phase4_preview_export_parity_tests::preview_vs_export_rendering_parity) | test(new_project_library_and_timeline_playback) | test(committed_warning_preserves_edits_and_allows_close) | test(switch_and_shutdown_with_running_work) | test(clipboard_tests::)"
           ' 2>&1 | tee nextest-desktop.log || status=$?
           mv target/nextest/ci/junit.xml target/nextest/ci/junit-desktop.xml 2>/dev/null || true
           if [ "$status" -ne 0 ]; then exit "$status"; fi
