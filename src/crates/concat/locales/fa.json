@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "برای دریافت این قطعه، کتابخانهٔ صوتی Studio را به سرویس صدا متصل کنید.",
   "youtube.invalidUrl": "از نشانی HTTPS یا HTTP روی localhost استفاده کنید.",
   "settings.timelineGrid": "خطوط راهنمای عمودی خط زمانی",
+  "settings.showPlayheadSplit": "نمایش دکمهٔ برش کنار نشانگر پخش",
   "youtube.signIn": "ورود به YouTube Studio",
   "youtube.signInOpened": "در مرورگر وارد شوید، کتابخانهٔ صوتی را باز کنید و اینجا تازه‌سازی کنید. نشست شما ذخیره می‌شود.",
   "settings.chooseFile": "انتخاب فایل",

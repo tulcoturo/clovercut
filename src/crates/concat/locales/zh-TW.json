@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "請將 Studio 音訊庫連接至音訊服務以下載此音軌。",
   "youtube.invalidUrl": "請使用 HTTPS 位址或 localhost 上的 HTTP。",
   "settings.timelineGrid": "時間軸垂直參考線",
+  "settings.showPlayheadSplit": "在播放頭處顯示分割按鈕",
   "youtube.signIn": "登入 YouTube Studio",
   "youtube.signInOpened": "請在瀏覽器中登入並開啟音訊庫，然後在此重新整理。登入狀態將會儲存。",
   "settings.chooseFile": "選擇檔案",

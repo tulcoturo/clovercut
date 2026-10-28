@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Verbinde die Studio-Audiobibliothek mit dem Audiodienst, um diesen Titel herunterzuladen.",
   "youtube.invalidUrl": "Verwende eine HTTPS-Adresse oder HTTP auf localhost.",
   "settings.timelineGrid": "Vertikale Hilfslinien der Zeitleiste",
+  "settings.showPlayheadSplit": "Schnittschaltfläche am Abspielkopf anzeigen",
   "youtube.signIn": "Bei YouTube Studio anmelden",
   "youtube.signInOpened": "Melde dich im Browser an, öffne die Audiomediathek und aktualisiere hier. Deine Sitzung wird gespeichert.",
   "settings.chooseFile": "Datei wählen",

@@ -109,6 +109,8 @@ pub struct Preferences {
     pub magnetic: bool,
     /// Vertical ruler guides through the tracks; hidden by default.
     pub timeline_grid: bool,
+    /// Show the optional split button beside the playhead; hidden by default.
+    pub show_playhead_split: bool,
     /// Trim follow: while a clip's edge is dragged, the playhead rides the
     /// edge, so the monitor shows the exact frame the cut lands on. Off by
     /// default; the tray's button beside the hand turns it on.
@@ -453,10 +455,13 @@ mod tests {
     fn timeline_guides_default_off_and_round_trip_when_enabled() {
         let old: Preferences = serde_json::from_str(r#"{"magnetic":true}"#).unwrap();
         assert!(!old.timeline_grid);
-        let enabled: Preferences = serde_json::from_str(r#"{"timelineGrid":true}"#).unwrap();
+        assert!(!old.show_playhead_split);
+        let enabled: Preferences =
+            serde_json::from_str(r#"{"timelineGrid":true,"showPlayheadSplit":true}"#).unwrap();
         let round_trip: Preferences =
             serde_json::from_str(&serde_json::to_string(&enabled).unwrap()).unwrap();
         assert!(round_trip.timeline_grid);
+        assert!(round_trip.show_playhead_split);
     }
 
     /// One value of the wrong shape costs that value, not every setting,

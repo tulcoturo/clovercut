@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "この曲をダウンロードするには、Studioオーディオライブラリを音声サービスに接続してください。",
   "youtube.invalidUrl": "HTTPS、またはlocalhostのHTTPアドレスを使用してください。",
   "settings.timelineGrid": "タイムラインの縦ガイド線",
+  "settings.showPlayheadSplit": "再生ヘッドに分割ボタンを表示",
   "youtube.signIn": "YouTube Studio にログイン",
   "youtube.signInOpened": "ブラウザでログインしてオーディオライブラリを開き、ここで更新してください。ログイン状態は保存されます。",
   "settings.chooseFile": "ファイルを選択",

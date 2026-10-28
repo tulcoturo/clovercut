@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Bu parçayı indirmek için Studio Ses Kitaplığı’nı ses hizmetine bağlayın.",
   "youtube.invalidUrl": "HTTPS adresi veya localhost üzerinde HTTP kullanın.",
   "settings.timelineGrid": "Zaman çizelgesinde dikey kılavuzlar",
+  "settings.showPlayheadSplit": "Oynatma kafasında bölme düğmesini göster",
   "youtube.signIn": "YouTube Studio’da oturum aç",
   "youtube.signInOpened": "Tarayıcıda oturum aç, Ses Kitaplığı’nı aç ve burayı yenile. Oturumun kaydedilecek.",
   "settings.chooseFile": "Dosya seç",

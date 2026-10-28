@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "เชื่อมต่อคลังเพลงและเสียงของ Studio กับบริการเสียงเพื่อดาวน์โหลดแทร็กนี้",
   "youtube.invalidUrl": "ใช้ที่อยู่ HTTPS หรือ HTTP บน localhost",
   "settings.timelineGrid": "เส้นไกด์แนวตั้งบนไทม์ไลน์",
+  "settings.showPlayheadSplit": "แสดงปุ่มตัดที่หัวเล่น",
   "youtube.signIn": "ลงชื่อเข้าใช้ YouTube Studio",
   "youtube.signInOpened": "ลงชื่อเข้าใช้ในเบราว์เซอร์ เปิดคลังเพลงและเสียง แล้วรีเฟรชที่นี่ ระบบจะบันทึกเซสชันของคุณ",
   "settings.chooseFile": "เลือกไฟล์",

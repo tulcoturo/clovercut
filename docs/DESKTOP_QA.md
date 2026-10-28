@@ -33,7 +33,9 @@ not run. Do not fill in the whole checklist from one successful export.
 | Start with a fresh profile; create and reopen a project | No stale project/settings; correct name, dimensions, rate and background |
 | Import video, still, audio and captions | Finished imports show correct metadata; failures identify the affected file |
 | Select clips; seek via ruler; use empty space/selection box | Selection and seeking follow the documented separate actions |
-| Split via shortcut, menu, playhead button and razor at fractional rates | Targeting and locks preserved; timing follows the documented cut policy; undo/redo restores state |
+| Enable the playhead split button in Settings > General, then split via shortcut, menu, button and razor at fractional rates | Targeting and locks preserved; timing follows the documented cut policy; undo/redo restores state |
+| Toggle the playhead split button, reopen settings and restart the app | Hidden by default for a fresh or older profile; setting persists; menu/shortcut work with the button hidden |
+| Open enough long-named timelines to overflow a narrow pane | Wheel scrolling reaches every tab; selected tab is revealed; corner control stays reachable; rename, close and reorder still work |
 | Trim/move audio with snapping off; edit several linked tracks | Subframe timing remains possible; locks and linkage semantics remain intact |
 | Edit a title and selected words; apply caption-collection styling | Only the intended text/captions change; save/reopen and undo preserve styling |
 | Copy generated media/captions across projects | Destination owns required media; caption groups are independent; cancelling/switching rejects stale delivery |

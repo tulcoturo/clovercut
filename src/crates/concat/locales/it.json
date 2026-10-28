@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Collega la Raccolta audio di Studio al servizio audio per scaricare questo brano.",
   "youtube.invalidUrl": "Usa un indirizzo HTTPS o HTTP su localhost.",
   "settings.timelineGrid": "Guide verticali della timeline",
+  "settings.showPlayheadSplit": "Mostra il pulsante di taglio sulla testina",
   "youtube.signIn": "Accedi a YouTube Studio",
   "youtube.signInOpened": "Accedi nel browser, apri la Raccolta audio e aggiorna qui. La sessione verrà salvata.",
   "settings.chooseFile": "Scegli file",

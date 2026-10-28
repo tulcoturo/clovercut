@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Hubungkan Koleksi Audio Studio ke layanan audio untuk mengunduh trek ini.",
   "youtube.invalidUrl": "Gunakan alamat HTTPS atau HTTP di localhost.",
   "settings.timelineGrid": "Garis panduan vertikal linimasa",
+  "settings.showPlayheadSplit": "Tampilkan tombol potong di playhead",
   "youtube.signIn": "Login ke YouTube Studio",
   "youtube.signInOpened": "Login di browser, buka Koleksi Audio, lalu muat ulang di sini. Sesi Anda akan disimpan.",
   "settings.chooseFile": "Pilih berkas",

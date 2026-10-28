@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "יש לחבר את ספריית האודיו של Studio לשירות השמע כדי להוריד את הרצועה.",
   "youtube.invalidUrl": "יש להשתמש בכתובת HTTPS או ב־HTTP ב־localhost.",
   "settings.timelineGrid": "קווי עזר אנכיים בציר הזמן",
+  "settings.showPlayheadSplit": "הצגת כפתור פיצול ליד סמן הניגון",
   "youtube.signIn": "כניסה ל-YouTube Studio",
   "youtube.signInOpened": "יש להיכנס בדפדפן, לפתוח את ספריית האודיו ולרענן כאן. ההתחברות תישמר.",
   "settings.chooseFile": "בחירת קובץ",

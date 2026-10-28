@@ -11235,6 +11235,7 @@ impl Studio {
         editor.set_snap(self.lanes.snap);
         editor.set_magnetic(self.prefs.magnetic);
         editor.set_timeline_grid(self.prefs.timeline_grid);
+        editor.set_show_playhead_split(self.prefs.show_playhead_split);
         editor.set_linkage(self.timeline().linkage);
         editor.set_trim_follow(self.prefs.trim_follow);
         editor.set_meters_shown(self.prefs.meters_shown());

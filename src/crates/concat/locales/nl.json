@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Verbind de Studio-audiobibliotheek met de audiodienst om dit nummer te downloaden.",
   "youtube.invalidUrl": "Gebruik een HTTPS-adres of HTTP op localhost.",
   "settings.timelineGrid": "Verticale tijdlijnhulplijnen",
+  "settings.showPlayheadSplit": "Knipknop bij de afspeelkop tonen",
   "youtube.signIn": "Aanmelden bij YouTube Studio",
   "youtube.signInOpened": "Meld je aan in de browser, open de audiobibliotheek en vernieuw hier. Je sessie wordt opgeslagen.",
   "settings.chooseFile": "Bestand kiezen",
