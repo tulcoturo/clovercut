@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Povežite Studio audioteku s audio uslugom za preuzimanje ove snimke.",
   "youtube.invalidUrl": "Koristite HTTPS adresu ili HTTP na localhostu.",
   "settings.timelineGrid": "Okomite vodilice vremenske crte",
+  "settings.showPlayheadSplit": "Prikaži gumb za rezanje uz glavu reprodukcije",
   "youtube.signIn": "Prijava u YouTube Studio",
   "youtube.signInOpened": "Prijavite se u pregledniku, otvorite audioteku i osvježite ovdje. Sesija će biti spremljena.",
   "settings.chooseFile": "Odaberi datoteku",

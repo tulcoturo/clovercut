@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "이 트랙을 다운로드하려면 Studio 오디오 보관함을 오디오 서비스에 연결하세요.",
   "youtube.invalidUrl": "HTTPS 주소 또는 localhost의 HTTP를 사용하세요.",
   "settings.timelineGrid": "타임라인 세로 안내선",
+  "settings.showPlayheadSplit": "재생 헤드에 분할 버튼 표시",
   "youtube.signIn": "YouTube Studio에 로그인",
   "youtube.signInOpened": "브라우저에서 로그인하고 오디오 보관함을 연 다음 여기서 새로고침하세요. 로그인 상태가 저장됩니다.",
   "settings.chooseFile": "파일 선택",

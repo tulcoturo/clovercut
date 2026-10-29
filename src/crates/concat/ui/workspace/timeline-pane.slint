@@ -181,6 +181,7 @@ export component TimelinePane inherits Rectangle {
         Math.min(root.header-width, root.width / 2));
     in property <length> ruler-height: 84px;
     in property <bool> timeline-grid;
+    in property <bool> show-playhead-split;
     /// The meters' column: the ruler, two bars and their gaps, a few
     /// pixels of air, and nothing when they are put away.
     property <length> meters-w: root.meters-shown ? 60px : 0px;
@@ -443,6 +444,7 @@ export component TimelinePane inherits Rectangle {
                 track-scroll: root.at;
                 ruler-height: root.ruler-height;
                 timeline-grid: root.timeline-grid;
+                show-playhead-split: root.show-playhead-split;
                 pan-mode: root.pan-mode;
                 preview-axis: root.preview-axis;
 

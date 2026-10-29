@@ -10,7 +10,9 @@ Click or drag the time ruler or the reserved strip beneath its labels to seek.
 Clicking empty track space or making a selection box changes selection only.
 The default playhead is white; an explicit custom colour remains respected.
 
-A split button follows the playhead just below the ruler on desktop. Click it
+The optional split button follows the playhead just below the ruler on desktop.
+Enable **Show split button at playhead** in **Settings > General**; it is hidden
+by default and the preference is remembered between launches. Click it
 to use the same cut command as the toolbar and keyboard shortcut, respecting
 the current selection, track targeting and locked tracks. Its hover label follows
 the interface language. The button hides while using the hand tool or touch.

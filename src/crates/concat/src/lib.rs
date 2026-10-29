@@ -66,6 +66,7 @@ mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
 mod preview_interaction;
+mod request_owner;
 mod source;
 mod speed_ramp;
 mod studio;
@@ -2321,6 +2322,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     app.on_settings_timeline_grid_changed(on_window!(|state, on: bool| {
         state.handle(Msg::Settings(SettingsMsg::TimelineGridChanged(on)));
+    }));
+    app.on_settings_show_playhead_split_changed(on_window!(|state, on: bool| {
+        state.handle(Msg::Settings(SettingsMsg::ShowPlayheadSplitChanged(on)));
     }));
     app.on_settings_magnetic_changed(on_window!(|state, on: bool| {
         state.handle(Msg::Settings(SettingsMsg::MagneticChanged(on)));

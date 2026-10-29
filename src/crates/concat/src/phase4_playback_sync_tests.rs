@@ -134,60 +134,21 @@ pub fn generate_av_sync_fixture(
     output_path
 }
 
+const TEST: &str = "studio::phase4_playback_sync_tests::av_sync_and_drift_measurement";
+const CHILD: &str = "CLOVERCUT_PHASE42_SUBTEST";
+
 /// Run explicitly with an active display and audio session.
 #[test]
 #[ignore = "requires an isolated graphical session, FFmpeg, GPU and audio device"]
 fn av_sync_and_drift_measurement() {
-    const TEST: &str = "studio::phase4_playback_sync_tests::av_sync_and_drift_measurement";
-    const CHILD: &str = "CLOVERCUT_PHASE42_SUBTEST";
-
     let Some(subtest) = std::env::var_os(CHILD) else {
-        // Parent runner: runs each subtest in an isolated child process
-        for sub in [
+        run_isolated_subtests(&[
             "multirate_sync",
             "seek_accuracy",
             "nonzero_pts",
             "cuts_and_transitions",
             "muted_and_silent",
-            "ten_minute_drift",
-        ] {
-            let root = std::env::temp_dir().join(format!(
-                "clovercut-phase42-{}-{}",
-                std::process::id(),
-                sub
-            ));
-            std::fs::create_dir_all(&root).unwrap();
-
-            println!("\n=== Running Subtest: {sub} ===");
-            let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
-            cmd.stdin(std::process::Stdio::null())
-                .args([
-                    TEST,
-                    "--exact",
-                    "--ignored",
-                    "--nocapture",
-                    "--test-threads=1",
-                ])
-                .env(CHILD, sub)
-                .env("TMPDIR", &root)
-                .env("XDG_CONFIG_HOME", root.join("config"))
-                .env("XDG_DATA_HOME", root.join("data"))
-                .env("XDG_CACHE_HOME", root.join("cache"))
-                .env("XDG_STATE_HOME", root.join("state"));
-
-            let output = cmd.output().expect("failed to execute child subtest");
-            let _ = std::fs::remove_dir_all(root);
-
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-            if !output.status.success() {
-                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-                panic!("Subtest {sub} failed!");
-            }
-            assert!(
-                String::from_utf8_lossy(&output.stdout).contains("SUBTEST_PASSED"),
-                "Subtest {sub} did not print SUBTEST_PASSED"
-            );
-        }
+        ]);
         return;
     };
 
@@ -200,6 +161,50 @@ fn av_sync_and_drift_measurement() {
         "muted_and_silent" => run_muted_and_silent(),
         "ten_minute_drift" => run_ten_minute_drift(),
         other => panic!("Unknown subtest: {other}"),
+    }
+}
+
+#[test]
+#[ignore = "requires an isolated graphical/audio session and ten minutes of playback"]
+fn ten_minute_playback_drift() {
+    run_isolated_subtests(&["ten_minute_drift"]);
+}
+
+fn run_isolated_subtests(subtests: &[&str]) {
+    for &sub in subtests {
+        let root =
+            std::env::temp_dir().join(format!("clovercut-phase42-{}-{}", std::process::id(), sub));
+        std::fs::create_dir_all(&root).unwrap();
+
+        println!("\n=== Running Subtest: {sub} ===");
+        let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
+        cmd.stdin(std::process::Stdio::null())
+            .args([
+                TEST,
+                "--exact",
+                "--ignored",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(CHILD, sub)
+            .env("TMPDIR", &root)
+            .env("XDG_CONFIG_HOME", root.join("config"))
+            .env("XDG_DATA_HOME", root.join("data"))
+            .env("XDG_CACHE_HOME", root.join("cache"))
+            .env("XDG_STATE_HOME", root.join("state"));
+
+        let output = cmd.output().expect("failed to execute child subtest");
+        let _ = std::fs::remove_dir_all(root);
+
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+        if !output.status.success() {
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            panic!("Subtest {sub} failed!");
+        }
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains("SUBTEST_PASSED"),
+            "Subtest {sub} did not print SUBTEST_PASSED"
+        );
     }
 }
 
@@ -708,10 +713,15 @@ fn run_cuts_and_transitions() {
             let mut studio = shell.studio.borrow_mut();
             let pos = studio.host.playback.position_now();
 
-            if pos >= 3.5 || began.elapsed() >= Duration::from_millis(1500) {
+            // Sink startup is separate from transport progress. A deadline
+            // is a failure; only the device clock crossing the cut can pass.
+            assert!(
+                began.elapsed() < Duration::from_secs(5),
+                "Timed out before transport crossed the cut: position={pos:.3}"
+            );
+            if pos >= 3.5 {
                 studio.pause();
-                println!("Playback smoothly crossed 3.0s cut boundary to position {pos:.3} s");
-                assert!(pos >= 3.2, "Transport must play through cut");
+                println!("Playback crossed 3.0s cut boundary to position {pos:.3} s");
                 let _ = std::fs::remove_dir_all(&dir);
                 println!("Cuts test: PASS");
                 slint::quit_event_loop().unwrap();
@@ -782,21 +792,27 @@ fn run_muted_and_silent() {
 
     let began = Instant::now();
     let timer = slint::Timer::default();
+    let mut callback_count = 0;
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(5),
         move || {
             let mut studio = shell.studio.borrow_mut();
             let audio_metrics = studio.host.playback.take_callback_metrics();
+            callback_count += audio_metrics.len();
 
             // Muted track must never output audio amplitude
             for m in audio_metrics {
                 assert_eq!(m.peak, 0.0, "Muted track must output exact silence");
             }
 
-            if began.elapsed() >= Duration::from_millis(1500) {
+            let pos = studio.host.playback.position_now();
+            assert!(
+                began.elapsed() < Duration::from_secs(5),
+                "Timed out waiting for muted playback: position={pos:.3}, callbacks={callback_count}"
+            );
+            if pos > 0.5 && callback_count > 0 {
                 studio.pause();
-                let pos = studio.host.playback.position_now();
                 println!("Muted track confirmed: audio peak=0.0, clock progressed to {pos:.3} s");
                 assert!(pos > 0.5, "Clock must progress while muted");
                 let _ = std::fs::remove_dir_all(&dir);

@@ -64,6 +64,8 @@ pub enum SettingsMsg {
     /// The magnetic timeline switch; the tray's button is the same fact.
     MagneticChanged(bool),
     TimelineGridChanged(bool),
+    /// Show or hide the optional split button beside the playhead.
+    ShowPlayheadSplitChanged(bool),
     DownloadSourceChanged(i32),
     DownloadBaseEdited(String),
     ServerEnabledChanged(bool),
@@ -408,6 +410,10 @@ impl SettingsPane {
             }
             SettingsMsg::TimelineGridChanged(on) => {
                 studio.prefs.timeline_grid = on;
+                studio.prefs.save(&studio.host.dirs);
+            }
+            SettingsMsg::ShowPlayheadSplitChanged(on) => {
+                studio.prefs.show_playhead_split = on;
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::MagneticChanged(on) => {
@@ -990,6 +996,7 @@ impl SettingsPane {
             gpu_switchable: cfg!(any(windows, target_os = "linux")),
             magnetic: studio.prefs.magnetic,
             timeline_grid: studio.prefs.timeline_grid,
+            show_playhead_split: studio.prefs.show_playhead_split,
             download_source: self.download_source as i32,
             download_base: self.download_base.as_str().into(),
             server_enabled: studio.prefs.server.enabled,

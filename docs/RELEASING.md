@@ -39,6 +39,38 @@ Incremental/no-change builds can have very different resource and time costs.
 
 A local development executable is not a portable release package.
 
+### macOS 12 media runtime
+
+Desktop packaging rebuilds FFmpeg and the required codec/audio dependencies from
+the checksum-pinned `macos-source-*` entries in `scripts/ci/deps.lock`. Homebrew
+provides build tools; its runtime bottles are not a Monterey-compatible SDK.
+Setting `MACOSX_DEPLOYMENT_TARGET=12.0` on Rust does not lower a prebuilt library's
+minimum or remove its newer API imports. The published 0.1.9 bundle illustrates
+that failure; see [issue #2](https://github.com/tulcoturo/clovercut/issues/2).
+
+On a native Intel or Apple Silicon Mac with Xcode and the workflow's build tools,
+choose a new empty prefix and run, for example:
+
+```sh
+MACOSX_DEPLOYMENT_TARGET=12.0 scripts/build-macos-media.sh aarch64-apple-darwin /tmp/clovercut-media-arm64
+python3 scripts/ci/smoke-macos-media.py /tmp/clovercut-media-arm64
+```
+
+The recipe uses two compilation jobs by default and preserves x264, multilib
+x265, VP8/VP9, Opus, AOM/SVT-AV1, dav1d and Rubber Band with libsamplerate.
+VideoToolbox decode/encode stays enabled; the unused `transpose_vt` filter is
+excluded because its rotation-session API requires macOS 13. Availability
+warnings for newer SDK APIs are errors. The cache key includes architecture,
+recipe and pinned source rows; only a complete, codec-tested prefix is cached.
+
+Codec smoke checks encode/decode H.264, 8/10-bit HEVC and AV1, preserve VP9/ProRes
+alpha, and exercise AAC, Opus and Rubber Band duration. Packaging then enforces
+every eagerly loaded Mach-O library's declared minimum. Intel ONNX Runtime
+retains its explicit first-use exception and runtime OS guard; it is not linked
+at launch. Source URLs, build configuration and library licences accompany the
+bundle. Header/modern-runner checks do not establish execution on an actual
+Monterey machine; retain that distinction in qualification records.
+
 ### Optional graphical walkthrough
 
 The Linux screenshot driver is development tooling, excluded from ordinary and

@@ -261,7 +261,10 @@ impl StickersPane {
         timeline: String,
     ) {
         let epoch = crate::host::project_epoch();
-        if !self.pending.is_empty() && self.pending_epoch == epoch {
+        if !self.pending.is_empty()
+            && self.pending_epoch == epoch
+            && self.pending_timeline == timeline
+        {
             return;
         }
         let Some(sticker) = self.get(id).cloned() else {
@@ -361,7 +364,10 @@ impl StickersPane {
                 }
             }
             StickersMsg::Preview(id) => {
-                if self.pending.is_empty() || self.pending_epoch != crate::host::project_epoch() {
+                if self.pending.is_empty()
+                    || self.pending_epoch != crate::host::project_epoch()
+                    || self.pending_timeline != studio.project().active_timeline_id
+                {
                     let request = studio.next_preview_request();
                     self.fetch(
                         &id,

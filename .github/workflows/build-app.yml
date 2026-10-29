@@ -48,6 +48,8 @@ jobs:
       run_macos: ${{ steps.matrix.outputs.run_macos }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ inputs.ref }}
     - id: matrix
       env:
         DESKTOP_TARGET: ${{ inputs.desktop_target || 'all' }}
@@ -727,21 +729,52 @@ jobs:
         version=$(sed -n 's/^version = "\(.*\)"/\1/p' src/Cargo.toml | head -1)
         echo "version=$version" >> "$GITHUB_OUTPUT"
         echo "Building Clovercut $version for ${{ matrix.target }}"
-    - name: FFmpeg development libraries (macOS)
-      if: matrix.platform == 'macos'
+    - name: Minimum-OS gate regressions
+      run: python3 -m unittest discover -s scripts -p test_macos_packaging.py -v
+    - name: Media build tools (macOS)
+      run: brew install cmake dylibbundler meson ninja nasm pkgconf
+    - name: Pinned media source fingerprint
+      id: media-source
+      shell: bash
+      run: |
+        digest=$(awk '$1 ~ /^macos-source-/ {print}' scripts/ci/deps.lock | shasum -a 256 | cut -d ' ' -f 1)
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"
+    - name: Monterey media runtime (restore)
+      id: macos-media
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: src/vendor/macos-media/${{ matrix.target }}
+        key: macos-media-12-${{ matrix.target }}-${{ hashFiles('scripts/build-macos-media.sh') }}-${{ steps.media-source.outputs.digest }}
+    - name: Build pinned media runtime for macOS 12
+      if: steps.macos-media.outputs.cache-hit != 'true'
+      timeout-minutes: 60
+      run: |
+        scripts/build-macos-media.sh ${{ matrix.target }} "src/vendor/macos-media/${{ matrix.target }}"
+        test -f "src/vendor/macos-media/${{ matrix.target }}/.clovercut-media-complete"
+    - name: Keep media configure diagnostics
+      if: failure()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: media-configure-${{ matrix.target }}
+        retention-days: 14
+        if-no-files-found: ignore
+        path: src/vendor/macos-media/${{ matrix.target }}/share/build-failure/
+    - name: Validate media runtime and codecs
       run: |
         set -euo pipefail
-        brew install ffmpeg-full cmake dylibbundler
-        ffmpeg_dir=$(brew --prefix ffmpeg-full)
-        echo "FFMPEG_DIR=$ffmpeg_dir" >> "$GITHUB_ENV"
-        # Fail before compiling if Homebrew changes the required filter set.
-        "$ffmpeg_dir/bin/ffmpeg" -hide_banner -filters > /tmp/clovercut-ffmpeg-filters.txt
-        for filter in rubberband asendcmd asetnsamples; do
-          grep -Eq "[[:space:]]${filter}[[:space:]]" /tmp/clovercut-ffmpeg-filters.txt || {
-            echo "::error::Packaged FFmpeg is missing $filter"
-            exit 1
-          }
-        done
+        prefix="$PWD/src/vendor/macos-media/${{ matrix.target }}"
+        test -f "$prefix/.clovercut-media-complete"
+        scripts/ci/check-min-os.sh "$prefix" "$MACOSX_DEPLOYMENT_TARGET" --enforce
+        python3 scripts/ci/smoke-macos-media.py "$prefix"
+    - name: Monterey media runtime (save)
+      if: steps.macos-media.outputs.cache-hit != 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: src/vendor/macos-media/${{ matrix.target }}
+        key: ${{ steps.macos-media.outputs.cache-primary-key }}
+    - name: FFmpeg development libraries (macOS)
+      run: |
+        echo "FFMPEG_DIR=$PWD/src/vendor/macos-media/${{ matrix.target }}" >> "$GITHUB_ENV"
         # ggml's Metal code asks `@available(macOS 15, *)` before using
         # residency sets. Below that deployment target the question is
         # answered at run time by ___isPlatformVersionAtLeast, which lives
@@ -883,13 +916,11 @@ jobs:
           lazy=(--lazy Contents/Frameworks/libonnxruntime.dylib)
         fi
 
-        # Every library in the bundle against the floor it declares. A
-        # warning for now: Homebrew's FFmpeg is built for the runner's
-        # macOS, so every Mac bundle has some until FFmpeg is built here
-        # for the floor. ONNX Runtime is listed apart, with the macOS it
-        # needs: the app reads that same field before loading it, and on
-        # an older one the AI features say so instead.
-        scripts/ci/check-min-os.sh "$app" "$MACOSX_DEPLOYMENT_TARGET" ${lazy[@]+"${lazy[@]}"}
+        # All eagerly loaded libraries must honour Monterey, not just the app.
+        # Only the runtime guarded at first use retains its separate minimum.
+        scripts/ci/check-min-os.sh "$app" "$MACOSX_DEPLOYMENT_TARGET" --enforce ${lazy[@]+"${lazy[@]}"}
+        cp -R "$FFMPEG_DIR/share/licenses" "$app/Contents/Resources/MediaLicenses"
+        cp "$FFMPEG_DIR/share/media-sources.lock" "$FFMPEG_DIR/share/media-build.txt" "$app/Contents/Resources/"
     - name: Sign and notarise (macOS)
       if: matrix.platform == 'macos'
       env:

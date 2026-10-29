@@ -286,6 +286,7 @@ export component App inherits Window {
     callback settings-gpu-changed(on: bool);
     callback settings-magnetic-changed(on: bool);
     callback settings-timeline-grid-changed(on: bool);
+    callback settings-show-playhead-split-changed(on: bool);
     callback settings-download-source-changed(index: int);
     callback settings-download-base-edited(text: string);
     callback settings-server-enabled-changed(on: bool);
@@ -917,6 +918,7 @@ export component App inherits Window {
         gpu-changed(on) => { root.settings-gpu-changed(on); }
         magnetic-changed(on) => { root.settings-magnetic-changed(on); }
         timeline-grid-changed(on) => { root.settings-timeline-grid-changed(on); }
+        show-playhead-split-changed(on) => { root.settings-show-playhead-split-changed(on); }
         download-source-changed(index) => { root.settings-download-source-changed(index); }
         download-base-edited(text) => { root.settings-download-base-edited(text); }
         server-enabled-changed(on) => { root.settings-server-enabled-changed(on); }

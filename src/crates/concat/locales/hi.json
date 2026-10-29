@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "यह ट्रैक डाउनलोड करने के लिए Studio ऑडियो लाइब्रेरी को ऑडियो सेवा से जोड़ें।",
   "youtube.invalidUrl": "HTTPS पता या localhost पर HTTP उपयोग करें।",
   "settings.timelineGrid": "टाइमलाइन की लंबवत गाइड लाइनें",
+  "settings.showPlayheadSplit": "प्लेहेड पर विभाजन बटन दिखाएँ",
   "youtube.signIn": "YouTube Studio में साइन इन करें",
   "youtube.signInOpened": "ब्राउज़र में साइन इन करें, ऑडियो लाइब्रेरी खोलें और यहाँ रीफ़्रेश करें। आपका सत्र सहेजा जाएगा।",
   "settings.chooseFile": "फ़ाइल चुनें",

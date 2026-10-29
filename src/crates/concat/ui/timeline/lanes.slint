@@ -1158,6 +1158,7 @@ export component Lanes inherits Rectangle {
     in property <length> track-scroll;
     in property <length> ruler-height: 84px;
     in property <bool> timeline-grid;
+    in property <bool> show-playhead-split;
     property <length> ruler-label-height: Math.min(root.ruler-height, 28px);
     /// How close to a clip's edge counts as taking hold of it. A pointer
     /// finds six pixels; a finger wants more.
@@ -2089,7 +2090,7 @@ export component Lanes inherits Rectangle {
         // Adapted from Concat bfb39ca4: keep the cut beside the playhead.
         // Use our shared accessible button and translated tooltip. Hide it
         // while panning so the hand tool keeps ownership of every drag.
-        if !root.finger && !root.pan-mode
+        if root.show-playhead-split && !root.finger && !root.pan-mode
             && root.at(root.playhead) >= 0px
             && root.at(root.playhead) <= root.width: IconButton {
             x: Math.max(0px, Math.min(root.width - self.width,

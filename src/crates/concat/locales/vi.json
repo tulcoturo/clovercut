@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Kết nối Thư viện âm thanh Studio với dịch vụ âm thanh để tải bản nhạc này.",
   "youtube.invalidUrl": "Dùng địa chỉ HTTPS hoặc HTTP trên localhost.",
   "settings.timelineGrid": "Đường dẫn dọc trên dòng thời gian",
+  "settings.showPlayheadSplit": "Hiện nút cắt tại đầu phát",
   "youtube.signIn": "Đăng nhập YouTube Studio",
   "youtube.signInOpened": "Đăng nhập trong trình duyệt, mở Thư viện âm thanh rồi làm mới tại đây. Phiên đăng nhập sẽ được lưu.",
   "settings.chooseFile": "Chọn tệp",

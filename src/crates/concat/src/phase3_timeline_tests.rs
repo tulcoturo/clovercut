@@ -273,6 +273,15 @@ fn mixed_selection_locks_placement_and_origin_boundary() {
     isolated_fixture(
         "studio::phase3_timeline_tests::mixed_selection_locks_placement_and_origin_boundary",
         |studio, info| {
+            // This case needs three independent lanes; a new project starts
+            // with one, so create the other two explicitly.
+            for _ in 0..2 {
+                studio.apply(Command::AddTrack {
+                    bottom: true,
+                    kind: None,
+                    insert_at: None,
+                });
+            }
             let a = title(studio, 0, 0.5, 1.0);
             let b = title(studio, 1, 2.5, 1.0);
             let c = title(studio, 2, 5.0, 1.0);

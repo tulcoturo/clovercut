@@ -11235,6 +11235,7 @@ impl Studio {
         editor.set_snap(self.lanes.snap);
         editor.set_magnetic(self.prefs.magnetic);
         editor.set_timeline_grid(self.prefs.timeline_grid);
+        editor.set_show_playhead_split(self.prefs.show_playhead_split);
         editor.set_linkage(self.timeline().linkage);
         editor.set_trim_follow(self.prefs.trim_follow);
         editor.set_meters_shown(self.prefs.meters_shown());
@@ -15422,6 +15423,7 @@ mod save_durability_ui_tests {
         )
         .unwrap();
         studio.open_project(info.clone()).unwrap();
+        let initial_tracks = studio.timeline().tracks.len();
         studio.apply(Command::AddTrack {
             bottom: false,
             kind: None,
@@ -15450,7 +15452,7 @@ mod save_durability_ui_tests {
             studio.session.is_some(),
             "pre-commit failure blocks release"
         );
-        assert_eq!(studio.timeline().tracks.len(), 6);
+        assert_eq!(studio.timeline().tracks.len(), initial_tracks + 2);
         assert_eq!(
             studio.host.open_projects.holder(&info.path),
             Some(concat_api::Holder::Window)
@@ -15473,7 +15475,7 @@ mod save_durability_ui_tests {
                 .active()
                 .tracks
                 .len(),
-            6
+            initial_tracks + 2
         );
         assert_eq!(
             std::fs::read(&recovery).unwrap(),
@@ -15489,7 +15491,7 @@ mod save_durability_ui_tests {
             kind: None,
             insert_at: None,
         });
-        assert_eq!(studio.timeline().tracks.len(), 7);
+        assert_eq!(studio.timeline().tracks.len(), initial_tracks + 3);
         assert!(studio.dirty);
         studio.saved(result, false);
         assert!(studio.dirty);
@@ -15522,7 +15524,7 @@ mod save_durability_ui_tests {
                 .active()
                 .tracks
                 .len(),
-            7
+            initial_tracks + 3
         );
         println!("durability UI: ok");
         crate::leave(0);
@@ -15557,6 +15559,16 @@ mod lifecycle_tests {
             let root =
                 std::env::temp_dir().join(format!("clovercut-lifecycle-{}", std::process::id()));
             std::fs::create_dir(&root).unwrap();
+            let expected_tracks = ["Project A", "Project B"].map(|name| {
+                let info = projects::create(root.to_str().unwrap(), name, 64, 36, 10, 1).unwrap();
+                let initial = concat_host::Session::open_info(&info)
+                    .unwrap()
+                    .project()
+                    .active()
+                    .tracks
+                    .len();
+                (name, initial + 1)
+            });
             let output = std::process::Command::new(std::env::current_exe().unwrap())
                 .args([
                     "studio::lifecycle_tests::switch_and_shutdown_with_running_work",
@@ -15577,7 +15589,7 @@ mod lifecycle_tests {
             let success = output.status.success()
                 && String::from_utf8_lossy(&output.stdout).contains("lifecycle: ok");
             if success {
-                for name in ["Project A", "Project B"] {
+                for (name, expected) in expected_tracks {
                     let info = projects::open(root.join(name).to_str().unwrap()).unwrap();
                     assert_eq!(
                         concat_host::Session::open_info(&info)
@@ -15586,7 +15598,7 @@ mod lifecycle_tests {
                             .active()
                             .tracks
                             .len(),
-                        5
+                        expected
                     );
                 }
                 assert_eq!(
@@ -15633,8 +15645,8 @@ mod lifecycle_tests {
         let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
         let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
         let app = crate::ui::App::new().unwrap();
-        let a = projects::create(root.to_str().unwrap(), "Project A", 64, 36, 10, 1).unwrap();
-        let b = projects::create(root.to_str().unwrap(), "Project B", 64, 36, 10, 1).unwrap();
+        let a = projects::open(root.join("Project A").to_str().unwrap()).unwrap();
+        let b = projects::open(root.join("Project B").to_str().unwrap()).unwrap();
         studio.open_project(a.clone()).unwrap();
         let item = concat_host::media::probe(video.to_str().unwrap())
             .unwrap()

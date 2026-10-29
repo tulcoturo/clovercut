@@ -13,8 +13,9 @@
 # built for 13.4, which died at launch on 12 (#333); Homebrew's libraries
 # are built for the runner they were installed on.
 #
-# Lists each file whose own minimum is newer than the declared one, as a
-# warning, in the job summary too. With --enforce, any such file fails.
+# Lists files with a newer or unidentifiable minimum, in the job summary too.
+# With --enforce, any such file fails. Header checks do not replace actually
+# running on the oldest OS or checking API availability when compiling.
 #
 # A --lazy file is one the app opens itself, at first use, and only on a
 # system at least as new as the minimum in that file's own header - the
@@ -48,8 +49,17 @@ is_lazy() {
   return 1
 }
 
-# The newer of two dotted versions.
-newer() { printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1; }
+# Numeric comparison treats 12, 12.0 and 12.0.0 as the same floor.
+newer_than() {
+  awk -v own="$1" -v floor="$2" 'BEGIN {
+    split(own, a, "."); split(floor, b, ".")
+    for (i = 1; i <= 3; i++) {
+      if (a[i] + 0 > b[i] + 0) exit 0
+      if (a[i] + 0 < b[i] + 0) exit 1
+    }
+    exit 1
+  }'
+}
 
 # A Mach-O's own minimum OS: LC_BUILD_VERSION's minos, or the older
 # LC_VERSION_MIN_* command's version.
@@ -57,8 +67,8 @@ minimum_of() {
   otool -l "$1" 2>/dev/null | awk '
     /LC_BUILD_VERSION/ { build = 1; next }
     /LC_VERSION_MIN_/  { legacy = 1; next }
-    build  && $1 == "minos"   { print $2; exit }
-    legacy && $1 == "version" { print $2; exit }'
+    build  && $1 == "minos" && !found   { print $2; found = 1 }
+    legacy && $1 == "version" && !found { print $2; found = 1 }'
 }
 
 for path in ${lazy[@]+"${lazy[@]}"}; do
@@ -66,7 +76,12 @@ for path in ${lazy[@]+"${lazy[@]}"}; do
     echo "check-min-os: $path, loaded at first use, is not in $bundle" >&2
     exit 1
   fi
-  echo "check-min-os: $path is loaded at first use, on macOS $(minimum_of "$bundle/$path") or later"
+  own=$(minimum_of "$bundle/$path")
+  if [ -z "$own" ]; then
+    echo "check-min-os: $path has no identifiable minimum OS for its first-use guard" >&2
+    exit 1
+  fi
+  echo "check-min-os: $path is loaded at first use, on macOS $own or later"
 done
 
 over=()
@@ -76,15 +91,20 @@ while IFS= read -r -d '' file; do
   is_lazy "${file#"$bundle"/}" && continue
   checked=$((checked + 1))
   own=$(minimum_of "$file")
-  [ -n "$own" ] || continue
-  if [ "$own" != "$declared" ] && [ "$(newer "$own" "$declared")" = "$own" ]; then
+  if [ -z "$own" ]; then
+    over+=("${file#"$bundle"/} has no identifiable minimum OS")
+  elif newer_than "$own" "$declared"; then
     over+=("${file#"$bundle"/} needs $own")
   fi
 done < <(find "$bundle" -type f -print0)
 
 echo "check-min-os: $checked Mach-O files in $bundle loaded at launch, declared minimum $declared"
+if [ "$checked" -eq 0 ]; then
+  echo 'check-min-os: no launch-time Mach-O files were checked' >&2
+  exit 1
+fi
 if [ "${#over[@]}" -eq 0 ]; then
-  echo "check-min-os: every file runs on $declared"
+  echo "check-min-os: every checked file declares a minimum at or below $declared"
   exit 0
 fi
 
@@ -92,14 +112,14 @@ level=warning
 [ "$enforce" = --enforce ] && level=error
 for line in "${over[@]}"; do
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
-    echo "::$level::$(basename "$bundle"): $line, newer than the declared $declared"
+    echo "::$level::$(basename "$bundle"): $line; declared minimum $declared"
   else
-    echo "check-min-os: $line, newer than the declared $declared"
+    echo "check-min-os: $line; declared minimum $declared"
   fi
 done
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   {
-    printf '### %s: files newer than the declared minimum, %s\n\n' "$(basename "$bundle")" "$declared"
+    printf '### %s: unqualified files for the declared minimum, %s\n\n' "$(basename "$bundle")" "$declared"
     printf -- '- %s\n' "${over[@]}"
     echo
   } >> "$GITHUB_STEP_SUMMARY"

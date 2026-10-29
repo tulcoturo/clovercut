@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Połącz Bibliotekę audio Studio z usługą audio, aby pobrać ten utwór.",
   "youtube.invalidUrl": "Użyj adresu HTTPS lub HTTP na localhost.",
   "settings.timelineGrid": "Pionowe linie pomocnicze osi czasu",
+  "settings.showPlayheadSplit": "Pokaż przycisk cięcia przy głowicy",
   "youtube.signIn": "Zaloguj się do YouTube Studio",
   "youtube.signInOpened": "Zaloguj się w przeglądarce, otwórz Bibliotekę audio i odśwież tutaj. Sesja zostanie zapisana.",
   "settings.chooseFile": "Wybierz plik",

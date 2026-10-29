@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "اربط مكتبة Studio الصوتية بخدمة الصوت لتنزيل هذا المقطع.",
   "youtube.invalidUrl": "استخدم عنوان HTTPS أو HTTP على localhost.",
   "settings.timelineGrid": "خطوط إرشاد عمودية في المخطط الزمني",
+  "settings.showPlayheadSplit": "إظهار زر التقسيم عند مؤشر التشغيل",
   "youtube.signIn": "تسجيل الدخول إلى YouTube Studio",
   "youtube.signInOpened": "سجّل الدخول في المتصفح وافتح مكتبة الملفات الصوتية ثم حدّث هنا. سيتم حفظ جلستك.",
   "settings.chooseFile": "اختيار ملف",

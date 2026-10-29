@@ -30,6 +30,7 @@ use crate::i18n::{t, tf};
 use crate::panes::Msg;
 use crate::panes::pace::{Pace, Stage, Timings};
 use crate::panes::settings::installed;
+use crate::request_owner::{Completion, Pending};
 use crate::studio::Studio;
 use crate::ui::CaptionsSheetData;
 
@@ -67,9 +68,9 @@ pub enum CaptionsMsg {
     BeginManual,
     Cancel,
     /// The transcriber's worker reporting the stage it is in.
-    Progress(JobStage),
+    Progress(u64, JobStage),
     /// The transcriber's worker is done: what was said, or why not.
-    Finished(Result<Vec<Segment>, String>),
+    Finished(u64, Result<Vec<Segment>, String>),
     /// Asks for a SubRip file to read in.
     ImportSrt,
     /// The SubRip file chosen: its cues as captions.
@@ -129,7 +130,7 @@ pub struct CaptionsPane {
     /// Why the last run failed, when it did.
     pub message: String,
     /// The clip under the running transcription.
-    subject: Option<Subject>,
+    subject: Option<Pending<Subject>>,
     /// How long each model took this session, for the next run's bar.
     timings: Timings,
 }
@@ -205,21 +206,28 @@ impl CaptionsPane {
             CaptionsMsg::Cancel => {
                 studio.host.transcriber.cancel();
                 self.running = false;
+                self.subject = None;
                 self.open = false;
             }
-            CaptionsMsg::Progress(stage) => self.pace.report(stage),
-            CaptionsMsg::Finished(result) => {
-                self.running = false;
-                let subject = self.subject.take();
-                if let (Ok(_), Some(subject)) = (&result, &subject) {
+            CaptionsMsg::Progress(request, stage) => {
+                if self.subject.as_ref().is_some_and(|subject| {
+                    subject.accepts(request, &studio.project().active_timeline_id)
+                }) {
+                    self.pace.report(stage);
+                }
+            }
+            CaptionsMsg::Finished(request, result) => {
+                let Some(subject) =
+                    self.take_finished_subject(request, &studio.project().active_timeline_id)
+                else {
+                    return;
+                };
+                if result.is_ok() {
                     self.timings
                         .keep(&subject.model, self.pace.learned(subject.windows));
                 }
                 match result {
                     Ok(segments) => {
-                        let Some(subject) = subject else {
-                            return;
-                        };
                         let look = if studio
                             .timeline()
                             .clips
@@ -281,6 +289,22 @@ impl CaptionsPane {
             CaptionsMsg::ImportSrtFrom(path) => self.import_srt(studio, &path),
             CaptionsMsg::ExportSrt => self.ask_export_srt(studio),
             CaptionsMsg::ExportSrtTo(path) => self.export_srt(studio, &path),
+        }
+    }
+
+    /// Only the owning completion can consume the current subject or end its busy state.
+    fn take_finished_subject(&mut self, request: u64, timeline: &str) -> Option<Subject> {
+        match Pending::finish(&mut self.subject, request, timeline) {
+            Completion::Obsolete => None,
+            Completion::ContextChanged => {
+                self.running = false;
+                self.open = false;
+                None
+            }
+            Completion::Ready(value) => {
+                self.running = false;
+                Some(value)
+            }
         }
     }
 
@@ -571,6 +595,9 @@ impl CaptionsPane {
     /// the sheet as it goes. If "__all__" is selected, transcribes across all
     /// audible clips in the project and places continuous subtitles over the cut.
     fn run_sound(&mut self, studio: &mut Studio) {
+        if self.running {
+            return;
+        }
         let sources = sources(studio);
         let Some(target_id) = self
             .subject_clip(studio, &sources)
@@ -649,13 +676,17 @@ impl CaptionsPane {
                 (Stage::Loading, load),
                 (Stage::Working, windows * per_window),
             ]);
-            self.subject = Some(Subject {
-                start: 0.0,
-                speed: 1.0,
-                look: self.collection_look(studio),
-                model: model.clone(),
-                windows,
-            });
+            self.subject = Some(Pending::begin(
+                studio.project().active_timeline_id.clone(),
+                Subject {
+                    start: 0.0,
+                    speed: 1.0,
+                    look: self.collection_look(studio),
+                    model: model.clone(),
+                    windows,
+                },
+            ));
+            let request_id = self.subject.as_ref().unwrap().id();
             self.running = true;
             self.message.clear();
             let dirs = studio.host.dirs.clone();
@@ -674,7 +705,9 @@ impl CaptionsPane {
                         };
                         let segs = match transcriber.transcribe(&dirs, &req, move |stage| {
                             on_ui_in_project(epoch, move |studio, _, _| {
-                                studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
+                                studio.handle(Msg::Captions(CaptionsMsg::Progress(
+                                    request_id, stage,
+                                )));
                             });
                         }) {
                             Ok(s) => s,
@@ -691,7 +724,9 @@ impl CaptionsPane {
                     }
                     Ok(combined)
                 },
-                |studio, _, _, result| studio.handle(Msg::Captions(CaptionsMsg::Finished(result))),
+                move |studio, _, _, result| {
+                    studio.handle(Msg::Captions(CaptionsMsg::Finished(request_id, result)))
+                },
             );
             return;
         }
@@ -733,13 +768,17 @@ impl CaptionsPane {
             (Stage::Loading, load),
             (Stage::Working, windows * per_window),
         ]);
-        self.subject = Some(Subject {
-            start: clip.start,
-            speed: clip.speed,
-            look: self.collection_look(studio),
-            model,
-            windows,
-        });
+        self.subject = Some(Pending::begin(
+            studio.project().active_timeline_id.clone(),
+            Subject {
+                start: clip.start,
+                speed: clip.speed,
+                look: self.collection_look(studio),
+                model,
+                windows,
+            },
+        ));
+        let request_id = self.subject.as_ref().unwrap().id();
         self.running = true;
         self.message.clear();
         let epoch = crate::host::project_epoch();
@@ -747,11 +786,13 @@ impl CaptionsPane {
             move || {
                 transcriber.transcribe(&dirs, &request, move |stage| {
                     on_ui_in_project(epoch, move |studio, _, _| {
-                        studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
+                        studio.handle(Msg::Captions(CaptionsMsg::Progress(request_id, stage)));
                     });
                 })
             },
-            |studio, _, _, result| studio.handle(Msg::Captions(CaptionsMsg::Finished(result))),
+            move |studio, _, _, result| {
+                studio.handle(Msg::Captions(CaptionsMsg::Finished(request_id, result)))
+            },
         );
     }
 
@@ -1144,6 +1185,35 @@ fn srt_commands(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delayed_caption_results_preserve_the_new_request_and_reject_another_timeline() {
+        let old = Pending::begin("timeline-a".into(), ());
+        let subject = Pending::begin(
+            "timeline-a".into(),
+            Subject {
+                start: 12.0,
+                speed: 2.0,
+                look: (0.35, 0.04),
+                model: "fixture".into(),
+                windows: 1.0,
+            },
+        );
+        let request = subject.id();
+        let mut pane = CaptionsPane {
+            open: true,
+            running: true,
+            subject: Some(subject),
+            ..Default::default()
+        };
+        assert!(pane.take_finished_subject(old.id(), "timeline-a").is_none());
+        assert!(pane.running);
+        assert_eq!(pane.subject.as_ref().unwrap().id(), request);
+        assert!(pane.take_finished_subject(request, "timeline-b").is_none());
+        assert!(!pane.running);
+        assert!(!pane.open);
+        assert!(pane.subject.is_none());
+    }
 
     #[test]
     fn imported_srt_preserves_short_cues_and_multiline_text() {

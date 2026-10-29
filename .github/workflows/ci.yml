@@ -1,5 +1,5 @@
 name: CI
-run-name: ${{ inputs.connector_only && 'Audio connector checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.macos_toolchain_probe && 'macOS toolchain probe' || inputs.desktop_only && 'Selected desktop functional checks' || inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
 
 # Run the full engine checks manually or when preparing a release.
 # Ordinary pushes and pull requests do not start this graphical build.
@@ -21,6 +21,18 @@ on:
         description: Check only the bundled audio connector (no Rust compilation)
         type: boolean
         default: false
+      macos_toolchain_probe:
+        description: Diagnose the pinned FFmpeg configure toolchain on native Macs only
+        type: boolean
+        default: false
+      desktop_only:
+        description: Run only the selected virtual desktop regressions (not release validation)
+        type: boolean
+        default: false
+      desktop_qa:
+        description: Also run the selected ignored desktop regressions with virtual display/audio
+        type: boolean
+        default: false
   # release.yml runs this before it builds anything: a tag on a red tree
   # is not a release. It names the tag, because a release started by hand
   # runs on main, and main is not what it builds.
@@ -33,11 +45,34 @@ on:
 
 # Manual checks and release checks keep independent source refs.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ inputs.macos_toolchain_probe && 'macos-probe' || inputs.desktop_only && 'desktop' || inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
+  selection:
+    name: Validate check selection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CONNECTOR_ONLY: ${{ inputs.connector_only }}
+      MACOS_PROBE: ${{ inputs.macos_toolchain_probe }}
+      DESKTOP_ONLY: ${{ inputs.desktop_only }}
+      DESKTOP_QA: ${{ inputs.desktop_qa }}
+    steps:
+      - name: Reject conflicting manual selectors
+        shell: bash
+        run: |
+          modes=0
+          for value in "$CONNECTOR_ONLY" "$MACOS_PROBE" "$DESKTOP_ONLY"; do
+            if [ "$value" = true ]; then modes=$((modes + 1)); fi
+          done
+          if [ "$modes" -gt 1 ] || { [ "$DESKTOP_QA" = true ] && { [ "$CONNECTOR_ONLY" = true ] || [ "$MACOS_PROBE" = true ]; }; }; then
+            echo '::error::Choose one standalone check mode, or full CI with optional desktop QA.'
+            exit 1
+          fi
   connector:
+    needs: selection
+    if: inputs.macos_toolchain_probe != true && inputs.desktop_only != true
     name: Audio connector regressions
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -58,10 +93,11 @@ jobs:
             node "$file"
           done
   engine:
+    needs: selection
     # This selector is dispatch-only: reusable release calls cannot pass it.
     # They always run the engine as well as the connector.
-    if: inputs.connector_only != true
-    name: Engine tests and lints
+    if: inputs.connector_only != true && inputs.macos_toolchain_probe != true
+    name: ${{ inputs.desktop_only && 'Selected desktop functional checks' || 'Engine tests and lints' }}
     runs-on: ubuntu-24.04
     # A cold native + Slint test build needs more than 25 minutes on a hosted runner.
     # Keep separate compile and execution budgets so a slow build is identifiable.
@@ -188,6 +224,8 @@ jobs:
           test -d "sherpa/$stem/lib"
           echo "SHERPA_ONNX_LIB_DIR=$PWD/sherpa/$stem/lib" >> "$GITHUB_ENV"
 
+      - name: Clear reports restored with the build cache
+        run: rm -f src/target/nextest/ci/junit*.xml src/nextest-*.log
       - run: cargo fmt --check
         working-directory: src
       # Every string the interface shows is a key in a locale file; this
@@ -202,9 +240,9 @@ jobs:
       - run: python3 scripts/models.py --check
       # -D warnings covers rustc lints too (missing_docs among them), so a
       # public item without documentation fails here, not in review. Lints
-      # before tests: they finish in a fraction of the time and catch the
-      # most.
+      # before execution; their compilation cost is reported separately.
       - run: cargo clippy --workspace --all-targets -- -D warnings
+        if: inputs.desktop_only != true
         timeout-minutes: 45
         working-directory: src
 
@@ -213,6 +251,7 @@ jobs:
       # job at a time and no debug info, to stay inside the runner's
       # memory; the run below finds everything already built.
       - name: Build the tests
+        if: inputs.desktop_only != true
         timeout-minutes: 75
         working-directory: src
         run: cargo nextest run --locked --workspace --no-run --build-jobs 1
@@ -220,6 +259,7 @@ jobs:
       # adapter is usable, so the parity suite is known to have run. The
       # report and the log are kept when it fails (the last step).
       - name: Run the tests
+        if: inputs.desktop_only != true
         timeout-minutes: 20
         working-directory: src
         env:
@@ -232,15 +272,18 @@ jobs:
           exit "$status"
       # nextest does not run the examples in the documentation; cargo does.
       - name: Run the documentation's examples
+        if: inputs.desktop_only != true
         timeout-minutes: 10
         working-directory: src
         run: cargo test --workspace --doc -j 1
       # The gRPC transport is a feature nothing else in the workspace turns
       # on, so it is linted and tested here on its own. See concat-server.
       - run: cargo clippy -p concat-server -p concat-cli --features grpc --all-targets -- -D warnings
+        if: inputs.desktop_only != true
         timeout-minutes: 10
         working-directory: src
       - name: Run the gRPC tests
+        if: inputs.desktop_only != true
         timeout-minutes: 10
         working-directory: src
         run: |
@@ -249,6 +292,59 @@ jobs:
           cargo nextest run -p concat-server --features grpc --profile ci 2>&1 | tee nextest-grpc.log || status=$?
           mv target/nextest/ci/junit.xml target/nextest/ci/junit-grpc.xml 2>/dev/null || true
           exit "$status"
+
+      - name: Build selected desktop tests
+        if: inputs.desktop_only
+        timeout-minutes: 75
+        working-directory: src
+        run: cargo nextest run --locked -p concat --lib --no-run --build-jobs 1 --profile ci
+
+      - name: Virtual desktop prerequisites (isolated runner only)
+        if: (inputs.desktop_qa || inputs.desktop_only) && !inputs.connector_only
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            xvfb xauth libxkbcommon-x11-0 pulseaudio pulseaudio-utils libasound2-plugins vulkan-tools
+      - name: Selected desktop regressions with virtual display and audio
+        if: (inputs.desktop_qa || inputs.desktop_only) && !inputs.connector_only
+        timeout-minutes: 30
+        working-directory: src
+        run: |
+          set -euo pipefail
+          qa_root=$(mktemp -d)
+          export XDG_RUNTIME_DIR="$qa_root/runtime"
+          export XDG_CONFIG_HOME="$qa_root/config"
+          export XDG_DATA_HOME="$qa_root/data"
+          export XDG_CACHE_HOME="$qa_root/cache"
+          export XDG_STATE_HOME="$qa_root/state"
+          mkdir -m 700 "$XDG_RUNTIME_DIR"
+          mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME"
+          # Hosted-runner teardown owns scratch disposal. Background daemons
+          # can race rm; cleanup must preserve the actual test result.
+          trap 'status=$?; trap - EXIT; pulseaudio --kill || true; exit "$status"' EXIT
+          pulseaudio --start --exit-idle-time=-1 --load='module-null-sink sink_name=clovercut_qa'
+          export PULSE_SERVER="unix:$XDG_RUNTIME_DIR/pulse/native"
+          export PULSE_COOKIE="$XDG_CONFIG_HOME/pulse/cookie"
+          pactl set-default-sink clovercut_qa
+          export ALSA_CONFIG_PATH="$qa_root/asound.conf"
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$ALSA_CONFIG_PATH"
+          export CONCAT_GPU=software
+          status=0
+          xvfb-run -a -s '-screen 0 1920x1080x24' bash -euo pipefail -c '
+            rustc --version
+            vulkaninfo --summary
+            pactl info
+            cargo nextest run --locked -p concat --lib --profile ci --build-jobs 1 \
+              --test-threads 1 --run-ignored only \
+              -E "test(phase3_timeline_tests::) | test(phase4_playback_sync_tests::av_sync_and_drift_measurement) | test(phase4_playback_robustness_tests::playback_robustness_and_recovery) | test(phase4_preview_export_parity_tests::preview_vs_export_rendering_parity) | test(new_project_library_and_timeline_playback) | test(committed_warning_preserves_edits_and_allows_close) | test(switch_and_shutdown_with_running_work) | test(clipboard_tests::)"
+          ' 2>&1 | tee nextest-desktop.log || status=$?
+          mv target/nextest/ci/junit.xml target/nextest/ci/junit-desktop.xml 2>/dev/null || true
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          cases = ET.parse('target/nextest/ci/junit-desktop.xml').findall('.//testcase')
+          assert len(cases) >= 12, f'Expected the 12 selected desktop cases, got {len(cases)}'
+          assert not any(case.find('skipped') is not None for case in cases), 'Selected desktop cases were skipped'
+          PY
 
       - name: Keep test results and timings
         if: always()
@@ -260,3 +356,54 @@ jobs:
             src/target/nextest/ci/*.xml
             src/nextest-*.log
           if-no-files-found: ignore
+  macos-toolchain:
+    needs: selection
+    if: inputs.macos_toolchain_probe == true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Compare default and explicit host SDK configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/ci/fetch.sh macos-source-ffmpeg ffmpeg.tar.xz
+          mkdir ffmpeg
+          tar -xf ffmpeg.tar.xz -C ffmpeg --strip-components=1
+          compiler=$(xcrun --find clang)
+          flags="-O2 -fPIC -mmacosx-version-min=12.0 -isysroot $(xcrun --sdk macosx --show-sdk-path) -Werror=unguarded-availability-new"
+          export CC="$compiler" CXX="$(xcrun --find clang++)"
+          export CFLAGS="$flags" CXXFLAGS="$flags" LDFLAGS="$flags"
+          unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH CMAKE_PREFIX_PATH PKG_CONFIG_PATH
+          for mode in default-host explicit-host-sdk; do
+            mkdir "$mode"
+            (
+              cd "$mode"
+              extra=()
+              if [ "$mode" = explicit-host-sdk ]; then
+                extra=("--host-cc=$compiler" "--host-cflags=$flags" "--host-ldflags=$flags")
+              fi
+              ../ffmpeg/configure --cc="$compiler" --cxx="$(xcrun --find clang++)" \
+                --extra-cflags="$flags" --extra-cxxflags="$flags" --extra-ldflags="$flags" \
+                --disable-everything --disable-autodetect --disable-programs --disable-doc \
+                --disable-x86asm --disable-metal ${extra[@]+"${extra[@]}"}
+            ) && result=0 || result=$?
+            echo "$mode exit=$result"
+            if [ "$result" -ne 0 ]; then tail -100 "$mode/ffbuild/config.log"; fi
+            if [ "$mode" = explicit-host-sdk ]; then exit "$result"; fi
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: macos-toolchain-${{ matrix.os }}
+          retention-days: 14
+          path: '*/ffbuild/config.log'

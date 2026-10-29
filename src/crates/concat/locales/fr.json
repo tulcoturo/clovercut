@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Connectez la bibliothèque audio de Studio au service audio pour télécharger cette piste.",
   "youtube.invalidUrl": "Utilisez une adresse HTTPS ou HTTP sur localhost.",
   "settings.timelineGrid": "Repères verticaux de la timeline",
+  "settings.showPlayheadSplit": "Afficher le bouton de coupe sur la tête de lecture",
   "youtube.signIn": "Se connecter à YouTube Studio",
   "youtube.signInOpened": "Connectez-vous dans le navigateur, ouvrez la bibliothèque audio, puis actualisez ici. Votre session sera conservée.",
   "settings.chooseFile": "Choisir un fichier",

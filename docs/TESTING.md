@@ -49,6 +49,7 @@ cases still require Windows qualification; Linux runs do not execute them.
 | Models | `python3 scripts/models.py --check` | Python; no model inference |
 | Connector | `for file in src/crates/concat-host/audio-service/test/*.test.mjs; do node "$file" || exit; done` | Node 22+; loopback HTTP fixtures, no browser/account/external service |
 | Linux packages | `python3 -m unittest discover -s scripts -p test_linux_packaging.py -v` | Linux, dpkg-deb, RPM tools, makepkg/pacman; does not install on the host |
+| macOS minimum gate | `python3 -m unittest discover -s scripts -p test_macos_packaging.py -v` | Python/Bash; tool fixtures run without macOS |
 
 The Node suites report 20 cases at this increment: 11 catalogue/API, 6 preview
 language cases and 3 session-recovery cases. The API/session fixtures are shared
@@ -61,6 +62,40 @@ the selected source commit, not a previous successful branch run.
 For connector-only changes, the manual **CI** dispatch offers `connector_only`.
 That run is labelled **Audio connector checks** and skips Rust compilation.
 Reusable release calls do not expose this selector and always run the engine.
+
+Manual **CI** dispatch also offers `desktop_qa` for the selected ignored desktop
+regressions, after the ordinary engine checks. It provisions Xvfb, a PulseAudio
+null sink and Mesa software rendering on the disposable runner. Twelve cases
+cover timeline policy/history/geometry/transport, playback sync/robustness,
+preview/export parity, source preview, durability, lifecycle and clipboard.
+They run serially and produce a separate JUnit report; absent/skipped cases fail
+qualification. Hardware/model/live-provider probes and the performance benchmark
+are excluded. This option does not establish visual, physical-device, real audio
+output, screen-reader or Windows/macOS qualification. A workflow definition alone
+does not establish that its selected tests have passed.
+
+The ten-minute playback drift measurement is a separate ignored test, excluded
+from the twelve functional cases. In a prepared isolated desktop/audio session,
+run it explicitly from `src/` (the CI profile allows fifteen minutes):
+
+```sh
+cargo nextest run --locked -p concat --lib --profile ci --test-threads 1 --run-ignored only -E 'test(=studio::phase4_playback_sync_tests::ten_minute_playback_drift)'
+```
+
+It is unqualified until executed; the short functional suite does not establish
+long-run drift or physical A/V synchronization.
+
+For focused repairs, `desktop_only` compiles and executes those same twelve
+cases under **Selected desktop functional checks**, skipping workspace/gRPC
+checks. This is functional feedback, not full CI or release qualification.
+Standalone selectors are mutually exclusive; combining one with incompatible
+options fails before any suite can be silently skipped. Reusable release calls
+expose only `ref` and keep the complete engine and connector gates. Reports
+restored with a build cache are removed before generating fresh evidence.
+
+The manual `macos_toolchain_probe` mode compares FFmpeg's default host compiler
+configuration with explicit SDK flags on native Macs, retaining configure logs.
+It does not build or qualify a desktop package.
 
 Linux builds separately run `scripts/ci/smoke-native-linux.sh` in clean Debian 12
 and Fedora 43 containers: install, dependency resolution, version, graphical
@@ -264,3 +299,23 @@ documentation-test overhead. Reported child RSS high-water marks were below
 520 MiB; they are not aggregate concurrent-process memory. All commands passed.
 This establishes a repeatable headless development baseline, not a before/after
 desktop speedup or a runtime performance budget.
+
+## Transcription and speech request ownership
+
+The caption and speech panes share a small completion owner. From `src/`:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings crates/concat/src/request_owner.rs -o /tmp/clovercut-request-owner-tests
+/tmp/clovercut-request-owner-tests
+```
+
+Three cases cover cancelled/reset owners, an old completion arriving after a
+replacement on the same timeline, and completion after switching timelines.
+An obsolete completion must leave the current payload intact; a valid result can
+be consumed only once. These checks run in headless CI. Two ordinary pane cases
+also verify that obsolete replies do not clear the newer busy state and that
+destination changes release the completed job without applying it.
+
+These are deterministic ownership checks, not model inference or interactive
+transcription/playback qualification. Speech placement and style are captured
+with the initiating request; existing project-epoch guards remain in place.

@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Подключите фонотеку Studio к аудиосервису для загрузки этого трека.",
   "youtube.invalidUrl": "Используйте HTTPS или HTTP на localhost.",
   "settings.timelineGrid": "Вертикальные направляющие таймлайна",
+  "settings.showPlayheadSplit": "Показывать кнопку разреза у курсора воспроизведения",
   "youtube.signIn": "Войти в YouTube Studio",
   "youtube.signInOpened": "Войдите в браузере, откройте фонотеку и обновите список здесь. Сеанс будет сохранён.",
   "settings.chooseFile": "Выбрать файл",

@@ -1067,6 +1067,7 @@
   "youtube.connectStudio": "Connect the Studio Audio Library to the audio service to download this track.",
   "youtube.invalidUrl": "Use an HTTPS address or HTTP on localhost.",
   "settings.timelineGrid": "Vertical timeline guides",
+  "settings.showPlayheadSplit": "Show split button at playhead",
   "youtube.signIn": "Sign in to YouTube Studio",
   "youtube.signInOpened": "Sign in in the browser, open Audio Library, then refresh here. Your session will be saved.",
   "settings.chooseFile": "Choose file",
