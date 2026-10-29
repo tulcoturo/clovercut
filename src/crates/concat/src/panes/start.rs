@@ -221,6 +221,15 @@ impl StartPane {
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: StartMsg, studio: &mut Studio) {
+        if matches!(
+            &msg,
+            StartMsg::Page(_)
+                | StartMsg::SearchEdited(_)
+                | StartMsg::Sort(_)
+                | StartMsg::ForgetRecent(_)
+        ) {
+            studio.invalidate_project_posters();
+        }
         match msg {
             StartMsg::Compose => {
                 self.composing = true;

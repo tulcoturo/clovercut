@@ -10465,6 +10465,11 @@ impl Studio {
         self.recents = projects::recents(&self.host.dirs.config);
     }
 
+    /// A changed project page must bypass the otherwise unchanged artwork stamp.
+    pub fn invalidate_project_posters(&mut self) {
+        self.art_stamp = None;
+    }
+
     /// Posters, and the running time, for the recents not yet looked at,
     /// read on a worker. A missing folder has neither to give.
     fn request_posters(&mut self) {
@@ -15685,6 +15690,18 @@ mod save_durability_ui_tests {
                 |recent| recent.info.path == info.path && recent.info.name == "Renamed warning"
             )
         );
+        for message in [
+            crate::panes::start::StartMsg::Page(2),
+            crate::panes::start::StartMsg::SearchEdited("Renamed".into()),
+            crate::panes::start::StartMsg::Sort(crate::panes::start::SORT_NAME),
+        ] {
+            studio.art_stamp = Some((studio.revision, studio.on_start, 0, studio.prefs.proxies));
+            studio.handle(crate::panes::Msg::Start(message));
+            assert!(
+                studio.art_stamp.is_none(),
+                "project browsing must invalidate poster scheduling"
+            );
+        }
         let initial_tracks = studio.timeline().tracks.len();
         studio.apply(Command::AddTrack {
             bottom: false,
