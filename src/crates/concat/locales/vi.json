@@ -1101,5 +1101,15 @@
   "relink.searching": "Đang tìm tệp phương tiện…",
   "relink.relinkedFiles": "Tệp phương tiện đã liên kết lại: {0}/{1}",
   "studio.cacheCleared": "Tệp bộ nhớ đệm xem trước đã xóa: {0}",
-  "studio.cacheClearFailed": "Không thể xóa bộ nhớ đệm xem trước: {0}"
+  "studio.cacheClearFailed": "Không thể xóa bộ nhớ đệm xem trước: {0}",
+  "start.gridView": "Lưới",
+  "start.listView": "Danh sách",
+  "templates.editCopy": "Sửa bản sao",
+  "templates.updateCurrent": "Cập nhật từ dự án",
+  "templates.deleteTitle": "Xóa mẫu",
+  "templates.deleteMessage": "Xóa “{0}”? Không thể hoàn tác thao tác này.",
+  "templates.updateTitle": "Cập nhật mẫu",
+  "templates.updateMessage": "Thay “{0}” bằng dự án hiện tại?",
+  "templates.editDestination": "Chọn thư mục cho bản sao mẫu",
+  "templates.slotCount": "{0} vị trí"
 }

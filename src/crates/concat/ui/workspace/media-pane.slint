@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
+import { TemplateCard, TemplateData } from "templates.slint";
 import { LibraryTabs, LibraryStar } from "library-controls.slint";
 import { TransitionPreview } from "transition-preview.slint";
 import { I18n } from "../i18n.slint";
@@ -1902,6 +1903,11 @@ export component MediaPane inherits Rectangle {
     callback apply-audio(effect-id: string);
     /// Templates page: open the save-as-template flow for this project.
     callback save-template();
+    in property <[TemplateData]> templates;
+    in property <bool> templates-busy;
+    callback template-edit(path: string);
+    callback template-update(path: string);
+    callback template-delete(path: string);
     /// Adjustments page: bring in `.cube` tables as looks of the user's own.
     callback import-lut();
     /// Adjustments page: lay an adjustment layer at the playhead, called
@@ -3070,12 +3076,25 @@ export component MediaPane inherits Rectangle {
 
                     ImportButton {
                         label: I18n.t("mediaPane.saveProjectTemplate");
+                        busy: root.templates-busy;
+                        busy-label: I18n.t("mediaPane.saveProjectTemplate");
                         glyph: Glyph.slot;
                         clicked => { root.save-template(); }
                     }
                 }
 
-                if root.tab == 6: Empty {
+                if root.tab == 6: VerticalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+                    for item in root.templates: TemplateCard {
+                        item: item;
+                        enabled: !root.templates-busy;
+                        edit => { root.template-edit(item.path); }
+                        update => { root.template-update(item.path); }
+                        delete => { root.template-delete(item.path); }
+                    }
+                }
+                if root.tab == 6 && root.templates.length == 0: Empty {
                     glyph: Glyph.slot;
                     text: I18n.t("mediaPane.noTemplatesYetMark");
                 }

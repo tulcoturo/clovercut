@@ -39,6 +39,7 @@ import { DockDivider, DockSide, SeatBox } from "dock.slint";
 import { Editor } from "editor.slint";
 import { PaneKind, Panes } from "workspace/pane-switcher.slint";
 import { ChipOption, NewProjectDialog, RecentProjectData, StartData, StartScreen } from "start.slint";
+export { TemplateData } from "workspace/templates.slint";
 import { TitleBar } from "title-bar.slint";
 import { PhoneEditor } from "phone/editor.slint";
 import {
@@ -179,6 +180,11 @@ export component App inherits Window {
     callback start-reveal-recent(path: string);
     callback start-search-edited(query: string);
     callback start-sort-changed(sort: int);
+    callback start-page-changed(page: int);
+    property <int> project-view;
+    in property <int> project-page;
+    in property <int> project-pages: 1;
+    callback project-title-renamed(name: string);
     /// One of the launch screen's links, by name; see `start::link`.
     callback start-link(name: string);
     callback start-dismiss-error();
@@ -612,6 +618,7 @@ export component App inherits Window {
                 minimal: root.on-start;
                 deep: root.on-start;
                 project-name: root.project-name;
+                renamed(name) => { root.project-title-renamed(name); }
                 status: root.project-status;
 
                 menu: root.open-menu;
@@ -644,6 +651,10 @@ export component App inherits Window {
                 recents-total: root.recents-total;
                 query: root.start.query;
                 sort: root.start.sort;
+                view <=> root.project-view;
+                page: root.project-page;
+                pages: root.project-pages;
+                page-changed(page) => { root.start-page-changed(page); }
                 busy: root.start.busy;
                 phone: root.phone;
                 version: root.app-version;

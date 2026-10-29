@@ -1101,5 +1101,15 @@
   "relink.searching": "Wyszukiwanie multimediów…",
   "relink.relinkedFiles": "Ponownie połączone multimedia: {0}/{1}",
   "studio.cacheCleared": "Usunięte pliki pamięci podręcznej podglądu: {0}",
-  "studio.cacheClearFailed": "Nie udało się wyczyścić pamięci podręcznej podglądu: {0}"
+  "studio.cacheClearFailed": "Nie udało się wyczyścić pamięci podręcznej podglądu: {0}",
+  "start.gridView": "Siatka",
+  "start.listView": "Lista",
+  "templates.editCopy": "Edytuj kopię",
+  "templates.updateCurrent": "Aktualizuj z projektu",
+  "templates.deleteTitle": "Usuń szablon",
+  "templates.deleteMessage": "Usunąć „{0}”? Nie można tego cofnąć.",
+  "templates.updateTitle": "Aktualizuj szablon",
+  "templates.updateMessage": "Zastąpić „{0}” bieżącym projektem?",
+  "templates.editDestination": "Wybierz folder dla kopii szablonu",
+  "templates.slotCount": "Liczba miejsc: {0}"
 }

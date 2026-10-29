@@ -1101,5 +1101,15 @@
   "relink.searching": "מחפש קובצי מדיה…",
   "relink.relinkedFiles": "קובצי מדיה שקושרו מחדש: {0}/{1}",
   "studio.cacheCleared": "קבצים שנמחקו ממטמון התצוגה המקדימה: {0}",
-  "studio.cacheClearFailed": "לא ניתן לנקות את מטמון התצוגה המקדימה: {0}"
+  "studio.cacheClearFailed": "לא ניתן לנקות את מטמון התצוגה המקדימה: {0}",
+  "start.gridView": "רשת",
+  "start.listView": "רשימה",
+  "templates.editCopy": "עריכת עותק",
+  "templates.updateCurrent": "עדכון מהפרויקט",
+  "templates.deleteTitle": "מחיקת תבנית",
+  "templates.deleteMessage": "למחוק את „{0}”? לא ניתן לבטל פעולה זו.",
+  "templates.updateTitle": "עדכון תבנית",
+  "templates.updateMessage": "להחליף את „{0}” בפרויקט הנוכחי?",
+  "templates.editDestination": "בחירת תיקייה לעותק התבנית",
+  "templates.slotCount": "מספר משבצות: {0}"
 }

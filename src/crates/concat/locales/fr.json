@@ -1101,5 +1101,15 @@
   "relink.searching": "Recherche des médias…",
   "relink.relinkedFiles": "Médias reliés : {0}/{1}",
   "studio.cacheCleared": "Fichiers supprimés du cache d’aperçu : {0}",
-  "studio.cacheClearFailed": "Impossible de vider le cache d’aperçu : {0}"
+  "studio.cacheClearFailed": "Impossible de vider le cache d’aperçu : {0}",
+  "start.gridView": "Grille",
+  "start.listView": "Liste",
+  "templates.editCopy": "Modifier une copie",
+  "templates.updateCurrent": "Actualiser depuis le projet",
+  "templates.deleteTitle": "Supprimer le modèle",
+  "templates.deleteMessage": "Supprimer « {0} » ? Cette action est irréversible.",
+  "templates.updateTitle": "Actualiser le modèle",
+  "templates.updateMessage": "Remplacer « {0} » par le projet actuel ?",
+  "templates.editDestination": "Choisissez un dossier pour la copie du modèle",
+  "templates.slotCount": "{0} emplacements"
 }

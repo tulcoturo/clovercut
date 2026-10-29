@@ -1101,5 +1101,15 @@
   "relink.searching": "Поиск медиафайлов…",
   "relink.relinkedFiles": "Повторно привязано медиафайлов: {0}/{1}",
   "studio.cacheCleared": "Удалено файлов кэша предпросмотра: {0}",
-  "studio.cacheClearFailed": "Не удалось очистить кэш предпросмотра: {0}"
+  "studio.cacheClearFailed": "Не удалось очистить кэш предпросмотра: {0}",
+  "start.gridView": "Сетка",
+  "start.listView": "Список",
+  "templates.editCopy": "Редактировать копию",
+  "templates.updateCurrent": "Обновить из проекта",
+  "templates.deleteTitle": "Удалить шаблон",
+  "templates.deleteMessage": "Удалить «{0}»? Это действие нельзя отменить.",
+  "templates.updateTitle": "Обновить шаблон",
+  "templates.updateMessage": "Заменить «{0}» текущим проектом?",
+  "templates.editDestination": "Выберите папку для копии шаблона",
+  "templates.slotCount": "Число слотов: {0}"
 }

@@ -1101,5 +1101,15 @@
   "relink.searching": "Media zoeken…",
   "relink.relinkedFiles": "Opnieuw gekoppelde media: {0}/{1}",
   "studio.cacheCleared": "Verwijderde voorbeeldcachebestanden: {0}",
-  "studio.cacheClearFailed": "Kan voorbeeldcache niet wissen: {0}"
+  "studio.cacheClearFailed": "Kan voorbeeldcache niet wissen: {0}",
+  "start.gridView": "Raster",
+  "start.listView": "Lijst",
+  "templates.editCopy": "Kopie bewerken",
+  "templates.updateCurrent": "Bijwerken vanuit project",
+  "templates.deleteTitle": "Sjabloon verwijderen",
+  "templates.deleteMessage": "‘{0}’ verwijderen? Dit kan niet ongedaan worden gemaakt.",
+  "templates.updateTitle": "Sjabloon bijwerken",
+  "templates.updateMessage": "‘{0}’ vervangen door het huidige project?",
+  "templates.editDestination": "Kies een map voor de sjabloonkopie",
+  "templates.slotCount": "{0} plaatsen"
 }

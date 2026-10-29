@@ -1101,5 +1101,15 @@
   "relink.searching": "Buscando archivos multimedia…",
   "relink.relinkedFiles": "Archivos multimedia revinculados: {0}/{1}",
   "studio.cacheCleared": "Archivos eliminados de la caché de vista previa: {0}",
-  "studio.cacheClearFailed": "No se pudo borrar la caché de vista previa: {0}"
+  "studio.cacheClearFailed": "No se pudo borrar la caché de vista previa: {0}",
+  "start.gridView": "Cuadrícula",
+  "start.listView": "Lista",
+  "templates.editCopy": "Editar una copia",
+  "templates.updateCurrent": "Actualizar desde el proyecto",
+  "templates.deleteTitle": "Eliminar plantilla",
+  "templates.deleteMessage": "¿Eliminar «{0}»? Esta acción no se puede deshacer.",
+  "templates.updateTitle": "Actualizar plantilla",
+  "templates.updateMessage": "¿Sustituir «{0}» por el proyecto actual?",
+  "templates.editDestination": "Elige una carpeta para la copia de la plantilla",
+  "templates.slotCount": "{0} espacios"
 }

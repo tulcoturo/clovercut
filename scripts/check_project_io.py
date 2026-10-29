@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Check the actual host project-storage module without native media/UI libraries.
+"""Check real project/template storage and project browsing without native media/UI.
 
 The temporary crate reuses the source, dependency versions and lockfile from this
 checkout. It never copies implementation logic or changes the workspace lockfile.
@@ -29,7 +29,7 @@ def main():
         manifest = (
             '[package]\nname = "clovercut-project-io-check"\n'
             f'version = {json.dumps(version)}\nedition = "2024"\n'
-            f'[lib]\npath = {json.dumps(str(workspace / "crates/concat-host/src/projects.rs"))}\n'
+            '[lib]\npath = "lib.rs"\n'
             '[dependencies]\n'
         )
         for name in ("serde", "serde_json", "log", "tempfile"):
@@ -40,6 +40,15 @@ def main():
             manifest += (f'{name} = {{ version = {pinned}, features = ["derive"] }}\n'
                          if name == "serde" else f'{name} = {pinned}\n')
         manifest += 'concat-project = { path = ' + json.dumps(str(workspace / "crates/concat-project")) + ' }\n'
+        manifest += 'concat-effects = { path = ' + json.dumps(str(workspace / "crates/concat-effects")) + ' }\n'
+        (scratch / "lib.rs").write_text(
+            'extern crate self as concat_host;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat/src/project_browser.rs")) + '] pub mod project_browser;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/projects.rs")) + '] pub mod projects;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/templates.rs")) + '] pub mod templates;\n'
+            # Poster extraction requires native media libraries and is covered by full CI.
+            'pub mod media { pub fn poster_frame(_: &str) -> Result<Vec<u8>, String> { Err("native poster extraction unavailable in storage-only check".into()) } }\n'
+        )
         (scratch / "Cargo.toml").write_text(manifest)
         (scratch / "Cargo.lock").write_bytes(lock)
         env = os.environ.copy()

@@ -81,6 +81,20 @@ pub fn templates_dir(config: &Path) -> PathBuf {
     config.join("templates")
 }
 
+// OS-level locking also coordinates another Clovercut process using this library.
+fn library_lock(library: &Path) -> Result<std::fs::File, String> {
+    std::fs::create_dir_all(library).map_err(|error| error.to_string())?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(library.join(".library.lock"))
+        .map_err(|error| error.to_string())?;
+    file.lock().map_err(|error| error.to_string())?;
+    Ok(file)
+}
+
 /// Packs the given document into a new template bundle.
 ///
 /// `project_path` is where the document's media paths currently resolve; it
@@ -93,10 +107,28 @@ pub fn save(
     project_path: &str,
     name: &str,
 ) -> Result<TemplateInfo, String> {
-    let root = templates_dir(config).join(projects::folder_name(name));
-    if root.join(MANIFEST).exists() {
+    let library = templates_dir(config);
+    let _lock = library_lock(&library)?;
+    let root = library.join(projects::folder_name(name));
+    if root.exists() {
         return Err(format!("a template named {name:?} already exists"));
     }
+    let staging = tempfile::Builder::new()
+        .prefix(".saving-")
+        .tempdir_in(&library)
+        .map_err(|error| error.to_string())?;
+    pack(staging.path(), document, settings, project_path, name)?;
+    std::fs::rename(staging.path(), &root).map_err(|error| error.to_string())?;
+    read_info(&root)
+}
+
+fn pack(
+    root: &Path,
+    document: &Value,
+    settings: &DocumentSettings,
+    project_path: &str,
+    name: &str,
+) -> Result<(), String> {
     let assets = root.join(ASSETS);
     std::fs::create_dir_all(&assets)
         .map_err(|error| format!("could not create {}: {error}", assets.display()))?;
@@ -136,7 +168,7 @@ pub fn save(
         let _ = std::fs::write(root.join(POSTER), bytes);
     }
 
-    read_info(&root)
+    Ok(())
 }
 
 /// Copies one source file into `assets/` and returns its bundle-relative
@@ -166,11 +198,15 @@ fn bundle_file(assets: &Path, id: &str, source: &str) -> Result<String, String> 
 /// A folder that does not parse is skipped rather than sinking the whole
 /// gallery - the same grace the recents list extends to vanished projects.
 pub fn list(config: &Path) -> Vec<TemplateInfo> {
+    let Ok(_lock) = library_lock(&templates_dir(config)) else {
+        return Vec::new();
+    };
     let Ok(entries) = std::fs::read_dir(templates_dir(config)) else {
         return Vec::new();
     };
     let mut templates: Vec<TemplateInfo> = entries
         .filter_map(|entry| entry.ok())
+        .filter(|entry| !entry.file_name().to_string_lossy().starts_with('.'))
         .filter_map(|entry| read_info(&entry.path()).ok())
         .collect();
     templates.sort_by(|left, right| left.name.cmp(&right.name));
@@ -275,7 +311,27 @@ pub fn instantiate(
     name: &str,
     fills: Vec<SlotFill>,
 ) -> Result<(projects::ProjectInfo, projects::Saved), String> {
+    instantiate_inner(template, location, name, fills, false)
+}
+
+/// Make an independent project for editing a template, retaining its slots.
+pub fn edit_copy(
+    template: &str,
+    location: &str,
+    name: &str,
+) -> Result<(projects::ProjectInfo, projects::Saved), String> {
+    instantiate_inner(template, location, name, Vec::new(), true)
+}
+
+fn instantiate_inner(
+    template: &str,
+    location: &str,
+    name: &str,
+    fills: Vec<SlotFill>,
+    editing: bool,
+) -> Result<(projects::ProjectInfo, projects::Saved), String> {
     let bundle = PathBuf::from(template);
+    let _lock = library_lock(bundle.parent().ok_or("invalid template path")?)?;
     let manifest = bundle.join(MANIFEST);
     let bytes = std::fs::read(&manifest)
         .map_err(|error| format!("could not read {}: {error}", manifest.display()))?;
@@ -288,7 +344,7 @@ pub fn instantiate(
         .iter()
         .filter(|slot| !fills.iter().any(|fill| fill.media_id == slot.media_id))
         .collect();
-    if !unfilled.is_empty() {
+    if !editing && !unfilled.is_empty() {
         return Err(format!("{} slot(s) still need a clip", unfilled.len()));
     }
 
@@ -302,64 +358,86 @@ pub fn instantiate(
         [0, 0, 0, 255],
     )?;
     let root = PathBuf::from(&project.path);
-
-    // The bundle's assets move into the project so it stands alone; the
-    // document's relative paths become project-local absolute ones.
-    copy_assets(&bundle.join(ASSETS), &root.join(ASSETS))?;
-    document["name"] = Value::String(project.name.clone());
-    for section in ["media", "fonts"] {
-        if let Some(items) = document.get_mut(section).and_then(Value::as_array_mut) {
-            for item in items {
-                let Some(path) = item.get("path").and_then(Value::as_str) else {
-                    continue;
-                };
-                if let Some(relative) = path.strip_prefix(&format!("{ASSETS}/")) {
-                    let absolute = root.join(ASSETS).join(relative);
-                    item["path"] = Value::String(absolute.to_string_lossy().into_owned());
+    let result = (|| {
+        // The bundle's assets move into the project so it stands alone; the
+        // document's relative paths become project-local absolute ones.
+        copy_assets(&bundle.join(ASSETS), &root.join(ASSETS))?;
+        if let Ok(entries) = std::fs::read_dir(&bundle) {
+            for entry in entries.flatten() {
+                if entry.file_name().to_string_lossy().starts_with(".update-") {
+                    copy_assets(
+                        &entry.path().join(ASSETS),
+                        &root.join(entry.file_name()).join(ASSETS),
+                    )?;
                 }
             }
         }
+        document["name"] = Value::String(project.name.clone());
+        for section in ["media", "fonts"] {
+            if let Some(items) = document.get_mut(section).and_then(Value::as_array_mut) {
+                for item in items {
+                    let Some(path) = item.get("path").and_then(Value::as_str) else {
+                        continue;
+                    };
+                    if !path.is_empty() && Path::new(path).is_relative() {
+                        if Path::new(path)
+                            .components()
+                            .any(|part| !matches!(part, std::path::Component::Normal(_)))
+                        {
+                            return Err("invalid asset path in template".to_owned());
+                        }
+                        let absolute = root.join(path);
+                        item["path"] = Value::String(absolute.to_string_lossy().into_owned());
+                    }
+                }
+            }
+        }
+
+        let mut editor = Editor::from_document(&document)
+            .ok_or("this template holds a document this build cannot read")?;
+        // A template saved before an effect was retired opens the way a
+        // project does: its links read as links to the stand-ins.
+        let catalogue = concat_effects::Catalogue::builtin();
+        editor.upgrade_links(|link| catalogue.upgrade(link));
+        editor.upgrade_mask_effects();
+        if !fills.is_empty() {
+            editor
+                .apply(Command::Batch {
+                    commands: fills
+                        .into_iter()
+                        .map(|fill| Command::FillSlot {
+                            media_id: fill.media_id,
+                            item: fill.item,
+                        })
+                        .collect(),
+                })
+                .map_err(|error| format!("could not fill the template: {error}"))?;
+        }
+
+        let settings = DocumentSettings {
+            name: project.name.clone(),
+            width: info.width,
+            height: info.height,
+            rate_num: info.rate_num,
+            rate_den: info.rate_den,
+            canvas: editor.project().active().video.canvas,
+        };
+        let saved = projects::save(&project.path, &editor.to_document(&settings))?;
+
+        // After the save, so the cached poster reads as fresh.
+        if bundle.join(POSTER).is_file() {
+            let cache = root.join("cache");
+            let _ = std::fs::create_dir_all(&cache);
+            let _ = std::fs::copy(bundle.join(POSTER), cache.join("preview.jpg"));
+        }
+
+        Ok((project, saved))
+    })();
+    if result.is_err() {
+        // Only the fresh folder created above is ours to roll back.
+        let _ = std::fs::remove_dir_all(&root);
     }
-
-    let mut editor = Editor::from_document(&document)
-        .ok_or("this template holds a document this build cannot read")?;
-    // A template saved before an effect was retired opens the way a
-    // project does: its links read as links to the stand-ins.
-    let catalogue = concat_effects::Catalogue::builtin();
-    editor.upgrade_links(|link| catalogue.upgrade(link));
-    editor.upgrade_mask_effects();
-    if !fills.is_empty() {
-        editor
-            .apply(Command::Batch {
-                commands: fills
-                    .into_iter()
-                    .map(|fill| Command::FillSlot {
-                        media_id: fill.media_id,
-                        item: fill.item,
-                    })
-                    .collect(),
-            })
-            .map_err(|error| format!("could not fill the template: {error}"))?;
-    }
-
-    let settings = DocumentSettings {
-        name: project.name.clone(),
-        width: info.width,
-        height: info.height,
-        rate_num: info.rate_num,
-        rate_den: info.rate_den,
-        canvas: editor.project().active().video.canvas,
-    };
-    let saved = projects::save(&project.path, &editor.to_document(&settings))?;
-
-    // After the save, so the cached poster reads as fresh.
-    if bundle.join(POSTER).is_file() {
-        let cache = root.join("cache");
-        let _ = std::fs::create_dir_all(&cache);
-        let _ = std::fs::copy(bundle.join(POSTER), cache.join("preview.jpg"));
-    }
-
-    Ok((project, saved))
+    result
 }
 
 fn copy_assets(from: &Path, to: &Path) -> Result<(), String> {
@@ -379,20 +457,101 @@ fn copy_assets(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Replace a bundle from the current project. The old manifest and assets
+/// remain readable until the new manifest is atomically committed.
+pub fn update(
+    config: &Path,
+    path: &str,
+    document: &Value,
+    settings: &DocumentSettings,
+    project_path: &str,
+) -> Result<TemplateInfo, String> {
+    let _lock = library_lock(&templates_dir(config))?;
+    let target = checked_bundle(config, path)?;
+    let name = read_info(&target)?.name;
+    let staging = tempfile::Builder::new()
+        .prefix(".update-")
+        .tempdir_in(&target)
+        .map_err(|error| error.to_string())?;
+    pack(staging.path(), document, settings, project_path, &name)?;
+    let mut packed: Value = serde_json::from_slice(
+        &std::fs::read(staging.path().join(MANIFEST)).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+    let generation = staging
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    for section in ["media", "fonts"] {
+        if let Some(items) = packed.get_mut(section).and_then(Value::as_array_mut) {
+            for item in items {
+                if let Some(relative) = item
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .and_then(|path| path.strip_prefix("assets/"))
+                {
+                    item["path"] = Value::String(format!("{generation}/assets/{relative}"));
+                }
+            }
+        }
+    }
+    let encoded = serde_json::to_vec_pretty(&packed).map_err(|error| error.to_string())?;
+    // Keep this generation before committing its manifest. On commit failure
+    // it is harmless unused data; the existing template is untouched.
+    let generation_path = staging.keep();
+    let mut manifest =
+        tempfile::NamedTempFile::new_in(&target).map_err(|error| error.to_string())?;
+    use std::io::Write;
+    manifest
+        .write_all(&encoded)
+        .map_err(|error| error.to_string())?;
+    manifest
+        .as_file()
+        .sync_all()
+        .map_err(|error| error.to_string())?;
+    manifest
+        .persist(target.join(MANIFEST))
+        .map_err(|error| error.to_string())?;
+    if generation_path.join(POSTER).is_file() {
+        let _ = std::fs::copy(generation_path.join(POSTER), target.join(POSTER));
+    }
+    // No reader can still be copying the previous generation while this
+    // lock is held. Reclaim it only after the new manifest is committed.
+    if let Ok(entries) = std::fs::read_dir(&target) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name == ASSETS || (name.starts_with(".update-") && name != generation) {
+                let _ = std::fs::remove_dir_all(entry.path());
+            }
+        }
+    }
+    read_info(&target)
+}
+
+fn checked_bundle(config: &Path, path: &str) -> Result<PathBuf, String> {
+    let target = Path::new(path)
+        .canonicalize()
+        .map_err(|_| format!("{path} is not a template"))?;
+    let library = templates_dir(config)
+        .canonicalize()
+        .map_err(|_| format!("{path} is not a template"))?;
+    if target.parent() != Some(library.as_path()) || !target.join(MANIFEST).is_file() {
+        return Err(format!("{path} is not a template"));
+    }
+    Ok(target)
+}
+
 /// Removes one template bundle for good.
 ///
 /// Only ever a folder inside the templates directory that actually holds a
 /// manifest - this function deletes recursively, and a stray path here would
 /// be a catastrophe, so it is checked rather than trusted.
 pub fn delete(config: &Path, path: &str) -> Result<(), String> {
-    let target = PathBuf::from(path);
-    let library = templates_dir(config);
-    let (Ok(target), Ok(library)) = (target.canonicalize(), library.canonicalize()) else {
-        return Err(format!("{path} is not a template"));
-    };
-    if !target.starts_with(&library) || target == library || !target.join(MANIFEST).is_file() {
-        return Err(format!("{path} is not a template"));
-    }
+    let _lock = library_lock(&templates_dir(config))?;
+    let target = checked_bundle(config, path)?;
     std::fs::remove_dir_all(&target)
         .map_err(|error| format!("could not delete {}: {error}", target.display()))
 }
@@ -455,6 +614,88 @@ mod tests {
                 color_space: Default::default(),
             },
         }
+    }
+
+    #[test]
+    fn template_updates_preserve_old_bundle_on_failure_and_edit_copies_stay_independent() {
+        let scratch = tempfile::tempdir().unwrap();
+        let config = scratch.path().join("config");
+        let settings = DocumentSettings {
+            name: "Original".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+            canvas: [0, 0, 0, 255],
+        };
+        let mut document = template_document();
+        let info = save(&config, &document, &settings, "", "Original").unwrap();
+        let manifest = Path::new(&info.path).join(MANIFEST);
+        let before = std::fs::read(&manifest).unwrap();
+        // A broken non-placeholder must fail without changing the old bundle.
+        document["media"][0]["placeholder"] = Value::Bool(false);
+        document["media"][0]["path"] = Value::String("/missing/template-source.mp4".into());
+        assert!(update(&config, &info.path, &document, &settings, "").is_err());
+        assert_eq!(std::fs::read(&manifest).unwrap(), before);
+        assert_eq!(list(&config).len(), 1);
+        assert_eq!(
+            std::fs::read_dir(&info.path)
+                .unwrap()
+                .flatten()
+                .filter(|entry| entry.file_name().to_string_lossy().starts_with(".update-"))
+                .count(),
+            0
+        );
+
+        let asset = scratch.path().join("music.mp3");
+        std::fs::write(&asset, b"bundled audio").unwrap();
+        document["media"][0]["path"] = Value::String(asset.to_string_lossy().into_owned());
+        update(&config, &info.path, &document, &settings, "").unwrap();
+        update(&config, &info.path, &document, &settings, "").unwrap();
+        assert_eq!(
+            std::fs::read_dir(&info.path)
+                .unwrap()
+                .flatten()
+                .filter(|entry| entry.file_name().to_string_lossy().starts_with(".update-"))
+                .count(),
+            1,
+            "obsolete media generations are reclaimed"
+        );
+        let packed: Value = serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+        let packed_asset = Path::new(&info.path).join(packed["media"][0]["path"].as_str().unwrap());
+        assert_eq!(std::fs::read(packed_asset).unwrap(), b"bundled audio");
+        let location = scratch.path().join("projects");
+        std::fs::create_dir(&location).unwrap();
+        let copy = edit_copy(&info.path, &location.to_string_lossy(), "Editable")
+            .unwrap()
+            .0;
+        let copied = projects::read_document(&copy.path).unwrap().unwrap();
+        assert!(copied["media"][1]["placeholder"].as_bool().unwrap());
+        let copied_asset = PathBuf::from(copied["media"][0]["path"].as_str().unwrap());
+        assert!(copied_asset.starts_with(&copy.path));
+        delete(&config, &info.path).unwrap();
+        assert_eq!(std::fs::read(copied_asset).unwrap(), b"bundled audio");
+        assert!(projects::is_project(Path::new(&copy.path)));
+    }
+
+    #[test]
+    fn failed_new_template_does_not_publish_a_partial_bundle() {
+        let scratch = tempfile::tempdir().unwrap();
+        let config = scratch.path();
+        let settings = DocumentSettings {
+            name: "Broken".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+            canvas: [0, 0, 0, 255],
+        };
+        let mut document = template_document();
+        document["media"][0]["placeholder"] = Value::Bool(false);
+        document["media"][0]["path"] = Value::String("/missing/source.mp4".into());
+        assert!(save(config, &document, &settings, "", "Broken").is_err());
+        assert!(list(config).is_empty());
+        assert!(!templates_dir(config).join("Broken").exists());
     }
 
     #[test]

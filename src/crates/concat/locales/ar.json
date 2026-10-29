@@ -1101,5 +1101,15 @@
   "relink.searching": "جارٍ البحث عن الوسائط…",
   "relink.relinkedFiles": "الوسائط المعاد ربطها: {0}/{1}",
   "studio.cacheCleared": "ملفات ذاكرة المعاينة المؤقتة المحذوفة: {0}",
-  "studio.cacheClearFailed": "تعذر مسح ذاكرة المعاينة المؤقتة: {0}"
+  "studio.cacheClearFailed": "تعذر مسح ذاكرة المعاينة المؤقتة: {0}",
+  "start.gridView": "شبكة",
+  "start.listView": "قائمة",
+  "templates.editCopy": "تحرير نسخة",
+  "templates.updateCurrent": "تحديث من المشروع",
+  "templates.deleteTitle": "حذف القالب",
+  "templates.deleteMessage": "هل تريد حذف «{0}»؟ لا يمكن التراجع عن هذا الإجراء.",
+  "templates.updateTitle": "تحديث القالب",
+  "templates.updateMessage": "هل تريد استبدال «{0}» بالمشروع الحالي؟",
+  "templates.editDestination": "اختر مجلدًا لنسخة القالب",
+  "templates.slotCount": "عدد المواضع: {0}"
 }

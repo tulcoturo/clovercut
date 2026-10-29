@@ -1101,5 +1101,15 @@
   "relink.searching": "در حال جستجوی رسانه‌ها…",
   "relink.relinkedFiles": "رسانه‌های دوباره پیوندشده: {0}/{1}",
   "studio.cacheCleared": "فایل‌های حذف‌شده از حافظهٔ نهان پیش‌نمایش: {0}",
-  "studio.cacheClearFailed": "پاک کردن حافظهٔ نهان پیش‌نمایش ممکن نشد: {0}"
+  "studio.cacheClearFailed": "پاک کردن حافظهٔ نهان پیش‌نمایش ممکن نشد: {0}",
+  "start.gridView": "شبکه",
+  "start.listView": "فهرست",
+  "templates.editCopy": "ویرایش یک نسخه",
+  "templates.updateCurrent": "به‌روزرسانی از پروژه",
+  "templates.deleteTitle": "حذف الگو",
+  "templates.deleteMessage": "«{0}» حذف شود؟ این کار قابل بازگشت نیست.",
+  "templates.updateTitle": "به‌روزرسانی الگو",
+  "templates.updateMessage": "«{0}» با پروژهٔ فعلی جایگزین شود؟",
+  "templates.editDestination": "پوشه‌ای برای نسخهٔ الگو انتخاب کنید",
+  "templates.slotCount": "تعداد جایگاه‌ها: {0}"
 }

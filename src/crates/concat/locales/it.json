@@ -1101,5 +1101,15 @@
   "relink.searching": "Ricerca dei file multimediali…",
   "relink.relinkedFiles": "File multimediali ricollegati: {0}/{1}",
   "studio.cacheCleared": "File rimossi dalla cache di anteprima: {0}",
-  "studio.cacheClearFailed": "Impossibile svuotare la cache di anteprima: {0}"
+  "studio.cacheClearFailed": "Impossibile svuotare la cache di anteprima: {0}",
+  "start.gridView": "Griglia",
+  "start.listView": "Elenco",
+  "templates.editCopy": "Modifica una copia",
+  "templates.updateCurrent": "Aggiorna dal progetto",
+  "templates.deleteTitle": "Elimina modello",
+  "templates.deleteMessage": "Eliminare «{0}»? Questa azione è irreversibile.",
+  "templates.updateTitle": "Aggiorna modello",
+  "templates.updateMessage": "Sostituire «{0}» con il progetto attuale?",
+  "templates.editDestination": "Scegli una cartella per la copia del modello",
+  "templates.slotCount": "{0} segnaposto"
 }

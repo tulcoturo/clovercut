@@ -303,6 +303,9 @@ export component TitleBar inherits Rectangle {
     /// maximises and shows the two-squares glyph.
     in property <bool> maximized;
 
+    callback renamed(name: string);
+    property <bool> editing-name;
+    property <string> draft-name;
     callback begin-drag();
     callback toggle-maximize();
     callback minimize();
@@ -546,13 +549,58 @@ export component TitleBar inherits Rectangle {
 
         VerticalLayout {
             alignment: center;
-            Text {
-                text: root.project-name;
-                color: Theme.fg;
-                font-size: Theme.fs;
-                font-weight: Theme.weight-title;
-                overflow: elide;
-                max-width: 280px;
+            Rectangle {
+                width: 220px;
+                height: 24px;
+                clip: true;
+                if !root.editing-name: Text {
+                    text: root.project-name;
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    font-weight: Theme.weight-title;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+                if !root.editing-name: TouchArea {
+                    mouse-cursor: text;
+                    clicked => {
+                        root.draft-name = root.project-name;
+                        root.editing-name = true;
+                        name-input.focus();
+                    }
+                }
+                name-input := TextInput {
+                    property <length> scroll;
+                    x: min(0px, max(parent.width - self.width - self.text-cursor-width, self.scroll));
+                    width: max(parent.width - self.text-cursor-width, self.preferred-width);
+                    cursor-position-changed(caret) => {
+                        if caret.x + self.scroll < 0px {
+                            self.scroll = -caret.x;
+                        } else if caret.x + self.scroll > parent.width - self.text-cursor-width {
+                            self.scroll = parent.width - caret.x - self.text-cursor-width;
+                        }
+                    }
+                    visible: root.editing-name;
+                    text <=> root.draft-name;
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    single-line: true;
+                    vertical-alignment: center;
+                    changed has-focus => {
+                        if !self.has-focus { root.editing-name = false; }
+                    }
+                    accepted => {
+                        root.editing-name = false;
+                        root.renamed(root.draft-name);
+                    }
+                    key-pressed(event) => {
+                        if event.text == Key.Escape {
+                            root.editing-name = false;
+                            return accept;
+                        }
+                        return reject;
+                    }
+                }
             }
         }
 

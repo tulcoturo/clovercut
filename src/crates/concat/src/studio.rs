@@ -763,6 +763,7 @@ pub struct Models {
     pub seats: Rc<VecModel<SeatBox>>,
     pub dividers: Rc<VecModel<DockDivider>>,
     pub recents: Rc<VecModel<RecentProjectData>>,
+    pub templates: Rc<VecModel<crate::ui::TemplateData>>,
     /// The Text page's presets, published once from the loaded list.
     pub text_presets: Rc<VecModel<TextPresetData>>,
     /// The Latin ones, for the Text page's Styles shelf.
@@ -846,6 +847,7 @@ impl Models {
             seats: Rc::new(VecModel::default()),
             dividers: Rc::new(VecModel::default()),
             recents: Rc::new(VecModel::default()),
+            templates: Rc::new(VecModel::default()),
             text_presets: Rc::new(VecModel::default()),
             style_presets: Rc::new(VecModel::default()),
             language_presets: Rc::new(VecModel::default()),
@@ -979,6 +981,9 @@ pub struct Studio {
     pub on_start: bool,
     pub start: crate::panes::start::StartPane,
     pub recents: Vec<projects::Recent>,
+    pub template_library: Vec<(templates::TemplateInfo, slint::Image)>,
+    pub templates_busy: bool,
+    templates_loaded: bool,
     pub posters: HashMap<String, slint::Image>,
     posters_pending: HashSet<String>,
     /// How long each recent project's timeline runs, in seconds, read on
@@ -2344,14 +2349,28 @@ fn few(names: &[String]) -> String {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Confirm {
     /// Deleting a whole track, and every clip on it.
-    RemoveTrack { track_id: String },
+    RemoveTrack {
+        track_id: String,
+    },
+    DeleteTemplate {
+        path: String,
+        name: String,
+    },
+    UpdateTemplate {
+        path: String,
+        name: String,
+    },
     /// Exporting over a file that is already at `path`.
-    ReplaceExport { path: String },
+    ReplaceExport {
+        path: String,
+    },
     /// Quitting though the project could not be saved, for `error`. A
     /// close that cannot write the project keeps the window, and without
     /// this a disk unplugged, full or read-only made a window that would
     /// never close.
-    QuitWithoutSaving { error: String },
+    QuitWithoutSaving {
+        error: String,
+    },
 }
 
 /// Each rewritten link as "Old → New", the new one by its package's name.
@@ -2462,6 +2481,9 @@ impl Studio {
             on_start: true,
             start,
             recents,
+            template_library: Vec::new(),
+            templates_busy: false,
+            templates_loaded: false,
             posters: HashMap::new(),
             posters_pending: HashSet::new(),
             lengths: HashMap::new(),
@@ -2640,6 +2662,8 @@ impl Studio {
                 self.release_project();
                 slint::quit_event_loop().ok();
             }
+            Some(Confirm::DeleteTemplate { path, .. }) => self.delete_template(path),
+            Some(Confirm::UpdateTemplate { path, .. }) => self.update_template(path),
             None => {}
         }
     }
@@ -2650,6 +2674,18 @@ impl Studio {
             return crate::ui::ConfirmData::default();
         };
         match confirm {
+            Confirm::DeleteTemplate { name, .. } => crate::ui::ConfirmData {
+                open: true,
+                title: t("templates.deleteTitle").into(),
+                message: tf("templates.deleteMessage", &[name]).into(),
+                action: t("common.delete").into(),
+            },
+            Confirm::UpdateTemplate { name, .. } => crate::ui::ConfirmData {
+                open: true,
+                title: t("templates.updateTitle").into(),
+                message: tf("templates.updateMessage", &[name]).into(),
+                action: t("templates.updateCurrent").into(),
+            },
             Confirm::RemoveTrack { track_id } => {
                 let clips = self
                     .timeline()
@@ -3345,6 +3381,17 @@ impl Studio {
     fn saved(&mut self, result: Result<projects::Saved, String>, announce: bool) {
         match result {
             Ok(saved) => {
+                if let Some(session) = self.session.as_ref()
+                    && self.recents.iter().any(|recent| {
+                        recent.info.path == session.path() && recent.info.name != self.project_name
+                    })
+                    && let Ok(info) = projects::open(session.path())
+                {
+                    if let Err(error) = projects::remember(&self.host.dirs.config, &info) {
+                        self.notify(&error, true);
+                    }
+                    self.recents = projects::recents(&self.host.dirs.config);
+                }
                 if let Some(warning) = saved.warning() {
                     self.notify(warning, true);
                 } else if announce {
@@ -10418,12 +10465,20 @@ impl Studio {
         self.recents = projects::recents(&self.host.dirs.config);
     }
 
+    /// A changed project page must bypass the otherwise unchanged artwork stamp.
+    pub fn invalidate_project_posters(&mut self) {
+        self.art_stamp = None;
+    }
+
     /// Posters, and the running time, for the recents not yet looked at,
     /// read on a worker. A missing folder has neither to give.
     fn request_posters(&mut self) {
-        let wanted: Vec<String> = self
-            .recents
-            .iter()
+        let shown = crate::panes::start::shown(&self.recents, &self.start.query, self.start.sort);
+        let (page, _) = crate::panes::start::page_bounds(shown.len(), self.start.page);
+        let wanted: Vec<String> = shown
+            .into_iter()
+            .skip(page * crate::panes::start::PAGE_SIZE)
+            .take(crate::panes::start::PAGE_SIZE)
             .filter(|recent| recent.present)
             .map(|recent| recent.info.path.clone())
             .filter(|path| !self.lengths.contains_key(path) && !self.posters_pending.contains(path))
@@ -10788,7 +10843,169 @@ impl Studio {
         ids
     }
 
+    pub fn refresh_templates(&mut self) {
+        self.templates_loaded = true;
+        self.templates_busy = true;
+        let config = self.host.dirs.config.clone();
+        spawn(
+            move || templates::list(&config),
+            |studio, _, _, library| {
+                studio.templates_busy = false;
+                studio.template_library = library
+                    .into_iter()
+                    .map(|info| {
+                        let poster = image_at(&std::path::Path::new(&info.path).join("poster.jpg"))
+                            .unwrap_or_default();
+                        (info, poster)
+                    })
+                    .collect();
+            },
+        );
+    }
+
+    pub fn ask_template_change(&mut self, path: &str, delete: bool) {
+        if self.templates_busy {
+            return;
+        }
+        let Some((info, _)) = self
+            .template_library
+            .iter()
+            .find(|(info, _)| info.path == path)
+        else {
+            return;
+        };
+        self.confirm = Some(if delete {
+            Confirm::DeleteTemplate {
+                path: info.path.clone(),
+                name: info.name.clone(),
+            }
+        } else {
+            Confirm::UpdateTemplate {
+                path: info.path.clone(),
+                name: info.name.clone(),
+            }
+        });
+    }
+
+    fn delete_template(&mut self, path: String) {
+        if self.templates_busy {
+            return;
+        }
+        self.templates_busy = true;
+        let config = self.host.dirs.config.clone();
+        spawn(
+            move || templates::delete(&config, &path),
+            |studio, _, _, result| {
+                studio.templates_busy = false;
+                if let Err(error) = result {
+                    studio.notify(&error, true);
+                }
+                studio.refresh_templates();
+            },
+        );
+    }
+
+    fn update_template(&mut self, target: String) {
+        if self.templates_busy {
+            return;
+        }
+        let Some(session) = self.session.as_ref() else {
+            return;
+        };
+        let document = session.document();
+        let settings = session.settings();
+        let path = session.path().to_owned();
+        let config = self.host.dirs.config.clone();
+        self.templates_busy = true;
+        spawn(
+            move || templates::update(&config, &target, &document, &settings, &path),
+            |studio, _, _, result| {
+                studio.templates_busy = false;
+                match result {
+                    Ok(info) => studio.notify(&tf("studio.savedTemplate", &[&info.name]), false),
+                    Err(error) => studio.notify(&error, true),
+                }
+                studio.refresh_templates();
+            },
+        );
+    }
+
+    pub fn edit_template(&mut self, path: String) {
+        if self.templates_busy {
+            return;
+        }
+        let Some((info, _)) = self
+            .template_library
+            .iter()
+            .find(|(info, _)| info.path == path)
+        else {
+            return;
+        };
+        let name = info.name.clone();
+        let title = t("templates.editDestination");
+        crate::host::after_dialog(
+            move || platform::pick_folder(&title, ""),
+            move |studio, _, _, folder| {
+                if studio.templates_busy {
+                    return;
+                }
+                studio.templates_busy = true;
+                let epoch = crate::host::project_epoch();
+                let config = studio.host.dirs.config.clone();
+                spawn(
+                    move || {
+                        let name = (1..)
+                            .map(|n| {
+                                if n == 1 {
+                                    name.clone()
+                                } else {
+                                    format!("{name} {n}")
+                                }
+                            })
+                            .find(|name| !folder.join(projects::folder_name(name)).exists())
+                            .unwrap();
+                        let (info, _) =
+                            templates::edit_copy(&path, &folder.to_string_lossy(), &name)?;
+                        projects::remember(&config, &info)?;
+                        Ok(info)
+                    },
+                    move |studio, _, _, result: Result<ProjectInfo, String>| {
+                        studio.templates_busy = false;
+                        studio.recents = projects::recents(&studio.host.dirs.config);
+                        if epoch != crate::host::project_epoch() {
+                            if let Err(error) = result {
+                                studio.notify(&error, true);
+                            }
+                            return;
+                        }
+                        match result.and_then(|info| studio.open_project(info)) {
+                            Ok(()) => {}
+                            Err(error) => studio.notify(&error, true),
+                        }
+                    },
+                );
+            },
+        );
+    }
+
+    pub fn rename_project(&mut self, name: &str) {
+        let name = name.trim();
+        if name.is_empty() || name == self.project_name {
+            return;
+        }
+        let Some(session) = self.session.as_mut() else {
+            return;
+        };
+        session.prepare_save(Some(name));
+        self.project_name = name.to_owned();
+        self.dirty = true;
+        self.save(false);
+    }
+
     pub fn save_template(&mut self) {
+        if self.templates_busy {
+            return;
+        }
         let Some(session) = self.session.as_ref() else {
             return;
         };
@@ -10797,11 +11014,18 @@ impl Studio {
         let path = session.path().to_owned();
         let name = format!("{} template", self.project_name);
         let config = self.host.dirs.config.clone();
+        self.templates_busy = true;
         spawn(
             move || templates::save(&config, &document, &settings, &path, &name),
-            |studio, _, _, result| match result {
-                Ok(info) => studio.notify(&tf("studio.savedTemplate", &[&info.name]), false),
-                Err(error) => studio.notify(&error, true),
+            |studio, _, _, result| {
+                studio.templates_busy = false;
+                match result {
+                    Ok(info) => {
+                        studio.notify(&tf("studio.savedTemplate", &[&info.name]), false);
+                        studio.refresh_templates();
+                    }
+                    Err(error) => studio.notify(&error, true),
+                }
             },
         );
     }
@@ -13277,12 +13501,38 @@ impl Studio {
             message: self.toast.message.as_str().into(),
             failed: self.toast.failed,
         });
+        editor.set_templates_busy(self.templates_busy);
+        sync(
+            &models.templates,
+            self.template_library
+                .iter()
+                .map(|(info, poster)| crate::ui::TemplateData {
+                    path: info.path.as_str().into(),
+                    name: info.name.as_str().into(),
+                    detail: format!(
+                        "{} × {} · {} · {}",
+                        info.width,
+                        info.height,
+                        rate_label(info.rate_num, info.rate_den),
+                        tf("templates.slotCount", &[&info.slots.len()])
+                    )
+                    .into(),
+                    poster: poster.clone(),
+                })
+                .collect::<Vec<_>>(),
+        );
         app.set_start(self.start.data());
         app.set_recents_total(self.recents.len() as i32);
+        let shown = crate::panes::start::shown(&self.recents, &self.start.query, self.start.sort);
+        let (page, pages) = crate::panes::start::page_bounds(shown.len(), self.start.page);
+        app.set_project_page(page as i32);
+        app.set_project_pages(pages as i32);
         sync(
             &models.recents,
-            crate::panes::start::shown(&self.recents, &self.start.query, self.start.sort)
+            shown
                 .into_iter()
+                .skip(page * crate::panes::start::PAGE_SIZE)
+                .take(crate::panes::start::PAGE_SIZE)
                 .map(|recent| {
                     let project = &recent.info;
                     RecentProjectData {
@@ -13637,6 +13887,9 @@ impl Studio {
     /// Asks the workers for anything the launch screen or the bin is
     /// missing. Separate from `publish` because it mutates.
     pub fn refresh_art(&mut self) {
+        if !self.templates_loaded {
+            self.refresh_templates();
+        }
         // Called after every callback, the pointer stream included. The
         // scan over every media item - stats for proxies, JPEGs read back,
         // decodes queued - runs when the document, the screen or what is
@@ -15423,6 +15676,31 @@ mod save_durability_ui_tests {
         )
         .unwrap();
         studio.open_project(info.clone()).unwrap();
+        studio.rename_project("  Renamed warning  ");
+        assert_eq!(studio.project_name, "Renamed warning");
+        assert_eq!(studio.session.as_ref().unwrap().path(), info.path);
+        studio.rename_project("   ");
+        assert_eq!(studio.project_name, "Renamed warning");
+        let renamed = studio.session.as_mut().unwrap().save(None);
+        studio.saved(renamed, false);
+        assert_eq!(projects::open(&info.path).unwrap().name, "Renamed warning");
+        assert!(
+            studio.recents.iter().any(
+                |recent| recent.info.path == info.path && recent.info.name == "Renamed warning"
+            )
+        );
+        for message in [
+            crate::panes::start::StartMsg::Page(2),
+            crate::panes::start::StartMsg::SearchEdited("Renamed".into()),
+            crate::panes::start::StartMsg::Sort(crate::panes::start::SORT_NAME),
+        ] {
+            studio.art_stamp = Some((studio.revision, studio.on_start, 0, studio.prefs.proxies));
+            studio.handle(crate::panes::Msg::Start(message));
+            assert!(
+                studio.art_stamp.is_none(),
+                "project browsing must invalidate poster scheduling"
+            );
+        }
         let initial_tracks = studio.timeline().tracks.len();
         studio.apply(Command::AddTrack {
             bottom: false,

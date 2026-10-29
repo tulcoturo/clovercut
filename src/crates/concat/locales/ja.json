@@ -1101,5 +1101,15 @@
   "relink.searching": "メディアを検索中…",
   "relink.relinkedFiles": "再リンクしたメディア: {0}/{1}",
   "studio.cacheCleared": "削除したプレビューキャッシュファイル: {0}",
-  "studio.cacheClearFailed": "プレビューキャッシュを消去できませんでした: {0}"
+  "studio.cacheClearFailed": "プレビューキャッシュを消去できませんでした: {0}",
+  "start.gridView": "グリッド",
+  "start.listView": "リスト",
+  "templates.editCopy": "コピーを編集",
+  "templates.updateCurrent": "プロジェクトから更新",
+  "templates.deleteTitle": "テンプレートを削除",
+  "templates.deleteMessage": "「{0}」を削除しますか？この操作は取り消せません。",
+  "templates.updateTitle": "テンプレートを更新",
+  "templates.updateMessage": "「{0}」を現在のプロジェクトで置き換えますか？",
+  "templates.editDestination": "テンプレートのコピー先フォルダーを選択",
+  "templates.slotCount": "スロット数: {0}"
 }

@@ -48,10 +48,6 @@ pub fn is_project(root: &Path) -> bool {
 }
 
 const RECENTS: &str = "recents.json";
-/// Long enough to be a working set of projects, short enough that the
-/// launch screen's grid stays scannable - and past a page of it, the screen
-/// has a search and a sort to find one by.
-const MAX_RECENTS: usize = 40;
 
 /// Everything needed to reopen a project.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -590,7 +586,6 @@ pub fn remember(config: &Path, project: &ProjectInfo) -> Result<(), String> {
     let mut entries = read_recents(config);
     entries.retain(|entry| !same_path(&entry.path, &project.path));
     entries.insert(0, project.clone());
-    entries.truncate(MAX_RECENTS);
     write_recents(config, &entries)
 }
 
@@ -876,6 +871,34 @@ mod tests {
             std::fs::read(cache.join("poster.jpg")).unwrap(),
             b"not our cache"
         );
+    }
+
+    #[test]
+    fn recents_keep_large_libraries_and_deduplicate_paths() {
+        let scratch = tempfile::tempdir().unwrap();
+        for index in 0..105 {
+            let project = ProjectInfo {
+                path: format!("/projects/{index}"),
+                name: format!("Project {index}"),
+                width: 1920,
+                height: 1080,
+                canvas: [0, 0, 0, 255],
+                rate_num: 30,
+                rate_den: 1,
+                opened_at: index,
+            };
+            remember(scratch.path(), &project).unwrap();
+        }
+        let mut entries = read_recents(scratch.path());
+        assert_eq!(entries.len(), 105);
+        let mut oldest = entries.pop().unwrap();
+        oldest.name = "Renamed".into();
+        remember(scratch.path(), &oldest).unwrap();
+        let entries = read_recents(scratch.path());
+        assert_eq!(entries.len(), 105);
+        assert_eq!(entries[0].name, "Renamed");
+        forget(scratch.path(), &oldest.path).unwrap();
+        assert_eq!(read_recents(scratch.path()).len(), 104);
     }
 
     #[cfg(unix)]

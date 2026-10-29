@@ -1101,5 +1101,15 @@
   "relink.searching": "Medya aranıyor…",
   "relink.relinkedFiles": "Yeniden bağlanan medya: {0}/{1}",
   "studio.cacheCleared": "Silinen önizleme önbelleği dosyaları: {0}",
-  "studio.cacheClearFailed": "Önizleme önbelleği temizlenemedi: {0}"
+  "studio.cacheClearFailed": "Önizleme önbelleği temizlenemedi: {0}",
+  "start.gridView": "Izgara",
+  "start.listView": "Liste",
+  "templates.editCopy": "Kopyayı düzenle",
+  "templates.updateCurrent": "Projeden güncelle",
+  "templates.deleteTitle": "Şablonu sil",
+  "templates.deleteMessage": "“{0}” silinsin mi? Bu işlem geri alınamaz.",
+  "templates.updateTitle": "Şablonu güncelle",
+  "templates.updateMessage": "“{0}” geçerli projeyle değiştirilsin mi?",
+  "templates.editDestination": "Şablon kopyası için bir klasör seçin",
+  "templates.slotCount": "{0} yuva"
 }

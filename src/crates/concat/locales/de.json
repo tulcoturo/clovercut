@@ -1101,5 +1101,15 @@
   "relink.searching": "Medien werden gesucht…",
   "relink.relinkedFiles": "Neu verknüpfte Medien: {0}/{1}",
   "studio.cacheCleared": "Entfernte Vorschau-Cachedateien: {0}",
-  "studio.cacheClearFailed": "Vorschau-Cache konnte nicht geleert werden: {0}"
+  "studio.cacheClearFailed": "Vorschau-Cache konnte nicht geleert werden: {0}",
+  "start.gridView": "Raster",
+  "start.listView": "Liste",
+  "templates.editCopy": "Kopie bearbeiten",
+  "templates.updateCurrent": "Aus Projekt aktualisieren",
+  "templates.deleteTitle": "Vorlage löschen",
+  "templates.deleteMessage": "„{0}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+  "templates.updateTitle": "Vorlage aktualisieren",
+  "templates.updateMessage": "„{0}“ durch das aktuelle Projekt ersetzen?",
+  "templates.editDestination": "Ordner für die Vorlagenkopie wählen",
+  "templates.slotCount": "{0} Platzhalter"
 }

@@ -1101,5 +1101,15 @@
   "relink.searching": "میڈیا تلاش کیا جا رہا ہے…",
   "relink.relinkedFiles": "دوبارہ منسلک میڈیا: {0}/{1}",
   "studio.cacheCleared": "پیش نظارہ کیش سے حذف شدہ فائلیں: {0}",
-  "studio.cacheClearFailed": "پیش نظارہ کیش صاف نہیں ہو سکا: {0}"
+  "studio.cacheClearFailed": "پیش نظارہ کیش صاف نہیں ہو سکا: {0}",
+  "start.gridView": "گرڈ",
+  "start.listView": "فہرست",
+  "templates.editCopy": "نقل میں ترمیم",
+  "templates.updateCurrent": "پروجیکٹ سے اپ ڈیٹ",
+  "templates.deleteTitle": "ٹیمپلیٹ حذف کریں",
+  "templates.deleteMessage": "کیا “{0}” حذف کریں؟ یہ عمل واپس نہیں ہو سکتا۔",
+  "templates.updateTitle": "ٹیمپلیٹ اپ ڈیٹ کریں",
+  "templates.updateMessage": "کیا “{0}” کو موجودہ پروجیکٹ سے بدلیں؟",
+  "templates.editDestination": "ٹیمپلیٹ کی نقل کے لیے فولڈر منتخب کریں",
+  "templates.slotCount": "{0} سلاٹس"
 }

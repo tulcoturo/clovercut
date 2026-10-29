@@ -1101,5 +1101,15 @@
   "relink.searching": "मीडिया खोजा जा रहा है…",
   "relink.relinkedFiles": "दोबारा लिंक किया गया मीडिया: {0}/{1}",
   "studio.cacheCleared": "प्रीव्यू कैश से हटाई गई फ़ाइलें: {0}",
-  "studio.cacheClearFailed": "प्रीव्यू कैश साफ़ नहीं किया जा सका: {0}"
+  "studio.cacheClearFailed": "प्रीव्यू कैश साफ़ नहीं किया जा सका: {0}",
+  "start.gridView": "ग्रिड",
+  "start.listView": "सूची",
+  "templates.editCopy": "कॉपी संपादित करें",
+  "templates.updateCurrent": "प्रोजेक्ट से अपडेट करें",
+  "templates.deleteTitle": "टेम्पलेट हटाएँ",
+  "templates.deleteMessage": "“{0}” हटाएँ? यह कार्रवाई वापस नहीं की जा सकती।",
+  "templates.updateTitle": "टेम्पलेट अपडेट करें",
+  "templates.updateMessage": "“{0}” को मौजूदा प्रोजेक्ट से बदलें?",
+  "templates.editDestination": "टेम्पलेट की कॉपी के लिए फ़ोल्डर चुनें",
+  "templates.slotCount": "{0} स्लॉट"
 }

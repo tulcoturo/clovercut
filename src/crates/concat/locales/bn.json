@@ -1101,5 +1101,15 @@
   "relink.searching": "মিডিয়া খোঁজা হচ্ছে…",
   "relink.relinkedFiles": "পুনরায় সংযুক্ত মিডিয়া: {0}/{1}",
   "studio.cacheCleared": "প্রিভিউ ক্যাশ থেকে সরানো ফাইল: {0}",
-  "studio.cacheClearFailed": "প্রিভিউ ক্যাশ মুছতে ব্যর্থ: {0}"
+  "studio.cacheClearFailed": "প্রিভিউ ক্যাশ মুছতে ব্যর্থ: {0}",
+  "start.gridView": "গ্রিড",
+  "start.listView": "তালিকা",
+  "templates.editCopy": "অনুলিপি সম্পাদনা",
+  "templates.updateCurrent": "প্রকল্প থেকে হালনাগাদ",
+  "templates.deleteTitle": "টেমপ্লেট মুছুন",
+  "templates.deleteMessage": "“{0}” মুছবেন? এই কাজ ফেরানো যাবে না।",
+  "templates.updateTitle": "টেমপ্লেট হালনাগাদ",
+  "templates.updateMessage": "বর্তমান প্রকল্প দিয়ে “{0}” প্রতিস্থাপন করবেন?",
+  "templates.editDestination": "টেমপ্লেটের অনুলিপির জন্য ফোল্ডার বাছুন",
+  "templates.slotCount": "{0}টি স্লট"
 }

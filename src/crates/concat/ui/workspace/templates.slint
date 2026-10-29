@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import { Theme } from "../theme/theme.slint";
+import { I18n } from "../i18n.slint";
+import { Button } from "../primitives/modal.slint";
+export struct TemplateData { path: string, name: string, detail: string, poster: image }
+export component TemplateCard inherits Rectangle {
+    in property <TemplateData> item;
+    in property <bool> enabled: true;
+    callback edit();
+    callback update();
+    callback delete();
+    height: 192px;
+    background: Theme.field;
+    border-radius: Theme.r;
+    VerticalLayout {
+        padding: 8px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 12px;
+            Image { source: root.item.poster; width: 96px; height: 64px; image-fit: contain; }
+            VerticalLayout {
+                Text { text: root.item.name; color: Theme.fg; overflow: elide; }
+                Text { text: root.item.detail; color: Theme.fg-muted; wrap: word-wrap; }
+            }
+        }
+        VerticalLayout {
+            spacing: 4px;
+            Button { label: I18n.t("templates.editCopy"); enabled: root.enabled; clicked => { root.edit(); } }
+            Button { label: I18n.t("templates.updateCurrent"); enabled: root.enabled; clicked => { root.update(); } }
+            Button { label: I18n.t("common.delete"); enabled: root.enabled; clicked => { root.delete(); } }
+        }
+    }
+}

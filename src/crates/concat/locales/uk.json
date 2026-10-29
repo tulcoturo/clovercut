@@ -1101,5 +1101,15 @@
   "relink.searching": "Пошук медіафайлів…",
   "relink.relinkedFiles": "Повторно прив’язано медіафайлів: {0}/{1}",
   "studio.cacheCleared": "Видалено файлів кешу попереднього перегляду: {0}",
-  "studio.cacheClearFailed": "Не вдалося очистити кеш попереднього перегляду: {0}"
+  "studio.cacheClearFailed": "Не вдалося очистити кеш попереднього перегляду: {0}",
+  "start.gridView": "Сітка",
+  "start.listView": "Список",
+  "templates.editCopy": "Редагувати копію",
+  "templates.updateCurrent": "Оновити з проєкту",
+  "templates.deleteTitle": "Видалити шаблон",
+  "templates.deleteMessage": "Видалити «{0}»? Цю дію неможливо скасувати.",
+  "templates.updateTitle": "Оновити шаблон",
+  "templates.updateMessage": "Замінити «{0}» поточним проєктом?",
+  "templates.editDestination": "Виберіть папку для копії шаблону",
+  "templates.slotCount": "Кількість слотів: {0}"
 }
