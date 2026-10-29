@@ -1101,5 +1101,15 @@
   "relink.searching": "正在搜索媒体…",
   "relink.relinkedFiles": "已重新链接的媒体：{0}/{1}",
   "studio.cacheCleared": "已删除的预览缓存文件：{0}",
-  "studio.cacheClearFailed": "无法清除预览缓存：{0}"
+  "studio.cacheClearFailed": "无法清除预览缓存：{0}",
+  "start.gridView": "网格",
+  "start.listView": "列表",
+  "templates.editCopy": "编辑副本",
+  "templates.updateCurrent": "从项目更新",
+  "templates.deleteTitle": "删除模板",
+  "templates.deleteMessage": "删除“{0}”？此操作无法撤销。",
+  "templates.updateTitle": "更新模板",
+  "templates.updateMessage": "用当前项目替换“{0}”？",
+  "templates.editDestination": "选择模板副本的文件夹",
+  "templates.slotCount": "{0} 个占位槽"
 }

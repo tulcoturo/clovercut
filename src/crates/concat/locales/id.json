@@ -1101,5 +1101,15 @@
   "relink.searching": "Mencari media…",
   "relink.relinkedFiles": "Media ditautkan ulang: {0}/{1}",
   "studio.cacheCleared": "Berkas cache pratinjau dihapus: {0}",
-  "studio.cacheClearFailed": "Tidak dapat menghapus cache pratinjau: {0}"
+  "studio.cacheClearFailed": "Tidak dapat menghapus cache pratinjau: {0}",
+  "start.gridView": "Kisi",
+  "start.listView": "Daftar",
+  "templates.editCopy": "Edit salinan",
+  "templates.updateCurrent": "Perbarui dari proyek",
+  "templates.deleteTitle": "Hapus templat",
+  "templates.deleteMessage": "Hapus “{0}”? Tindakan ini tidak dapat dibatalkan.",
+  "templates.updateTitle": "Perbarui templat",
+  "templates.updateMessage": "Ganti “{0}” dengan proyek saat ini?",
+  "templates.editDestination": "Pilih folder untuk salinan templat",
+  "templates.slotCount": "{0} slot"
 }

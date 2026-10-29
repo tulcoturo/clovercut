@@ -54,6 +54,7 @@ pub enum StartMsg {
     SearchEdited(String),
     /// How the projects are ordered: [`SORT_RECENT`] or [`SORT_NAME`].
     Sort(i32),
+    Page(i32),
     /// One of the learn-and-community cards, or the version line, by the
     /// name [`link`] knows it by.
     Link(String),
@@ -62,35 +63,7 @@ pub enum StartMsg {
     Dropped(Vec<PathBuf>),
 }
 
-/// The projects in the order they were last opened, newest first.
-pub const SORT_RECENT: i32 = 0;
-/// The projects by name, A to Z.
-pub const SORT_NAME: i32 = 1;
-
-/// The recents the grid shows: those whose name or folder holds every
-/// word of the query, ignoring case, newest first or by name. A missing
-/// folder is found and sorted like any other.
-pub fn shown<'a>(
-    recents: &'a [projects::Recent],
-    query: &str,
-    sort: i32,
-) -> Vec<&'a projects::Recent> {
-    let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
-    let mut shown: Vec<&projects::Recent> = recents
-        .iter()
-        .filter(|recent| {
-            let name = recent.info.name.to_lowercase();
-            let path = recent.info.path.to_lowercase();
-            words
-                .iter()
-                .all(|word| name.contains(word.as_str()) || path.contains(word.as_str()))
-        })
-        .collect();
-    if sort == SORT_NAME {
-        shown.sort_by_cached_key(|recent| recent.info.name.to_lowercase());
-    }
-    shown
-}
+pub use crate::project_browser::{PAGE_SIZE, SORT_NAME, SORT_RECENT, page_bounds, shown};
 
 /// The official site, which the guides and the developer docs are pages of.
 const SITE: &str = REPOSITORY;
@@ -145,6 +118,7 @@ pub struct StartPane {
     pub query: String,
     /// [`SORT_RECENT`] or [`SORT_NAME`].
     pub sort: i32,
+    pub page: usize,
     /// Media dropped on the launch screen, waiting for the project the
     /// sheet is about to make: imported into it once it opens, and let go
     /// if the sheet is put down instead.
@@ -169,6 +143,7 @@ impl Default for StartPane {
             error: String::new(),
             query: String::new(),
             sort: SORT_RECENT,
+            page: 0,
             dropped: Vec::new(),
         }
     }
@@ -330,14 +305,24 @@ impl StartPane {
                     studio.notify(&error, true);
                 }
                 studio.recents = projects::recents(&studio.host.dirs.config);
+                self.page = page_bounds(
+                    shown(&studio.recents, &self.query, self.sort).len(),
+                    self.page,
+                )
+                .0;
             }
             StartMsg::RevealRecent(path) => {
                 if let Err(error) = platform::reveal(&path) {
                     studio.notify(&error, true);
                 }
             }
-            StartMsg::SearchEdited(query) => self.query = query,
+            StartMsg::SearchEdited(query) => {
+                self.query = query;
+                self.page = 0;
+            }
+            StartMsg::Page(page) => self.page = page.max(0) as usize,
             StartMsg::Sort(sort) => {
+                self.page = 0;
                 self.sort = if sort == SORT_NAME {
                     SORT_NAME
                 } else {
@@ -563,6 +548,15 @@ impl StartPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pages_cover_large_libraries_and_clamp_after_removal() {
+        assert_eq!(page_bounds(0, 9), (0, 1));
+        assert_eq!(page_bounds(24, 1), (0, 1));
+        assert_eq!(page_bounds(25, 1), (1, 2));
+        assert_eq!(page_bounds(100, 99), (4, 5));
+        assert_eq!(page_bounds(96, 4), (3, 4));
+    }
 
     /// An iPhone's projects go in its Documents, whatever a desktop would
     /// have said; a desktop's go on the desktop the system names.

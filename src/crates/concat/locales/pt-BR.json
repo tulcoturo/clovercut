@@ -1101,5 +1101,15 @@
   "relink.searching": "Buscando arquivos de mídia…",
   "relink.relinkedFiles": "Arquivos de mídia reconectados: {0}/{1}",
   "studio.cacheCleared": "Arquivos removidos do cache de prévia: {0}",
-  "studio.cacheClearFailed": "Não foi possível limpar o cache de prévia: {0}"
+  "studio.cacheClearFailed": "Não foi possível limpar o cache de prévia: {0}",
+  "start.gridView": "Grade",
+  "start.listView": "Lista",
+  "templates.editCopy": "Editar uma cópia",
+  "templates.updateCurrent": "Atualizar do projeto",
+  "templates.deleteTitle": "Excluir modelo",
+  "templates.deleteMessage": "Excluir “{0}”? Esta ação não pode ser desfeita.",
+  "templates.updateTitle": "Atualizar modelo",
+  "templates.updateMessage": "Substituir “{0}” pelo projeto atual?",
+  "templates.editDestination": "Escolha uma pasta para a cópia do modelo",
+  "templates.slotCount": "{0} espaços"
 }

@@ -1101,5 +1101,15 @@
   "relink.searching": "Traženje medijskih datoteka…",
   "relink.relinkedFiles": "Ponovno povezane medijske datoteke: {0}/{1}",
   "studio.cacheCleared": "Uklonjene datoteke predmemorije pregleda: {0}",
-  "studio.cacheClearFailed": "Nije moguće očistiti predmemoriju pregleda: {0}"
+  "studio.cacheClearFailed": "Nije moguće očistiti predmemoriju pregleda: {0}",
+  "start.gridView": "Mreža",
+  "start.listView": "Popis",
+  "templates.editCopy": "Uredi kopiju",
+  "templates.updateCurrent": "Ažuriraj iz projekta",
+  "templates.deleteTitle": "Izbriši predložak",
+  "templates.deleteMessage": "Izbrisati „{0}”? Ovu radnju nije moguće poništiti.",
+  "templates.updateTitle": "Ažuriraj predložak",
+  "templates.updateMessage": "Zamijeniti „{0}” trenutačnim projektom?",
+  "templates.editDestination": "Odaberite mapu za kopiju predloška",
+  "templates.slotCount": "Broj mjesta: {0}"
 }

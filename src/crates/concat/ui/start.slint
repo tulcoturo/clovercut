@@ -3,7 +3,7 @@
 
 import { I18n } from "i18n.slint";
 import { Theme } from "theme/theme.slint";
-import { CopyChip, Modal } from "primitives/modal.slint";
+import { Button, CopyChip, Modal } from "primitives/modal.slint";
 import { FocusRing } from "primitives/focus-ring.slint";
 import { Glyph, Icon } from "icons.slint";
 import { ThinScrollbar } from "primitives/scrollbar.slint";
@@ -63,9 +63,7 @@ import { SegmentedControl } from "primitives/segmented-control.slint";
 // filled button whose fill is the ink rather than the accent. The accent
 // here is New project's fill and the one link in the sheet.
 //
-// There is no template store in this tree, which is also why the library's
-// "save as template" is an unwired seam, and why the create row has no
-// fourth verb.
+// Saved templates are managed in the editor's Templates library.
 
 /// One option on one of the form's three ladders.
 ///
@@ -1600,11 +1598,41 @@ component LearnGrid inherits Rectangle {
 // row, the projects, and - once the column is wide enough to spare it - a
 // learn-and-community panel beside the projects rather than under them,
 // so it is in view without a scroll and the projects keep the width.
+component PageControls inherits HorizontalLayout {
+    in property <int> page;
+    in property <int> pages: 1;
+    callback changed(page: int);
+    height: root.pages > 1 ? 36px : 0px;
+    visible: root.pages > 1;
+    alignment: center;
+    spacing: 12px;
+    Button {
+        label: I18n.t("sounds.previousPage");
+        enabled: root.page > 0;
+        clicked => { root.changed(root.page - 1); }
+    }
+    Text {
+        text: "\{root.page + 1} / \{root.pages}";
+        color: Theme.fg-muted;
+        vertical-alignment: center;
+    }
+    Button {
+        label: I18n.t("sounds.nextPage");
+        enabled: root.page + 1 < root.pages;
+        clicked => { root.changed(root.page + 1); }
+    }
+}
+
 component WideHome inherits Rectangle {
+    in property <int> page;
+    in property <int> pages: 1;
+    callback page-changed(page: int);
+
     in property <[RecentProjectData]> recents;
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
+    in-out property <int> view;
     in property <bool> busy;
     in property <string> version;
     in property <bool> can-drop;
@@ -1774,13 +1802,34 @@ component WideHome inherits Rectangle {
                     wrap: word-wrap;
                 }
 
-                ProjectsGrid {
+                SegmentedControl {
+                    width: 200px;
+                    options: [I18n.t("start.gridView"), I18n.t("start.listView")];
+                    current: root.view;
+                    changed(index) => { root.view = index; }
+                }
+                if root.view == 1: VerticalLayout {
+                    spacing: 4px;
+                    for project in root.recents: ProjectRow {
+                        project: project;
+                        enabled: !root.busy;
+                        opened => { root.open-recent(project.path); }
+                        forgotten => { root.forget-recent(project.path); }
+                    }
+                }
+                if root.view == 0: ProjectsGrid {
                     recents: root.recents;
                     enabled: !root.busy;
                     can-reveal: true;
                     opened(path) => { root.open-recent(path); }
                     forgotten(path) => { root.forget-recent(path); }
                     revealed(path) => { root.reveal-recent(path); }
+                }
+
+                if root.pages > 1: PageControls {
+                    page: root.page;
+                    pages: root.pages;
+                    changed(page) => { root.page-changed(page); }
                 }
 
                 // ── learn, under the projects ────────────────────────
@@ -1878,6 +1927,10 @@ component WideHome inherits Rectangle {
 // beside it, New project across the width under the thumb, the projects as
 // a list, and the learn cards as one grouped list at the foot.
 component NarrowHome inherits Rectangle {
+    in property <int> page;
+    in property <int> pages: 1;
+    callback page-changed(page: int);
+
     in property <[RecentProjectData]> recents;
     in property <int> recents-total;
     in property <string> query;
@@ -2014,6 +2067,12 @@ component NarrowHome inherits Rectangle {
                 forgotten => { root.forget-recent(project.path); }
             }
 
+            if root.pages > 1: PageControls {
+                page: root.page;
+                pages: root.pages;
+                changed(page) => { root.page-changed(page); }
+            }
+
             Rectangle { height: 32px; }
 
             SectionHead {
@@ -2066,12 +2125,17 @@ component NarrowHome inherits Rectangle {
 // over something; it *is* the window. Two shapes by the width it is given,
 // since a Slint layout has no wrap; see WideHome and NarrowHome.
 export component StartScreen inherits Rectangle {
+    in property <int> page;
+    in property <int> pages: 1;
+    callback page-changed(page: int);
+
     /// The projects the grid shows: the search applied and the sort.
     in property <[RecentProjectData]> recents;
     /// How many there are before the search.
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
+    in-out property <int> view;
     /// A project is being made: every verb on the page waits for it.
     in property <bool> busy;
     /// "0.2.7"
@@ -2102,9 +2166,13 @@ export component StartScreen inherits Rectangle {
         width: root.width;
         height: root.height;
         recents: root.recents;
+        page: root.page;
+        pages: root.pages;
+        page-changed(page) => { root.page-changed(page); }
         recents-total: root.recents-total;
         query: root.query;
         sort: root.sort;
+        view <=> root.view;
         busy: root.busy;
         version: root.version;
         can-drop: root.can-drop;
@@ -2122,6 +2190,9 @@ export component StartScreen inherits Rectangle {
         width: root.width;
         height: root.height;
         recents: root.recents;
+        page: root.page;
+        pages: root.pages;
+        page-changed(page) => { root.page-changed(page); }
         recents-total: root.recents-total;
         query: root.query;
         busy: root.busy;

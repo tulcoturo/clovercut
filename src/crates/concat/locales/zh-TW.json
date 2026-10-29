@@ -1101,5 +1101,15 @@
   "relink.searching": "正在搜尋媒體…",
   "relink.relinkedFiles": "已重新連結的媒體：{0}/{1}",
   "studio.cacheCleared": "已刪除的預覽快取檔案：{0}",
-  "studio.cacheClearFailed": "無法清除預覽快取：{0}"
+  "studio.cacheClearFailed": "無法清除預覽快取：{0}",
+  "start.gridView": "網格",
+  "start.listView": "清單",
+  "templates.editCopy": "編輯副本",
+  "templates.updateCurrent": "從專案更新",
+  "templates.deleteTitle": "刪除範本",
+  "templates.deleteMessage": "刪除「{0}」？此操作無法復原。",
+  "templates.updateTitle": "更新範本",
+  "templates.updateMessage": "以目前專案取代「{0}」？",
+  "templates.editDestination": "選擇範本副本的資料夾",
+  "templates.slotCount": "{0} 個預留位置"
 }

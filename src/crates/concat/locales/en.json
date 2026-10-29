@@ -1101,5 +1101,15 @@
   "relink.searching": "Searching for media…",
   "relink.relinkedFiles": "Media relinked: {0}/{1}",
   "studio.cacheCleared": "Preview cache files removed: {0}",
-  "studio.cacheClearFailed": "Could not clear preview cache: {0}"
+  "studio.cacheClearFailed": "Could not clear preview cache: {0}",
+  "start.gridView": "Grid",
+  "start.listView": "List",
+  "templates.editCopy": "Edit a copy",
+  "templates.updateCurrent": "Update from project",
+  "templates.deleteTitle": "Delete template",
+  "templates.deleteMessage": "Delete “{0}”? This cannot be undone.",
+  "templates.updateTitle": "Update template",
+  "templates.updateMessage": "Replace “{0}” with the current project?",
+  "templates.editDestination": "Choose a folder for the template copy",
+  "templates.slotCount": "{0} slots"
 }

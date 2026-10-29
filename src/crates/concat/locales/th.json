@@ -1101,5 +1101,15 @@
   "relink.searching": "กำลังค้นหาสื่อ…",
   "relink.relinkedFiles": "สื่อที่เชื่อมโยงใหม่: {0}/{1}",
   "studio.cacheCleared": "ไฟล์แคชตัวอย่างที่ลบแล้ว: {0}",
-  "studio.cacheClearFailed": "ไม่สามารถล้างแคชตัวอย่างได้: {0}"
+  "studio.cacheClearFailed": "ไม่สามารถล้างแคชตัวอย่างได้: {0}",
+  "start.gridView": "ตาราง",
+  "start.listView": "รายการ",
+  "templates.editCopy": "แก้ไขสำเนา",
+  "templates.updateCurrent": "อัปเดตจากโปรเจกต์",
+  "templates.deleteTitle": "ลบเทมเพลต",
+  "templates.deleteMessage": "ลบ “{0}” หรือไม่? การดำเนินการนี้ย้อนกลับไม่ได้",
+  "templates.updateTitle": "อัปเดตเทมเพลต",
+  "templates.updateMessage": "แทนที่ “{0}” ด้วยโปรเจกต์ปัจจุบันหรือไม่?",
+  "templates.editDestination": "เลือกโฟลเดอร์สำหรับสำเนาเทมเพลต",
+  "templates.slotCount": "{0} ช่อง"
 }

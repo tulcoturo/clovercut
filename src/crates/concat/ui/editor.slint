@@ -8,6 +8,7 @@ import {
 import {
     CurveData, CurveGroupData, WheelData, WheelGroupData,
 } from "inspector/grading.slint";
+import { TemplateData } from "workspace/templates.slint";
 import { MediaFilter, MediaItemData, TextPresetData } from "workspace/media-pane.slint";
 import { DockDivider, DockSide, SeatBox } from "dock.slint";
 import { PaneKind } from "workspace/pane-switcher.slint";
@@ -35,6 +36,11 @@ import {
 // read it, and a seat is then only a box with a name in it — see Seat, which
 // is the whole of what forwarding is left.
 export global Editor {
+    in-out property <[TemplateData]> templates;
+    in-out property <bool> templates-busy;
+    callback template-edit(path: string);
+    callback template-update(path: string);
+    callback template-delete(path: string);
     // ── the layout ───────────────────────────────────────────────────────
     //
     // The arrangement is a tree and it lives in Rust; see dock.slint. These

@@ -66,6 +66,7 @@ mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
 mod preview_interaction;
+mod project_browser;
 mod request_owner;
 mod source;
 mod speed_ramp;
@@ -503,6 +504,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         editor.set_seats(ModelRc::from(models.seats.clone()));
         editor.set_dividers(ModelRc::from(models.dividers.clone()));
         app.set_recents(ModelRc::from(models.recents.clone()));
+        editor.set_templates(ModelRc::from(models.templates.clone()));
         editor.set_text_presets(ModelRc::from(models.text_presets.clone()));
         editor.set_style_presets(ModelRc::from(models.style_presets.clone()));
         editor.set_language_presets(ModelRc::from(models.language_presets.clone()));
@@ -785,6 +787,12 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_start_search_edited(on_window!(|state, query: SharedString| {
         state.handle(Msg::Start(StartMsg::SearchEdited(query.to_string())));
     }));
+    app.on_start_page_changed(on_window!(|state, page: i32| {
+        state.handle(Msg::Start(StartMsg::Page(page)));
+    }));
+    app.on_project_title_renamed(on_window!(|state, name: SharedString| {
+        state.rename_project(name.as_str());
+    }));
     app.on_start_sort_changed(on_window!(|state, sort: i32| {
         state.handle(Msg::Start(StartMsg::Sort(sort)));
     }));
@@ -1043,6 +1051,15 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     editor.on_library_apply_transition(on_window!(|state, id: SharedString| {
         panes::gl_transitions::apply(&mut state, id.as_str());
+    }));
+    editor.on_template_edit(on_window!(|state, path: SharedString| {
+        state.edit_template(path.to_string());
+    }));
+    editor.on_template_delete(on_window!(|state, path: SharedString| {
+        state.ask_template_change(path.as_str(), true);
+    }));
+    editor.on_template_update(on_window!(|state, path: SharedString| {
+        state.ask_template_change(path.as_str(), false);
     }));
     editor.on_library_save_template(on_window!(|state| {
         state.save_template();
