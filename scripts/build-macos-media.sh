@@ -129,6 +129,18 @@ meson_library dav1d -Denable_tools=false -Denable_examples=false -Denable_tests=
 source_of libsamplerate
 cmake_library libsamplerate -DLIBSAMPLERATE_EXAMPLES=OFF -DBUILD_TESTING=OFF
 source_of rubberband
+# Rubber Band 4.0 assumes another standard header exports global size_t.
+# New libc++ headers no longer do so; include its defining C header explicitly.
+python3 - "$work/rubberband/src/common/mathmisc.h" <<'PY_HEADER'
+import sys
+from pathlib import Path
+header = Path(sys.argv[1])
+text = header.read_text()
+include = '#include "sysutils.h"'
+if text.count(include) != 1:
+    raise SystemExit('unexpected pinned Rubber Band mathmisc header')
+header.write_text(text.replace(include, '#include <stddef.h>\n\n' + include))
+PY_HEADER
 # Preserve the previous libsamplerate backend without Homebrew's libsndfile/CLI chain.
 meson_library rubberband -Dfft=vdsp -Dresampler=libsamplerate -Djni=disabled -Dladspa=disabled \
   -Dlv2=disabled -Dvamp=disabled -Dcmdline=disabled -Dtests=disabled
