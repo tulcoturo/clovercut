@@ -1,6 +1,6 @@
 # Clovercut quality and polish plan
 
-Updated 28 October 2026. Baseline: release 0.1.9 (`fb8b7f90`).
+Updated 29 October 2026. Baseline: release 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
@@ -15,8 +15,8 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 
 | Area | Result | Remaining qualification |
 |---|---|---|
-| Test correctness | Seek timeouts cannot count as success; export matrix probes encoded output and final content; misleading parity name corrected | Twelve selected virtual desktop cases passed; long drift and physical audio remain unqualified |
-| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | macOS 12 source-runtime candidates still need successful packages and Monterey execution; prior-version native upgrade needs a second native release |
+| Test correctness | Seek timeouts cannot count as success; export matrix probes encoded output and final content; misleading parity name corrected | Full CI and twelve selected virtual desktop cases passed; long drift and physical audio remain unqualified |
+| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | Intel source-runtime package passed native smoke and binary checks; ARM candidate and Monterey execution remain pending; prior-version native upgrade needs a second native release |
 | Development cost | Headless core/project/storage feedback; CI timing report; three controlled headless cold/warm pairs | Full desktop cold/warm comparison and any UI extraction prototype remain unqualified |
 | Desktop feedback | Shared icon accessibility, translated recovery/cache feedback, documented cut policy | Keyboard, screen reader, scaling, RTL and complete mouse/keyboard journey |
 | Responsiveness | Shared Enhance estimate policy; cancellable background relink; structured runtime probes | Runtime baselines, repeated lifecycle/memory plateau and large-file audio-copy latency |
@@ -24,13 +24,17 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Tooling and docs | Walkthrough opt-in; release/site/install metadata aligned; concise plan and portable QA checklist | State-driven screenshot driver and interactive checklist execution |
 
 Implemented behaviour is distinguished from interactive qualification below.
-The caption/speech changes passed 1,323 ordinary tests, 30 gRPC tests and
-workspace lint at `06438c6a`; Linux/Windows candidates passed at `4303d845`.
-The twelve selected virtual desktop cases passed at `0980007d` after fixture
-and device-clock corrections. That workflow failed during scratch cleanup; the
-cleanup repair and combined workspace/desktop run are still being validated.
-macOS 12 packaging is
-being rebuilt from pinned sources after issue #2 exposed incompatible bottles. Release 0.1.9 binaries do not include
+Combined CI at `754327b1` passed workspace lint, 1,323 ordinary tests,
+documentation checks, 30 gRPC tests, 20 connector cases and all twelve selected
+virtual desktop regressions. Twenty-eight ordinary cases remain skipped; the
+selected desktop run does not qualify long drift or physical audio.
+Linux/Windows candidates passed at `4303d845`. Intel candidate `2ed78f7a` passed
+native codec and application smoke checks on macOS 15.7.9; static inspection of
+the DMG found all seven launch binaries at minimum 12.0 and no imports of the
+VideoToolbox rotation symbols reported in issue #2. The guarded, lazily loaded
+Intel ONNX runtime retains its separate minimum. Apple Silicon packaging is
+being validated; the user has no Monterey machine for a runtime check.
+Release 0.1.9 binaries do not include
 these later fixes. In particular, avoid **Clear project cache** in 0.1.9: its broad
 cleanup can remove generated source media. The corrected development version
 preserves that media.
@@ -47,8 +51,8 @@ preserves that media.
   undo coverage. Keep 4K fixtures where resolution is part of the contract.
 - **In validation:** the isolated virtual desktop job now executes twelve
   transport, preview/export, clipboard and shutdown cases. All twelve passed
-  at `0980007d`; final combined CI must also confirm the subsequent cleanup
-  repair. The separate ten-minute drift test remains unexecuted. Preserve exact
+  in combined CI at `754327b1`, including the cleanup repair. The separate
+  ten-minute drift test remains unexecuted. Preserve exact
   source/platform/adapter evidence. Physical
   audio, accessibility and visual qualification remain separate.
 
