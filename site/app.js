@@ -133,7 +133,7 @@
       label.textContent = detected === 'macos' ? 'Choose your Mac version' : `Choose your ${detected === 'windows' ? 'Windows' : 'Linux'} version`;
     } else {
       const file = detected === 'windows' ? `windows-${arch}-setup.exe` : `${arch}.AppImage`;
-      const href = `https://github.com/tulcoturo/clovercut/releases/download/v0.1.9/Clovercut-0.1.9-${file}`;
+      const href = `https://github.com/tulcoturo/clovercut/releases/download/v0.2.0/Clovercut-0.2.0-${file}`;
       const architecture = arch === 'aarch64' ? 'ARM64' : 'x64';
       button.href = href;
       label.textContent = `Download for ${detected === 'windows' ? 'Windows' : 'Linux'} ${architecture}`;

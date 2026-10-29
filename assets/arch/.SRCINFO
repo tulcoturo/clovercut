@@ -1,6 +1,6 @@
 pkgbase = clovercut-bin
 	pkgdesc = Desktop-first, open-source video editor with built-in stock libraries and local AI
-	pkgver = 0.1.9
+	pkgver = 0.2.0
 	pkgrel = 1
 	url = https://github.com/tulcoturo/clovercut
 	arch = x86_64
@@ -20,9 +20,9 @@ pkgbase = clovercut-bin
 	conflicts = clovercut
 	options = !strip
 	options = !debug
-	source_x86_64 = Clovercut-0.1.9-x86_64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v0.1.9/Clovercut-0.1.9-x86_64.AppImage
-	sha256sums_x86_64 = 4e8f6232305c57c5e3315d6de65625651f8973d041e58285e76e8a3276189a9d
-	source_aarch64 = Clovercut-0.1.9-aarch64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v0.1.9/Clovercut-0.1.9-aarch64.AppImage
-	sha256sums_aarch64 = a75c3a8bcad3310c7e12ec981ee6b3f7750f0c9884dfcada166508b99054020c
+	source_x86_64 = Clovercut-0.2.0-x86_64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v0.2.0/Clovercut-0.2.0-x86_64.AppImage
+	sha256sums_x86_64 = 0250e6585ff624749a34177f63e266e7bda2affd4f9b707237b6acac2943fedf
+	source_aarch64 = Clovercut-0.2.0-aarch64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v0.2.0/Clovercut-0.2.0-aarch64.AppImage
+	sha256sums_aarch64 = 99cb95593cfc2a267a4b319f3d56b5877b8ad49196c1fc32d92cd82943c4fbaa
 
 pkgname = clovercut-bin

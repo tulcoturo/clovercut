@@ -16,7 +16,7 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Area | Result | Remaining qualification |
 |---|---|---|
 | Test correctness | Seek timeouts cannot count as success; export matrix probes encoded output and final content; misleading parity name corrected | Full CI and twelve selected virtual desktop cases passed; long drift and physical audio remain unqualified |
-| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | Intel and ARM source-runtime packages passed native smoke and binary checks; Monterey execution remains unconfirmed; prior-version native upgrade needs a second native release |
+| CI and distribution | Connector, exact-source packaging gates, retained reports and native Linux lifecycle checks installed | Intel and ARM source-runtime packages passed native smoke and binary checks; Monterey execution remains unconfirmed; cross-version native upgrades remain unqualified |
 | Development cost | Headless core/project/storage feedback; CI timing report; three controlled headless cold/warm pairs | Full desktop cold/warm comparison and any UI extraction prototype remain unqualified |
 | Desktop feedback | Shared icon accessibility, translated recovery/cache feedback, documented cut policy | Keyboard, screen reader, scaling, RTL and complete mouse/keyboard journey |
 | Responsiveness | Shared Enhance estimate policy; cancellable background relink; structured runtime probes | Runtime baselines, repeated lifecycle/memory plateau and large-file audio-copy latency |
@@ -24,23 +24,20 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 | Tooling and docs | Walkthrough opt-in; release/site/install metadata aligned; concise plan and portable QA checklist | State-driven screenshot driver and interactive checklist execution |
 
 Implemented behaviour is distinguished from interactive qualification below.
-Combined CI at `754327b1` passed workspace lint, 1,323 ordinary tests,
-documentation checks, 30 gRPC tests, 20 connector cases and all twelve selected
-virtual desktop regressions. Twenty-eight ordinary cases remain skipped; the
-selected desktop run does not qualify long drift or physical audio.
-Linux/Windows candidates passed at `4303d845`. Intel candidate `2ed78f7a` passed
-native codec and application smoke checks on macOS 15.7.9; static inspection of
-the DMG found all seven launch binaries at minimum 12.0 and no imports of the
-VideoToolbox rotation symbols reported in issue #2. The guarded, lazily loaded
-Intel ONNX runtime retains its separate minimum. Apple Silicon candidate `e6650304` passed native codec/application smoke and
-bundle checks on macOS 26.6.2; its seven binaries declare minimum 12.0 and no
-rotation-session imports remain. An Intel rerun of the last header include
-adjustment is still building; the earlier Intel candidate is qualified separately.
-The user has no Monterey machine for a runtime check.
-Release 0.1.9 binaries do not include
-these later fixes. In particular, avoid **Clear project cache** in 0.1.9: its broad
-cleanup can remove generated source media. The corrected development version
-preserves that media.
+[Release 0.2.0](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.0)
+ships the integrated fixes and polish. Its exact source, `98be70b4`, passed full
+CI (1,323 ordinary tests, 28 skipped; 30 gRPC cases), connector/packaging checks
+and all six native desktop package jobs. The twelve selected virtual desktop
+cases previously passed combined CI at `754327b1`; the release run does not
+rerun that optional selection.
+Both final macOS DMGs were inspected: all eagerly loaded binaries declare
+minimum 12.0 and none imports the reported VideoToolbox rotation symbols.
+The guarded, lazily loaded Intel ONNX runtime retains its separate minimum.
+Actual Monterey launch remains unconfirmed because no test machine is available.
+[Release qualification](docs/audits/2026-10-29-release-0.2.0.md) records source,
+checksums and remaining limits. Release 0.1.9 downloads are unchanged: upgrade
+to 0.2.0 before using **Clear project cache**, which can remove generated source
+media in 0.1.9. Version 0.2.0 preserves that media.
 
 ## 1. Trustworthy tests — P0
 
@@ -52,7 +49,7 @@ preserves that media.
   execution of ignored tests.
 - **Decision:** keep shader, output-preservation, ownership, cancellation and
   undo coverage. Keep 4K fixtures where resolution is part of the contract.
-- **In validation:** the isolated virtual desktop job now executes twelve
+- **Verified in the virtual environment:** the isolated desktop job executes twelve
   transport, preview/export, clipboard and shutdown cases. All twelve passed
   in combined CI at `754327b1`, including the cleanup repair. The separate
   ten-minute drift test remains unexecuted. Preserve exact
@@ -70,9 +67,9 @@ preserves that media.
   the developer's host.
 - **Implemented:** native installer identifies a launcher earlier in `PATH`
   without deleting or replacing it; a regression reproduced the silent case.
-- **Deferred with prerequisite:** an upgrade between different native releases
-  cannot yet be qualified: 0.1.9 is the first native release. Same-version
-  reinstall does not establish schema or prior-version upgrade compatibility.
+- **Pending qualification:** 0.1.9-to-0.2.0 native upgrades can now be tested.
+  Existing same-version reinstall checks do not establish schema or prior-version
+  upgrade compatibility.
 
 ## 3. Development cost — P1
 

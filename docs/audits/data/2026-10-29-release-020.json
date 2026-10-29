@@ -1,0 +1,89 @@
+{
+  "version": "0.2.0",
+  "tag": "v0.2.0",
+  "source": "98be70b4f44c9c2c70054cd1b9dd19975f40be1e",
+  "release_url": "https://github.com/tulcoturo/clovercut/releases/tag/v0.2.0",
+  "published_at": "2026-10-29T12:35:16Z",
+  "verification": [
+    "Published stable release and exact source identity",
+    "Twelve desktop packages plus updater manifest and checksums",
+    "Every GitHub asset digest matches published checksums or downloaded checksum file",
+    "Downloaded manifest digest, package sizes, hashes and URLs agree"
+  ],
+  "inspected_macos_artifacts_match": [
+    "arm64",
+    "x86_64"
+  ],
+  "assets": [
+    {
+      "name": "Clovercut-0.2.0-aarch64.AppImage",
+      "bytes": 164223496,
+      "digest": "sha256:99cb95593cfc2a267a4b319f3d56b5877b8ad49196c1fc32d92cd82943c4fbaa"
+    },
+    {
+      "name": "Clovercut-0.2.0-aarch64.deb",
+      "bytes": 141647262,
+      "digest": "sha256:5b47a8282147e06236c874e608c40bd49882bbeeaf6c03149c09bf2cdfdb293f"
+    },
+    {
+      "name": "Clovercut-0.2.0-aarch64.rpm",
+      "bytes": 179395279,
+      "digest": "sha256:6c117e0a9e0de677a50235de87b7c49445c05ed1f55c7c152949f6f913a5f870"
+    },
+    {
+      "name": "Clovercut-0.2.0-macos-arm64.dmg",
+      "bytes": 124280017,
+      "digest": "sha256:d0f4a6c45b3c2e7c6b797cdf2a403d012dee0e7d236dbb59e086f260dac60ff3"
+    },
+    {
+      "name": "Clovercut-0.2.0-macos-x86_64.dmg",
+      "bytes": 148072829,
+      "digest": "sha256:f89a52da17266f5e01f12aff7248d6e9e6e4bb937c0e5440bcfe5bec2e644f8e"
+    },
+    {
+      "name": "Clovercut-0.2.0-windows-aarch64-portable.zip",
+      "bytes": 122110866,
+      "digest": "sha256:58e5891fe9dff0dd3227b2c425d705e186a06b761423186a45e397f780a2d549"
+    },
+    {
+      "name": "Clovercut-0.2.0-windows-aarch64-setup.exe",
+      "bytes": 83231697,
+      "digest": "sha256:91541ae75646bc3edeb7cbe9ddd14512b160493ba4075553bdbc5d86ba201194"
+    },
+    {
+      "name": "Clovercut-0.2.0-windows-x86_64-portable.zip",
+      "bytes": 153113815,
+      "digest": "sha256:202683656183dd6346f4cdae93dfff446c76e004ff3da70e260323e10140c722"
+    },
+    {
+      "name": "Clovercut-0.2.0-windows-x86_64-setup.exe",
+      "bytes": 103685672,
+      "digest": "sha256:eeac90ae4a2c762141452dfdbd22851746680101a9f1247cd0a332d1d770d152"
+    },
+    {
+      "name": "Clovercut-0.2.0-x86_64.AppImage",
+      "bytes": 171866616,
+      "digest": "sha256:0250e6585ff624749a34177f63e266e7bda2affd4f9b707237b6acac2943fedf"
+    },
+    {
+      "name": "Clovercut-0.2.0-x86_64.deb",
+      "bytes": 147786204,
+      "digest": "sha256:aad81957cfd2a631ba00d87ce19b66153f139d7e8c14f857577caeb8a9bf64e0"
+    },
+    {
+      "name": "Clovercut-0.2.0-x86_64.rpm",
+      "bytes": 189907063,
+      "digest": "sha256:2e8a292fa922d5d96a3ea0068ab138aacb2392d8c61acaf7fa92c91f9bcc8e9b"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1284,
+      "digest": "sha256:c8899a9dc6824929d7da5e8fb5a9bb7edb8d8c55fb66b1fcd1f5d48832fe863f"
+    },
+    {
+      "name": "manifest.json",
+      "bytes": 24549,
+      "digest": "sha256:9da85f3f86f527f5ecb194ccb27eb06d2de43e451b91b51f36de9dc139ac17a9"
+    }
+  ]
+}
