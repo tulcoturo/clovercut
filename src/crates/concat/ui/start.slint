@@ -1663,7 +1663,7 @@ component WideHome inherits Rectangle {
     /// longer line on one tile does not shoulder the others aside.
     property <length> tile-unit: (root.main-w - (root.drop-tile ? 2 : 1) * 14px)
         / (root.drop-tile ? 3.3 : 2.3);
-    property <bool> searchable: root.recents-total > 8;
+    property <bool> searchable: root.recents-total > 8 || root.query != "";
 
     flick := Flickable {
         content-width: self.width;
@@ -1950,7 +1950,7 @@ component NarrowHome inherits Rectangle {
     callback link(name: string);
 
     property <length> pad: 16px;
-    property <bool> searchable: root.recents-total > 8;
+    property <bool> searchable: root.recents-total > 8 || root.query != "";
 
     flick := Flickable {
         content-width: self.width;

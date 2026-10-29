@@ -10998,7 +10998,6 @@ impl Studio {
         };
         session.prepare_save(Some(name));
         self.project_name = name.to_owned();
-        self.export.name = projects::folder_name(name);
         self.dirty = true;
         self.save(false);
     }

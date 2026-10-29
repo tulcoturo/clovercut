@@ -552,6 +552,7 @@ export component TitleBar inherits Rectangle {
             Rectangle {
                 width: 220px;
                 height: 24px;
+                clip: true;
                 if !root.editing-name: Text {
                     text: root.project-name;
                     color: Theme.fg;
@@ -569,6 +570,16 @@ export component TitleBar inherits Rectangle {
                     }
                 }
                 name-input := TextInput {
+                    property <length> scroll;
+                    x: min(0px, max(parent.width - self.width - self.text-cursor-width, self.scroll));
+                    width: max(parent.width - self.text-cursor-width, self.preferred-width);
+                    cursor-position-changed(caret) => {
+                        if caret.x + self.scroll < 0px {
+                            self.scroll = -caret.x;
+                        } else if caret.x + self.scroll > parent.width - self.text-cursor-width {
+                            self.scroll = parent.width - caret.x - self.text-cursor-width;
+                        }
+                    }
                     visible: root.editing-name;
                     text <=> root.draft-name;
                     color: Theme.fg;
