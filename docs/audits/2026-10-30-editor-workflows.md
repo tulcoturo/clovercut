@@ -104,3 +104,18 @@ library-history source, with no copied implementation. All 51 cases and strict
 Clippy passed locally. The existing concurrent preference-write case now also
 checks the persisted project-view flag. Full graphical checks remain pending in
 [the updated CI](https://github.com/tulcoturo/clovercut/actions/runs/41107753988).
+
+## Follow-up: keyboard and accessible actions
+
+The project-search clear control now uses the existing focusable `Pressable`
+component: Tab reaches it, Enter/Space and the default accessible action clear the
+query, and its translated label/tooltip exists in all 25 locales. Disabled home
+cards now expose their disabled state and reject the default accessible action.
+Pagination has a 12 logical-pixel inset above its controls on both home layouts.
+Empty queries skip per-project case-folding before normal ordering/pagination.
+
+For source `e3f2a670`, all 51 headless storage/preferences/history cases and strict
+Clippy passed; the nine locale-tool cases and strict locale inventory passed.
+Complete UI generation passed in 17.63 s (95,084,748 generated Rust bytes),
+[record](data/2026-10-30-home-navigation-ui-generation.json). Keyboard gestures,
+screen-reader behaviour and visual layout remain unqualified by these static checks.
