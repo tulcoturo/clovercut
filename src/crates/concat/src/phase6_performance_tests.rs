@@ -951,18 +951,21 @@ fn phase6_performance_and_memory_suite() {
             studio.host.monitor.frame(clips, &settings, spec).unwrap();
         }
         let clip_id = studio.timeline().clips[0].id.clone();
-        studio
-            .apply(Command::UpdateClip {
-                clip_id,
-                patch: ClipPatch {
-                    opacity: Some(0.75),
-                    ..Default::default()
-                },
-            })
-            .expect("lifecycle edit");
+        let before_opacity = studio.clip(&clip_id).unwrap().opacity;
+        studio.apply(Command::UpdateClip {
+            clip_id: clip_id.clone(),
+            patch: ClipPatch {
+                opacity: Some(0.75),
+                ..Default::default()
+            },
+        });
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
         studio.undo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, before_opacity);
         studio.redo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
         studio.undo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, before_opacity);
         studio.publish(&app, &models);
         studio.close_project().unwrap();
         record_samples(

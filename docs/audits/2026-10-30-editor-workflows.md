@@ -137,3 +137,9 @@ are qualified locally; real screen readers, physical keyboard/window integration
 visual rendering and the complete editor journey remain separate. The first
 focused desktop dispatch stopped at checkout because its ref was abbreviated;
 it was relaunched with full source `1c017cf4` in workflow `41109516254`.
+
+The initial headless-CI fixture run stopped at the Fontconfig build prerequisite;
+it did not execute the UI assertions. The runner now explicitly installs
+Fontconfig/FreeType development libraries. Review also corrected the repeated
+resource cycle to assert clip opacity and undo/redo state, rather than require a
+new object ID from an update command (updates intentionally create no ID).

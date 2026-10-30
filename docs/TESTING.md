@@ -55,7 +55,8 @@ Tab followed by Enter/Space, and refusal of accessible activation on disabled
 project cards. Strict Clippy runs before the probe. The temporary crate uses the
 locked Slint versions and leaves the workspace lockfile unchanged; `--offline`
 uses cached dependencies. No native window, GPU/audio or application profile is
-opened. This runs in headless CI on UI changes, alongside storage/preferences
+opened. Linux needs Fontconfig/FreeType development libraries for text metrics;
+CI installs them on its disposable runner. This runs in headless CI on UI changes, alongside storage/preferences
 checks. It does not qualify physical screen readers, desktop shortcut routing,
 rendered appearance or the complete editing journey.
 
