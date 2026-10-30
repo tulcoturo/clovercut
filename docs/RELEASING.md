@@ -85,11 +85,13 @@ Missing fixture generation or screenshots fail the run. The driver still uses
 timed steps; captures require visual review and do not replace interactive focus,
 accessibility or cross-platform checks.
 
-This is a screenshot fixture, not an end-to-end qualification: asynchronous
-imports can outlast a step, missing-media and save-warning dialogs are staged,
+This is a screenshot fixture, not an end-to-end qualification: import waits for
+all fixture paths with a 60-second deadline, missing-media and save-warning dialogs are staged,
 and the export steps configure a dialog without completing an export. Do not
 use its completion or screenshots as evidence of successful recovery or export.
-State-driven waits and real failure scenarios remain open work.
+Other layout captures remain timed. The separate state-driven editor journey in
+[TESTING.md](TESTING.md#opt-in-runtime-performance-report) exercises actual
+asynchronous recovery and export; neither driver qualifies mouse/keyboard input.
 
 ## Prepare a release
 
