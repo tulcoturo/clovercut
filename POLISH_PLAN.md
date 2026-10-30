@@ -103,6 +103,9 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Documented:** toolbar/menu/shortcut/quick split preserve continuous playhead
   time; razor and frame stepping use the rational frame grid. Keep intentional
   subframe audio/move/trim semantics and existing characterisation coverage.
+- **Implemented:** custom header menus, Settings, Shortcuts and Export expose
+  translated accessible names, button roles and default actions, matching the
+  shared icon controls. Actual screen-reader and keyboard qualification remains open.
 - **Pending environment:** fresh-profile import/edit/captions/library/save/reopen/
   recovery/export journey; Tab/Shift+Tab, Enter/Space, Escape and typing isolation;
   light/dark, 100–200% scale, long translations/RTL and screen reader. Record
