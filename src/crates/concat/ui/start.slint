@@ -1196,6 +1196,12 @@ component SearchField inherits Rectangle {
         }
     }
 
+    function clear-search() {
+        root.draft = "";
+        root.edited("");
+        input.focus();
+    }
+
     height: 34px;
     border-radius: self.height / 2;
     background: Theme.launch-panel;
@@ -1231,6 +1237,13 @@ component SearchField inherits Rectangle {
         selection-foreground-color: Theme.on-accent;
         accessible-label: root.placeholder;
         edited => { root.edited(self.text); }
+        key-pressed(event) => {
+            if event.text == Key.Escape && root.draft != "" {
+                root.clear-search();
+                return accept;
+            }
+            return reject;
+        }
     }
 
     if root.draft == "": Text {
@@ -1262,8 +1275,7 @@ component SearchField inherits Rectangle {
         clear := TouchArea {
             mouse-cursor: pointer;
             clicked => {
-                root.draft = "";
-                root.edited("");
+                root.clear-search();
             }
         }
     }
@@ -1791,6 +1803,15 @@ component WideHome inherits Rectangle {
 
                 Rectangle { height: 16px; }
 
+                if root.recents-total > 0: SegmentedControl {
+                    width: 200px;
+                    options: [I18n.t("start.gridView"), I18n.t("start.listView")];
+                    current: root.view;
+                    changed(index) => { root.view = index; }
+                }
+
+                if root.recents-total > 0: Rectangle { height: 16px; }
+
                 if root.recents-total == 0: EmptyProjects {
                     first-edit => { root.link("first-edit"); }
                 }
@@ -1801,15 +1822,6 @@ component WideHome inherits Rectangle {
                     font-size: Theme.fs-lg;
                     wrap: word-wrap;
                 }
-
-                SegmentedControl {
-                    width: 200px;
-                    options: [I18n.t("start.gridView"), I18n.t("start.listView")];
-                    current: root.view;
-                    changed(index) => { root.view = index; }
-                }
-
-                Rectangle { height: 16px; }
 
                 if root.view == 1: VerticalLayout {
                     spacing: 4px;

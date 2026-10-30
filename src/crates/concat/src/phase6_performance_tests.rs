@@ -975,7 +975,7 @@ fn phase6_performance_and_memory_suite() {
             studio.host.monitor.pool_cached_bytes() as u64,
             studio.host.monitor.gpu_pool_bytes(),
             studio.host.titles.live_bytes() as u64,
-            studio.title_blocks.len(),
+            studio.title_blocks.len() as u64,
             studio.host.playback.mapped_bytes() as u64,
         ];
         record(
