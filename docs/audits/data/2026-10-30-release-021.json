@@ -1,0 +1,121 @@
+{
+  "version": "0.2.1",
+  "tag": "v0.2.1",
+  "source": "062090d8c23b5b559dfdd31c2e0ff60700432d37",
+  "release_url": "https://github.com/tulcoturo/clovercut/releases/tag/v0.2.1",
+  "published_at": "2026-10-30T09:43:11Z",
+  "verification": [
+    "Published stable latest release and exact source identity",
+    "Twelve desktop packages plus updater manifest and checksums",
+    "Every GitHub asset digest matches published checksums or downloaded checksum file",
+    "Downloaded manifest digest, package sizes, hashes and URLs agree"
+  ],
+  "assets": [
+    {
+      "name": "Clovercut-0.2.1-aarch64.AppImage",
+      "bytes": 164481544,
+      "digest": "sha256:795e10e4b0d0cfd4137b28618a29bd33e9dc837f23c4da025e7590a005953932"
+    },
+    {
+      "name": "Clovercut-0.2.1-aarch64.deb",
+      "bytes": 141626268,
+      "digest": "sha256:12de3f6ba1ed5ab3a98c69fc01e09347a64f5951765f5b2fa27790b10cd5db21"
+    },
+    {
+      "name": "Clovercut-0.2.1-aarch64.rpm",
+      "bytes": 179730577,
+      "digest": "sha256:1c15e269fbec4b605317238a785a7f8d178fb34f13dac1e83a2e58aa3f3a6bde"
+    },
+    {
+      "name": "Clovercut-0.2.1-macos-arm64.dmg",
+      "bytes": 124695528,
+      "digest": "sha256:abb9bbf274541d878c54bed510179aed9851f3fe1b249d1ccbcb09c68d28ca21"
+    },
+    {
+      "name": "Clovercut-0.2.1-macos-x86_64.dmg",
+      "bytes": 148452726,
+      "digest": "sha256:15236cc593659bfeb9c1c991049ebf453bbc440b3c510003be14259da70aea5f"
+    },
+    {
+      "name": "Clovercut-0.2.1-windows-aarch64-portable.zip",
+      "bytes": 122275447,
+      "digest": "sha256:7d1d43b72df3c6419aea232f4142fd469773b2879eea6bc3737c1e846372100a"
+    },
+    {
+      "name": "Clovercut-0.2.1-windows-aarch64-setup.exe",
+      "bytes": 83302439,
+      "digest": "sha256:d3adc8788b1362f3ab5624fc69af920f9953e4b99da33534401d40ae4f4e8e5c"
+    },
+    {
+      "name": "Clovercut-0.2.1-windows-x86_64-portable.zip",
+      "bytes": 153318082,
+      "digest": "sha256:8ace62c61cb8ccdf11ba95b6e9438be279745cf48a6a0eac580399c7619c7f44"
+    },
+    {
+      "name": "Clovercut-0.2.1-windows-x86_64-setup.exe",
+      "bytes": 103740872,
+      "digest": "sha256:4fca3cb914a3f77c15db23182d5b40ebbb487c3bd6fffc0c1d8bdb0a16f45bf8"
+    },
+    {
+      "name": "Clovercut-0.2.1-x86_64.AppImage",
+      "bytes": 171985400,
+      "digest": "sha256:7f6af190e3c5835e9774b119aea6eab9e0f873e87511c692c22cc543c58e37a1"
+    },
+    {
+      "name": "Clovercut-0.2.1-x86_64.deb",
+      "bytes": 148063804,
+      "digest": "sha256:ecbe2d6d3fc87b843d57a2d43fff423d525f981643390d7fabe5addd2b18bbc3"
+    },
+    {
+      "name": "Clovercut-0.2.1-x86_64.rpm",
+      "bytes": 190187103,
+      "digest": "sha256:5875e8b505024e0f73b6be54408b86654ab770b0e373d3a268895b4ea7d88dea"
+    },
+    {
+      "name": "manifest.json",
+      "bytes": 24549,
+      "digest": "sha256:4d7ff3f77f105b3f9d9a6d2fd4b3e6162db154ba0a0e57506d6470985c89aae4"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1284,
+      "digest": "sha256:f3f243d964c3d58ac8ba8dc4050d7615cec6770eed22b18f412138fea5cf64e0"
+    }
+  ],
+  "inspected_macos_artifacts_match": [
+    "arm64",
+    "x86_64"
+  ],
+  "workflow_url": "https://github.com/tulcoturo/clovercut/actions/runs/41029570159",
+  "tests": {
+    "junit-grpc.xml": {
+      "total": 30,
+      "passed": 30,
+      "failed": 0
+    },
+    "junit-workspace.xml": {
+      "total": 1328,
+      "passed": 1328,
+      "failed": 0
+    }
+  },
+  "site": {
+    "url": "https://tulcoturo.github.io/clovercut/",
+    "version": "0.2.1",
+    "cache_key": "20261030-021",
+    "deployment_url": "https://github.com/tulcoturo/clovercut/actions/runs/41035940372",
+    "source": "2732ab8cffc08fb12f01d0e03c42b3bc4498d43c",
+    "verified_at": "2026-10-30T09:48:16.758028+00:00"
+  },
+  "virtual_desktop_validation": {
+    "source": "67b3c892b1ba577e5eb408eee712c5b12732e93d",
+    "workflow_url": "https://github.com/tulcoturo/clovercut/actions/runs/40894951139",
+    "passed": 12,
+    "rerun_by_release": false
+  },
+  "aur_publication": {
+    "workflow_url": "https://github.com/tulcoturo/clovercut/actions/runs/41035481672",
+    "status": "skipped",
+    "reason": "AUR_SSH_KEY is not configured; repository metadata is updated, external AUR publication is not established."
+  }
+}
