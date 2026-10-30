@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Aktualizuj szablon",
   "templates.updateMessage": "Zastąpić „{0}” bieżącym projektem?",
   "templates.editDestination": "Wybierz folder dla kopii szablonu",
-  "templates.slotCount": "Liczba miejsc: {0}"
+  "templates.slotCount": "Liczba miejsc: {0}",
+  "start.clearSearch": "Wyczyść wyszukiwanie"
 }

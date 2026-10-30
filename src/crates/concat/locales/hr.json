@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Ažuriraj predložak",
   "templates.updateMessage": "Zamijeniti „{0}” trenutačnim projektom?",
   "templates.editDestination": "Odaberite mapu za kopiju predloška",
-  "templates.slotCount": "Broj mjesta: {0}"
+  "templates.slotCount": "Broj mjesta: {0}",
+  "start.clearSearch": "Očisti pretragu"
 }

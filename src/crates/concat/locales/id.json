@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Perbarui templat",
   "templates.updateMessage": "Ganti “{0}” dengan proyek saat ini?",
   "templates.editDestination": "Pilih folder untuk salinan templat",
-  "templates.slotCount": "{0} slot"
+  "templates.slotCount": "{0} slot",
+  "start.clearSearch": "Hapus pencarian"
 }

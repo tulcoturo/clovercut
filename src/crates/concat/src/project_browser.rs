@@ -19,6 +19,9 @@ pub fn shown<'a>(
     let mut shown: Vec<&projects::Recent> = recents
         .iter()
         .filter(|recent| {
+            if words.is_empty() {
+                return true;
+            }
             let name = recent.info.name.to_lowercase();
             let path = recent.info.path.to_lowercase();
             words

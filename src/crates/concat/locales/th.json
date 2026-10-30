@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "อัปเดตเทมเพลต",
   "templates.updateMessage": "แทนที่ “{0}” ด้วยโปรเจกต์ปัจจุบันหรือไม่?",
   "templates.editDestination": "เลือกโฟลเดอร์สำหรับสำเนาเทมเพลต",
-  "templates.slotCount": "{0} ช่อง"
+  "templates.slotCount": "{0} ช่อง",
+  "start.clearSearch": "ล้างการค้นหา"
 }

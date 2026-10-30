@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "עדכון תבנית",
   "templates.updateMessage": "להחליף את „{0}” בפרויקט הנוכחי?",
   "templates.editDestination": "בחירת תיקייה לעותק התבנית",
-  "templates.slotCount": "מספר משבצות: {0}"
+  "templates.slotCount": "מספר משבצות: {0}",
+  "start.clearSearch": "ניקוי החיפוש"
 }
