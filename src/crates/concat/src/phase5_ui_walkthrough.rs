@@ -3,7 +3,7 @@
 
 //! Optional Hyprland/grim screenshot fixture for editor states and layouts.
 //!
-//! Timed steps do not wait for asynchronous imports or assert every edit.
+//! Import readiness is state-driven and bounded; layout captures still need visual review.
 //! Missing-media and save-warning dialogs are staged; export steps configure
 //! the dialog without completing an export. Captures require visual review.
 //! Fixture or screenshot failure stops the driver, but reaching its last step
@@ -13,7 +13,7 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use concat_host::projects;
 use concat_project::Command;
@@ -178,6 +178,7 @@ pub fn start(shell: Rc<Shell>, app_weak: slint::Weak<App>) -> slint::Timer {
     let (video_a, video_b, audio) = ensure_synthetic_media(&media_dir);
 
     let state = Rc::new(RefCell::new(0usize));
+    let step_entered = Rc::new(RefCell::new(Instant::now()));
     let first_clip_id = Rc::new(RefCell::new(String::new()));
     let text_clip_id = Rc::new(RefCell::new(String::new()));
 
@@ -193,7 +194,22 @@ pub fn start(shell: Rc<Shell>, app_weak: slint::Weak<App>) -> slint::Timer {
             };
             let mut current_step = state.borrow_mut();
             let step = *current_step;
+            // Imports complete on workers. Never capture an empty bin or skip
+            // the editing sequence merely because a slow import exceeds 600 ms.
+            if step == 3 {
+                let studio = shell_clone.studio.borrow();
+                let ready = [&video_a, &video_b, &audio].iter().all(|path| {
+                    studio.project().media.iter().any(|item| Path::new(&item.path) == path.as_path())
+                });
+                if !ready {
+                    assert!(!studio.toast.failed, "walkthrough import failed: {}", studio.toast.message);
+                    assert!(step_entered.borrow().elapsed() < Duration::from_secs(60),
+                        "walkthrough import timed out; {} media ready", studio.project().media.len());
+                    return;
+                }
+            }
             *current_step += 1;
+            *step_entered.borrow_mut() = Instant::now();
 
             match step {
                 // Step 0: Initial launch screen
@@ -252,12 +268,11 @@ pub fn start(shell: Rc<Shell>, app_weak: slint::Weak<App>) -> slint::Timer {
                     capture_screenshot("02_media_library_import");
 
                     let mut studio = shell_clone.studio.borrow_mut();
-                    let media_ids: Vec<String> = studio
-                        .project()
-                        .media
-                        .iter()
-                        .map(|m| m.id.clone())
-                        .collect();
+                    // Bind by fixture path, not document insertion order.
+                    let media_ids: Vec<String> = [&video_a, &video_b, &audio].iter().map(|path| {
+                        studio.project().media.iter().find(|item| Path::new(&item.path) == path.as_path())
+                            .expect("fixture import completed").id.clone()
+                    }).collect();
 
                     if media_ids.len() >= 2 {
                         let track_video = studio.timeline().tracks[0].id.clone();

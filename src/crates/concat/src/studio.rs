@@ -16230,3 +16230,7 @@ mod phase6_performance_tests;
 
 #[cfg(all(test, target_os = "linux"))]
 mod clipboard_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "editor_workflow_tests.rs"]
+mod editor_workflow_tests;
