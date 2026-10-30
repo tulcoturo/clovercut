@@ -1,6 +1,6 @@
 # Linux installation
 
-Download packages from [GitHub Releases](https://github.com/tulcoturo/clovercut/releases). Release 0.2.0 provides AppImage, `.deb` and `.rpm` packages for x86_64 and ARM64 (aarch64).
+Download packages from [GitHub Releases](https://github.com/tulcoturo/clovercut/releases). Release 0.2.1 provides AppImage, `.deb` and `.rpm` packages for x86_64 and ARM64 (aarch64).
 
 One-line install (picks the native package for your distro, falls back to the AppImage):
 
@@ -21,13 +21,13 @@ Manual installation (x86_64 examples; use `aarch64` for ARM64):
 
 ```bash
 # Debian / Ubuntu / Mint / Pop!_OS
-curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/v0.2.0/Clovercut-0.2.0-x86_64.deb
-sudo apt install ./Clovercut-0.2.0-x86_64.deb
+curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/v0.2.1/Clovercut-0.2.1-x86_64.deb
+sudo apt install ./Clovercut-0.2.1-x86_64.deb
 
 # Fedora / RHEL
-curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/v0.2.0/Clovercut-0.2.0-x86_64.rpm
-sudo dnf install ./Clovercut-0.2.0-x86_64.rpm
-# openSUSE: sudo zypper install ./Clovercut-0.2.0-x86_64.rpm
+curl -fsSLO https://github.com/tulcoturo/clovercut/releases/download/v0.2.1/Clovercut-0.2.1-x86_64.rpm
+sudo dnf install ./Clovercut-0.2.1-x86_64.rpm
+# openSUSE: sudo zypper install ./Clovercut-0.2.1-x86_64.rpm
 
 # Arch / CachyOS / Manjaro / EndeavourOS (prebuilt AppImage repackaged, updated by CI when the AUR maintainer key is configured)
 yay -S clovercut-bin
@@ -37,8 +37,8 @@ yay -S clovercut-bin
 ## Run an AppImage
 
 ```bash
-chmod +x Clovercut-0.2.0-x86_64.AppImage
-./Clovercut-0.2.0-x86_64.AppImage
+chmod +x Clovercut-0.2.1-x86_64.AppImage
+./Clovercut-0.2.1-x86_64.AppImage
 ```
 
 *(On systems without FUSE installed, launch with `APPIMAGE_EXTRACT_AND_RUN=1`).*

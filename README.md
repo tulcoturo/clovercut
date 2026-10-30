@@ -47,8 +47,8 @@ upstream improvements to its own timeline and project behaviour; the
 
 ## Download and install
 
-[**Download Clovercut 0.2.0**](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.0)
-— [Release notes](docs/releases/0.2.0.md)
+[**Download Clovercut 0.2.1**](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.1)
+— [Release notes](docs/releases/0.2.1.md)
 
 | Platform | Packages | Architectures |
 |---|---|---|

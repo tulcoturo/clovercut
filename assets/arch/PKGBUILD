@@ -5,7 +5,7 @@
 # matching lines from the release's SHA256SUMS file, regenerate .SRCINFO with
 # `makepkg --printsrcinfo > .SRCINFO`, then push this directory to AUR.
 pkgname=clovercut-bin
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="Desktop-first, open-source video editor with built-in stock libraries and local AI"
 arch=('x86_64' 'aarch64')
@@ -17,8 +17,8 @@ provides=('clovercut')
 conflicts=('clovercut')
 source_x86_64=("Clovercut-${pkgver}-x86_64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v${pkgver}/Clovercut-${pkgver}-x86_64.AppImage")
 source_aarch64=("Clovercut-${pkgver}-aarch64.AppImage::https://github.com/tulcoturo/clovercut/releases/download/v${pkgver}/Clovercut-${pkgver}-aarch64.AppImage")
-sha256sums_x86_64=('0250e6585ff624749a34177f63e266e7bda2affd4f9b707237b6acac2943fedf')
-sha256sums_aarch64=('99cb95593cfc2a267a4b319f3d56b5877b8ad49196c1fc32d92cd82943c4fbaa')
+sha256sums_x86_64=('7f6af190e3c5835e9774b119aea6eab9e0f873e87511c692c22cc543c58e37a1')
+sha256sums_aarch64=('795e10e4b0d0cfd4137b28618a29bd33e9dc837f23c4da025e7590a005953932')
 
 prepare() {
   local appimage="${srcdir}/Clovercut-${pkgver}-${CARCH}.AppImage"
