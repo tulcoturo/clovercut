@@ -111,6 +111,8 @@ pub struct Preferences {
     pub timeline_grid: bool,
     /// Show the optional split button beside the playhead; hidden by default.
     pub show_playhead_split: bool,
+    /// Use compact rows for recent projects; thumbnails are the default.
+    pub project_list_view: bool,
     /// Trim follow: while a clip's edge is dragged, the playhead rides the
     /// edge, so the monitor shows the exact frame the cut lands on. Off by
     /// default; the tray's button beside the hand turns it on.
@@ -456,6 +458,10 @@ mod tests {
         let old: Preferences = serde_json::from_str(r#"{"magnetic":true}"#).unwrap();
         assert!(!old.timeline_grid);
         assert!(!old.show_playhead_split);
+        assert!(
+            !old.project_list_view,
+            "older profiles retain thumbnail browsing"
+        );
         let enabled: Preferences =
             serde_json::from_str(r#"{"timelineGrid":true,"showPlayheadSplit":true}"#).unwrap();
         let round_trip: Preferences =

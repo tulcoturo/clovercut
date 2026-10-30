@@ -67,9 +67,18 @@ The [headless CI](https://github.com/tulcoturo/clovercut/actions/runs/4110024918
 also passed for the audio-change source `9680ca5c`; the subsequent source change
 adds header accessibility metadata/actions and the shared home-page spacing.
 
-Complete engine, virtual-desktop journey and runtime qualification are pending
-for source `1d67eecffb90ed902b2a4d13fac928f519acaf1c` in
-[CI](https://github.com/tulcoturo/clovercut/actions/runs/41101539243).
+The first full candidate run (`1d67eecf`, workflow `41101539243`) failed during
+Clippy: the repeated-cycle counter array mixed `usize` and `u64`. Tests and the
+runtime probe did not execute. The counter is now explicitly converted to `u64`.
+Full engine, virtual-desktop journey and runtime qualification remain pending
+for the updated source; earlier headless/UI-generation results do not qualify them.
+
+Additional home-page polish clears a nonempty search with Escape and returns
+focus after the clear button, keeps empty/no-match feedback below the relevant
+controls and hides the view selector when there are no projects. Grid/list choice
+is now stored as `projectListView` in preferences, defaulting to thumbnails for
+existing profiles. The selected durability case verifies both published modes
+and preferences reload. Those controller assertions await the full desktop run.
 
 ## Limits
 

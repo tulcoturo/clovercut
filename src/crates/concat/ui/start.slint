@@ -1644,7 +1644,8 @@ component WideHome inherits Rectangle {
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
-    in-out property <int> view;
+    in property <int> view;
+    callback view-changed(view: int);
     in property <bool> busy;
     in property <string> version;
     in property <bool> can-drop;
@@ -1807,7 +1808,7 @@ component WideHome inherits Rectangle {
                     width: 200px;
                     options: [I18n.t("start.gridView"), I18n.t("start.listView")];
                     current: root.view;
-                    changed(index) => { root.view = index; }
+                    changed(index) => { root.view-changed(index); }
                 }
 
                 if root.recents-total > 0: Rectangle { height: 16px; }
@@ -2150,7 +2151,8 @@ export component StartScreen inherits Rectangle {
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
-    in-out property <int> view;
+    in property <int> view;
+    callback view-changed(view: int);
     /// A project is being made: every verb on the page waits for it.
     in property <bool> busy;
     /// "0.2.7"
@@ -2187,7 +2189,8 @@ export component StartScreen inherits Rectangle {
         recents-total: root.recents-total;
         query: root.query;
         sort: root.sort;
-        view <=> root.view;
+        view: root.view;
+        view-changed(view) => { root.view-changed(view); }
         busy: root.busy;
         version: root.version;
         can-drop: root.can-drop;
