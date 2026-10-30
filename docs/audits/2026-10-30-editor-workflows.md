@@ -119,3 +119,21 @@ Clippy passed; the nine locale-tool cases and strict locale inventory passed.
 Complete UI generation passed in 17.63 s (95,084,748 generated Rust bytes),
 [record](data/2026-10-30-home-navigation-ui-generation.json). Keyboard gestures,
 screen-reader behaviour and visual layout remain unqualified by these static checks.
+
+## Simulated home-screen interaction qualification
+
+`python3 scripts/check_home_ui.py --offline` passed locally, including strict
+Clippy and actual Slint event delivery against the imported `ui/start.slint`.
+It verified accessible clear, typing after focus restoration, Escape, Tab with
+both Enter and Space, enabled-card activation and rejection while busy. The
+fixture contains synthetic projects and callback state; it does not copy the
+home screen's implementation. It generates about 5.68 MB of Rust, keeping this
+check separate from the full editor's roughly 95 MB generated UI. No desktop
+build speedup is inferred from this size difference.
+
+Headless CI now runs the fixture for UI changes. No physical window, GPU, audio,
+provider account or personal profile is used. The selected simulated interactions
+are qualified locally; real screen readers, physical keyboard/window integration,
+visual rendering and the complete editor journey remain separate. The first
+focused desktop dispatch stopped at checkout because its ref was abbreviated;
+it was relaunched with full source `1c017cf4` in workflow `41109516254`.

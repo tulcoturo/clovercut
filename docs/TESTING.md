@@ -41,6 +41,24 @@ needs no FFmpeg/Slint/GPU/audio libraries and adds no workspace crate. It qualif
 this storage module, not the host's full media/service integration. Windows-only
 cases still require Windows qualification; Linux runs do not execute them.
 
+## Isolated home-screen keyboard checks
+
+From the repository root:
+
+```sh
+python3 scripts/check_home_ui.py
+```
+
+This imports the actual `ui/start.slint` into a small window fixture and uses
+Slint's testing backend. It checks accessible clear, focus restoration, Escape,
+Tab followed by Enter/Space, and refusal of accessible activation on disabled
+project cards. Strict Clippy runs before the probe. The temporary crate uses the
+locked Slint versions and leaves the workspace lockfile unchanged; `--offline`
+uses cached dependencies. No native window, GPU/audio or application profile is
+opened. This runs in headless CI on UI changes, alongside storage/preferences
+checks. It does not qualify physical screen readers, desktop shortcut routing,
+rendered appearance or the complete editing journey.
+
 ## Ordinary validation
 
 | Suite | Command | Requirements |
