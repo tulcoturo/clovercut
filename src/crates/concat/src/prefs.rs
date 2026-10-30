@@ -429,13 +429,16 @@ mod tests {
                     let preferences = Preferences {
                         giphy_library: true,
                         opengameart_library: true,
+                        project_list_view: true,
                         shortcut_profile: Some(format!("profile-{n}")),
                         ..Preferences::default()
                     };
                     preferences.save(&dirs);
                     let bytes = std::fs::read(dirs.config.join(FILE)).unwrap();
                     let read: Preferences = serde_json::from_slice(&bytes).unwrap();
-                    assert!(read.giphy_library && read.opengameart_library);
+                    assert!(
+                        read.giphy_library && read.opengameart_library && read.project_list_view
+                    );
                     assert!(read.shortcut_profile.unwrap().starts_with("profile-"));
                 }
             }));

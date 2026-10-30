@@ -21,13 +21,17 @@ cargo clippy --locked -p concat-core -p concat-project --all-targets -- -D warni
 cargo test --locked -p concat-core -p concat-project
 ```
 
-Project-storage changes also run in the fast job. The isolated check compiles the
+Project, preference and library-history changes also run in the fast job. The isolated check compiles the
 actual `concat-host/src/projects.rs` source with its existing tests, including
 recents, legacy manifests, ordered/concurrent saves and failure recovery:
 
 ```sh
 python3 scripts/check_project_io.py
 ```
+
+This includes the actual preferences, app-directory and library-history modules.
+It checks default/legacy settings, concurrent private-file writes and recovery
+alongside project/template storage, without native media or generated UI.
 
 Run this command from the repository root. `--offline` uses already cached
 packages. The script selects the pinned toolchain through `src/`, uses a temporary

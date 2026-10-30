@@ -89,3 +89,18 @@ establish a memory plateau or long-run leak behaviour. Synchronous adoption stil
 needs complete-call and event-loop observations before a background refactor.
 Real provider accounts, cross-version native upgrades, actual Monterey execution,
 long playback drift and the full cross-platform desktop checklist remain open.
+
+## Follow-up: project browsing and fast feedback
+
+The home view now persists grid/list choice through preferences and republishes
+it from application state, including after restart or a narrow/wide layout change.
+Legacy profiles default to thumbnails. Escape clears an active search and the
+clear button restores focus. Empty libraries omit the unused view selector;
+no-match messages remain beneath the view controls and their 16 px gap.
+
+UI generation passed for `e9ded934` (17.49 s, 95,043,774 generated Rust bytes).
+The headless project check now includes actual preferences, directory-policy and
+library-history source, with no copied implementation. All 51 cases and strict
+Clippy passed locally. The existing concurrent preference-write case now also
+checks the persisted project-view flag. Full graphical checks remain pending in
+[the updated CI](https://github.com/tulcoturo/clovercut/actions/runs/41107753988).
