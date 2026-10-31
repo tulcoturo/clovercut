@@ -143,3 +143,7 @@ it did not execute the UI assertions. The runner now explicitly installs
 Fontconfig/FreeType development libraries. Review also corrected the repeated
 resource cycle to assert clip opacity and undo/redo state, rather than require a
 new object ID from an update command (updates intentionally create no ID).
+
+### Native qualification follow-up (31 October)
+
+At `9c93fb71ebcdb11042c6aa387f35159d883bea2f`, full native Clippy, ordinary tests, documentation examples, gRPC checks and all 13 selected virtual desktop regressions passed in run 41110924160. The optional runtime probe failed before seek measurements: software window selection intentionally returns no shared GPU, while the probe called the texture-only API. The probe now explicitly acquires a dedicated compositor device in that case and records this distinction; its timings do not qualify the production CPU-window presentation path. Child failure diagnostics are printed once rather than duplicated into the assertion, allowing the collector to retain partial records. Runtime qualification remains pending a new run.

@@ -225,7 +225,11 @@ fn phase6_performance_and_memory_suite() {
         print!("{stdout}");
         eprint!("{stderr}");
         let _ = std::fs::remove_dir_all(&root);
-        assert!(output.status.success(), "child failed:\n{stdout}\n{stderr}");
+        assert!(
+            output.status.success(),
+            "benchmark child failed: {} (diagnostics printed above)",
+            output.status
+        );
         return;
     }
 
@@ -246,7 +250,14 @@ fn phase6_performance_and_memory_suite() {
     // -------------------------------------------------------------------------
     let t_cold_start = Instant::now();
     let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
-    let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
+    // The software window deliberately does not share its device with the
+    // monitor. This texture-call probe needs a dedicated compositor device;
+    // it does not measure the production CPU-window presentation path.
+    let shared_window_device = gpu.is_some();
+    let monitor_gpu = gpu
+        .or_else(crate::gpu::Gpu::acquire)
+        .expect("texture-call benchmark requires a compositor adapter");
+    let mut studio = Studio::new(crate::host::Host::start(Some(monitor_gpu)).unwrap());
     let app = crate::ui::App::new().unwrap();
     let models = Models::new();
     studio.workspace = (1920.0, 1080.0);
@@ -262,6 +273,7 @@ fn phase6_performance_and_memory_suite() {
             "machine_label": std::env::var("CLOVERCUT_BENCHMARK_MACHINE").ok(),
             "toolchain": std::env::var("CLOVERCUT_BENCHMARK_TOOLCHAIN").ok(),
             "window_adapter": crate::gpu::adapter_description(),
+            "monitor_device": if shared_window_device { "shared with window" } else { "dedicated; texture-call probe only" },
             "physical_ram_bytes": concat_host::memory::total(),
             "reader_pool_budget_bytes": concat_media::ReaderPool::frame_budget(concat_host::memory::total()),
             "preview_pixels": [960, 540], "layered_pixels": [3840, 2160],
