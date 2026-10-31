@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Atualizar modelo",
   "templates.updateMessage": "Substituir “{0}” pelo projeto atual?",
   "templates.editDestination": "Escolha uma pasta para a cópia do modelo",
-  "templates.slotCount": "{0} espaços"
+  "templates.slotCount": "{0} espaços",
+  "start.clearSearch": "Limpar pesquisa"
 }

@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "更新範本",
   "templates.updateMessage": "以目前專案取代「{0}」？",
   "templates.editDestination": "選擇範本副本的資料夾",
-  "templates.slotCount": "{0} 個預留位置"
+  "templates.slotCount": "{0} 個預留位置",
+  "start.clearSearch": "清除搜尋"
 }

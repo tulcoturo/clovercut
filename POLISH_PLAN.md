@@ -1,6 +1,6 @@
 # Clovercut quality and polish plan
 
-Updated 29 October 2026. Baseline: release 0.1.9 (`fb8b7f90`).
+Updated 30 October 2026. Current release: 0.2.1; original audit baseline: 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
@@ -103,6 +103,9 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Documented:** toolbar/menu/shortcut/quick split preserve continuous playhead
   time; razor and frame stepping use the rational frame grid. Keep intentional
   subframe audio/move/trim semantics and existing characterisation coverage.
+- **Implemented:** custom header menus, Settings, Shortcuts and Export expose
+  translated accessible names, button roles and default actions, matching the
+  shared icon controls. Actual screen-reader and keyboard qualification remains open.
 - **Pending environment:** fresh-profile import/edit/captions/library/save/reopen/
   recovery/export journey; Tab/Shift+Tab, Enter/Space, Escape and typing isolation;
   light/dark, 100–200% scale, long translations/RTL and screen reader. Record
@@ -122,8 +125,15 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   seek/play/switch/undo resource cycles, startup/first preview/seek/playback and
   inspector timings on representative projects. Do not claim a memory plateau
   from one close or change cache/thread budgets without repeated baselines.
-- **Open measurement:** audio adoption still copies/probes synchronously. Content
-  comparison uses bounded memory, but large-file UI latency needs measurement
+- **Measured locally:** a 345,600,078-byte identical-audio scan improved from an
+  81.88 ms median (8 KiB buffers) to 46.69 ms (64 KiB) in fifteen interleaved
+  repeated-read samples per variant. Preserve the full raw samples and outliers;
+  this excludes copying, probing and event-loop latency. Buffers remain bounded.
+- **Implemented, awaiting CI qualification:** audio adoption/placement timings and
+  six repeated layered-project seek/edit/history/close cycles, with per-cycle RSS
+  and owned-cache assertions. The manual CI runtime probe retains partial evidence.
+- **Open measurement:** adoption still copies/probes synchronously. The complete
+  call's latency and hardware/event-loop behaviour require measured evidence
   before a concurrency/ownership refactor.
 
 ## 6. Projects, media and services — P1
@@ -159,8 +169,11 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   relevant behaviour changes; names alone do not justify churn.
 - **Implemented, limited:** Hyprland/grim walkthrough is excluded from ordinary
   builds and fails on fixture/capture failure. Its timed steps and staged dialogs
-  are not evidence of complete recovery/export. State-driven waits and real
-  failure scenarios remain open; do not advertise screenshot completion as QA.
+  are not evidence of complete recovery/export. Import now waits on all fixture
+  paths with a deadline and binds edits by path; other captures remain timed.
+- **Implemented, awaiting CI qualification:** a separate state-driven controller
+  journey exercises actual import, editing, reopen, moved-media relink and export
+  with independent output inspection. Mouse/keyboard qualification remains open.
 
 ## Completion evidence
 

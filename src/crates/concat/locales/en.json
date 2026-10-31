@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Update template",
   "templates.updateMessage": "Replace “{0}” with the current project?",
   "templates.editDestination": "Choose a folder for the template copy",
-  "templates.slotCount": "{0} slots"
+  "templates.slotCount": "{0} slots",
+  "start.clearSearch": "Clear search"
 }

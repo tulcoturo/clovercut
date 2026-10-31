@@ -225,7 +225,11 @@ fn phase6_performance_and_memory_suite() {
         print!("{stdout}");
         eprint!("{stderr}");
         let _ = std::fs::remove_dir_all(&root);
-        assert!(output.status.success(), "child failed:\n{stdout}\n{stderr}");
+        assert!(
+            output.status.success(),
+            "benchmark child failed: {} (diagnostics printed above)",
+            output.status
+        );
         return;
     }
 
@@ -246,7 +250,14 @@ fn phase6_performance_and_memory_suite() {
     // -------------------------------------------------------------------------
     let t_cold_start = Instant::now();
     let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
-    let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
+    // The software window deliberately does not share its device with the
+    // monitor. This texture-call probe needs a dedicated compositor device;
+    // it does not measure the production CPU-window presentation path.
+    let shared_window_device = gpu.is_some();
+    let monitor_gpu = gpu
+        .or_else(crate::gpu::Gpu::acquire)
+        .expect("texture-call benchmark requires a compositor adapter");
+    let mut studio = Studio::new(crate::host::Host::start(Some(monitor_gpu)).unwrap());
     let app = crate::ui::App::new().unwrap();
     let models = Models::new();
     studio.workspace = (1920.0, 1080.0);
@@ -262,6 +273,7 @@ fn phase6_performance_and_memory_suite() {
             "machine_label": std::env::var("CLOVERCUT_BENCHMARK_MACHINE").ok(),
             "toolchain": std::env::var("CLOVERCUT_BENCHMARK_TOOLCHAIN").ok(),
             "window_adapter": crate::gpu::adapter_description(),
+            "monitor_device": if shared_window_device { "shared with window" } else { "dedicated; texture-call probe only" },
             "physical_ram_bytes": concat_host::memory::total(),
             "reader_pool_budget_bytes": concat_media::ReaderPool::frame_budget(concat_host::memory::total()),
             "preview_pixels": [960, 540], "layered_pixels": [3840, 2160],
@@ -437,6 +449,20 @@ fn phase6_performance_and_memory_suite() {
     let proj_audio =
         projects::create(root.to_str().unwrap(), "Bench_6_2_Audio", 1920, 1080, 30, 1).unwrap();
     studio.open_project(proj_audio).unwrap();
+    // Exercise the actual library adoption path, including content comparison,
+    // copy, probe, document commands and selection. Repeated uses reuse the copy.
+    // These synchronous call timings do not measure event-loop/presentation delay.
+    for run in 0..3 {
+        let started = Instant::now();
+        studio.place_sound("Long audio", &long_audio, None, 0.0);
+        record_samples(
+            "library_audio_adoption_and_place",
+            run,
+            &[started.elapsed().as_secs_f64() * 1000.0],
+        );
+        assert!(!studio.selection.is_empty(), "library audio must be placed");
+        studio.undo();
+    }
     let m_audio = studio
         .apply(Command::AddMedia {
             item: concat_host::media::probe(long_audio.to_str().unwrap())
@@ -915,8 +941,71 @@ fn phase6_performance_and_memory_suite() {
         after_close_pcm, 0,
         "PCM memory-mapped audio cache must be cleared on close"
     );
+    // Reopen the saved layered project repeatedly, exercise seek and edit history,
+    // then observe counters after every close. Preserve raw RSS; allocator caching
+    // and this short sample do not establish a leak or a memory plateau.
+    let saved_4k = projects::open(root.join("Bench_6_2_4K").to_str().unwrap()).unwrap();
+    for cycle in 0..6 {
+        let started = Instant::now();
+        studio.open_project(saved_4k.clone()).unwrap();
+        for time in [0.0, 0.5, 1.0, 0.2] {
+            studio.seek(time);
+            let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
+            let spec = concat_host::preview::FrameSpec {
+                canvas: [0, 0, 0, 255],
+                time,
+                width: 960,
+                height: 540,
+                moving: false,
+                proxy: false,
+                color_space: Default::default(),
+            };
+            studio.host.monitor.frame(clips, &settings, spec).unwrap();
+        }
+        let clip_id = studio.timeline().clips[0].id.clone();
+        let before_opacity = studio.clip(&clip_id).unwrap().opacity;
+        studio.apply(Command::UpdateClip {
+            clip_id: clip_id.clone(),
+            patch: ClipPatch {
+                opacity: Some(0.75),
+                ..Default::default()
+            },
+        });
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
+        studio.undo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, before_opacity);
+        studio.redo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
+        studio.undo();
+        assert_eq!(studio.clip(&clip_id).unwrap().opacity, before_opacity);
+        studio.publish(&app, &models);
+        studio.close_project().unwrap();
+        record_samples(
+            "layered_project_open_seek_edit_close",
+            cycle,
+            &[started.elapsed().as_secs_f64() * 1000.0],
+        );
+        record_memory(&format!("after_repeated_close_{}", cycle + 1));
+        let counters = [
+            studio.host.monitor.pool_cached_bytes() as u64,
+            studio.host.monitor.gpu_pool_bytes(),
+            studio.host.titles.live_bytes() as u64,
+            studio.title_blocks.len() as u64,
+            studio.host.playback.mapped_bytes() as u64,
+        ];
+        record(
+            "lifecycle",
+            serde_json::json!({"cycle": cycle + 1, "after_close_counters": counters}),
+        );
+        assert_eq!(
+            counters, [0; 5],
+            "owned caches must be empty after every close"
+        );
+    }
     record(
         "complete",
         serde_json::json!({"lifecycle_assertions": "passed"}),
     );
+    // Match production shutdown: Slint/native worker TLS is process-lifetime.
+    crate::leave(0);
 }

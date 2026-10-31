@@ -13522,6 +13522,7 @@ impl Studio {
                 .collect::<Vec<_>>(),
         );
         app.set_start(self.start.data());
+        app.set_project_view(i32::from(self.prefs.project_list_view));
         app.set_recents_total(self.recents.len() as i32);
         let shown = crate::panes::start::shown(&self.recents, &self.start.query, self.start.sort);
         let (page, pages) = crate::panes::start::page_bounds(shown.len(), self.start.page);
@@ -15676,6 +15677,19 @@ mod save_durability_ui_tests {
         )
         .unwrap();
         studio.open_project(info.clone()).unwrap();
+        assert!(!studio.prefs.project_list_view);
+        studio.handle(crate::panes::Msg::Start(
+            crate::panes::start::StartMsg::ViewChanged(1),
+        ));
+        studio.publish(&app, &models);
+        assert_eq!(app.get_project_view(), 1);
+        assert!(crate::prefs::Preferences::load(&studio.host.dirs).project_list_view);
+        studio.handle(crate::panes::Msg::Start(
+            crate::panes::start::StartMsg::ViewChanged(0),
+        ));
+        studio.publish(&app, &models);
+        assert_eq!(app.get_project_view(), 0);
+        assert!(!crate::prefs::Preferences::load(&studio.host.dirs).project_list_view);
         studio.rename_project("  Renamed warning  ");
         assert_eq!(studio.project_name, "Renamed warning");
         assert_eq!(studio.session.as_ref().unwrap().path(), info.path);
@@ -16230,3 +16244,7 @@ mod phase6_performance_tests;
 
 #[cfg(all(test, target_os = "linux"))]
 mod clipboard_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "editor_workflow_tests.rs"]
+mod editor_workflow_tests;

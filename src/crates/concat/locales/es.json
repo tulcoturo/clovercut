@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Actualizar plantilla",
   "templates.updateMessage": "¿Sustituir «{0}» por el proyecto actual?",
   "templates.editDestination": "Elige una carpeta para la copia de la plantilla",
-  "templates.slotCount": "{0} espacios"
+  "templates.slotCount": "{0} espacios",
+  "start.clearSearch": "Borrar búsqueda"
 }

@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Sjabloon bijwerken",
   "templates.updateMessage": "‘{0}’ vervangen door het huidige project?",
   "templates.editDestination": "Kies een map voor de sjabloonkopie",
-  "templates.slotCount": "{0} plaatsen"
+  "templates.slotCount": "{0} plaatsen",
+  "start.clearSearch": "Zoekopdracht wissen"
 }
