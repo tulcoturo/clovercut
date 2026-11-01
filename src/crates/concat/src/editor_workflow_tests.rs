@@ -101,6 +101,7 @@ fn import_edit_reopen_relink_export() {
     std::fs::create_dir(&moved_folder).unwrap();
     let moved_source = moved_folder.join("source.mkv");
     let mut stage = 0;
+    let mut cancelled_export = 0;
     let mut entered = Instant::now();
     timer.start(
         slint::TimerMode::Repeated,
@@ -200,13 +201,72 @@ fn import_edit_reopen_relink_export() {
                     studio.handle(Msg::Export(ExportMsg::FolderChosen(
                         root.to_string_lossy().into_owned(),
                     )));
-                    studio.handle(Msg::Export(ExportMsg::NameEdited("journey".into())));
+                    studio.handle(Msg::Export(ExportMsg::NameEdited(
+                        "cancelled-journey".into(),
+                    )));
                     studio.handle(Msg::Export(ExportMsg::Start));
                     assert_eq!(studio.export.phase, ExportPhase::Running);
+                    cancelled_export = studio.export.request_id().unwrap();
+                    studio.handle(Msg::Export(ExportMsg::Progress {
+                        request_id: cancelled_export,
+                        fraction: 0.25,
+                        stage: "regression checkpoint".into(),
+                    }));
+                    studio.handle(Msg::Export(ExportMsg::Close));
+                    studio.handle(Msg::Export(ExportMsg::Open));
+                    studio.handle(Msg::Export(ExportMsg::Again));
+                    studio.handle(Msg::Export(ExportMsg::Start));
+                    studio.handle(Msg::Export(ExportMsg::Overwrite));
+                    assert!(studio.export.open);
+                    assert_eq!(studio.export.phase, ExportPhase::Running);
+                    assert_eq!(studio.export.progress, 0.25);
+                    assert_eq!(studio.export.stage, "regression checkpoint");
+                    assert_eq!(studio.export.request_id(), Some(cancelled_export));
+                    studio.handle(Msg::Export(ExportMsg::Cancel));
+                    studio.handle(Msg::Export(ExportMsg::Finished(
+                        cancelled_export,
+                        Ok("obsolete.mp4".into()),
+                    )));
+                    assert_eq!(studio.export.phase, ExportPhase::Idle);
+                    assert!(studio.export.written.is_empty());
                     stage = 2;
                     entered = Instant::now();
                 }
                 2 => {
+                    // Cancellation releases the real worker's slot asynchronously.
+                    if studio.host.exporter.is_busy() {
+                        return;
+                    }
+                    studio.handle(Msg::Export(ExportMsg::NameEdited("journey".into())));
+                    studio.handle(Msg::Export(ExportMsg::Start));
+                    assert_eq!(studio.export.phase, ExportPhase::Running);
+                    let replacement = studio.export.request_id().unwrap();
+                    assert_ne!(replacement, cancelled_export);
+                    for obsolete in [
+                        ExportMsg::Progress {
+                            request_id: cancelled_export,
+                            fraction: 0.9,
+                            stage: "obsolete".into(),
+                        },
+                        ExportMsg::Finished(cancelled_export, Err("obsolete failure".into())),
+                        ExportMsg::Finished(cancelled_export, Ok("obsolete.mp4".into())),
+                        ExportMsg::Published(cancelled_export, Ok("obsolete gallery path".into())),
+                        ExportMsg::Published(
+                            cancelled_export,
+                            Err("obsolete publication failure".into()),
+                        ),
+                    ] {
+                        studio.handle(Msg::Export(obsolete));
+                        assert_eq!(studio.export.phase, ExportPhase::Running);
+                        assert_eq!(studio.export.request_id(), Some(replacement));
+                        assert_eq!(studio.export.progress, 0.0);
+                        assert!(studio.export.message.is_empty());
+                        assert!(studio.export.written.is_empty());
+                    }
+                    stage = 3;
+                    entered = Instant::now();
+                }
+                3 => {
                     assert_ne!(
                         studio.export.phase,
                         ExportPhase::Failed,
