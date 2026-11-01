@@ -688,7 +688,10 @@ component Pressable inherits Rectangle {
     border-radius: root.radius;
     accessible-role: button;
     accessible-label: root.label;
-    accessible-action-default => { root.clicked(); }
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if root.enabled { root.clicked(); }
+    }
 
     // Under the touch area, so a press lands on the touch area and the
     // keys on this; a click does not take the focus, so no ring follows
@@ -1196,6 +1199,12 @@ component SearchField inherits Rectangle {
         }
     }
 
+    function clear-search() {
+        root.draft = "";
+        root.edited("");
+        input.focus();
+    }
+
     height: 34px;
     border-radius: self.height / 2;
     background: Theme.launch-panel;
@@ -1231,6 +1240,13 @@ component SearchField inherits Rectangle {
         selection-foreground-color: Theme.on-accent;
         accessible-label: root.placeholder;
         edited => { root.edited(self.text); }
+        key-pressed(event) => {
+            if event.text == Key.Escape && root.draft != "" {
+                root.clear-search();
+                return accept;
+            }
+            return reject;
+        }
     }
 
     if root.draft == "": Text {
@@ -1243,13 +1259,15 @@ component SearchField inherits Rectangle {
         overflow: elide;
     }
 
-    if root.draft != "": Rectangle {
+    if root.draft != "": clear-button := Pressable {
         x: parent.width - self.width - 6px;
         y: (parent.height - self.height) / 2;
         width: 24px;
         height: 24px;
-        border-radius: self.width / 2;
-        background: clear.has-hover ? Theme.launch-field : Colors.transparent;
+        radius: self.width / 2;
+        label: I18n.t("start.clearSearch");
+        background: self.lit ? Theme.launch-field : Colors.transparent;
+        clicked => { root.clear-search(); }
 
         Icon {
             x: (parent.width - self.width) / 2;
@@ -1259,12 +1277,9 @@ component SearchField inherits Rectangle {
             tint: Theme.fg-muted;
         }
 
-        clear := TouchArea {
-            mouse-cursor: pointer;
-            clicked => {
-                root.draft = "";
-                root.edited("");
-            }
+        Tip {
+            text: I18n.t("start.clearSearch");
+            active: clear-button.lit;
         }
     }
 }
@@ -1602,7 +1617,8 @@ component PageControls inherits HorizontalLayout {
     in property <int> page;
     in property <int> pages: 1;
     callback changed(page: int);
-    height: root.pages > 1 ? 36px : 0px;
+    height: root.pages > 1 ? 48px : 0px;
+    padding-top: 12px;
     visible: root.pages > 1;
     alignment: center;
     spacing: 12px;
@@ -1632,7 +1648,8 @@ component WideHome inherits Rectangle {
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
-    in-out property <int> view;
+    in property <int> view;
+    callback view-changed(view: int);
     in property <bool> busy;
     in property <string> version;
     in property <bool> can-drop;
@@ -1791,6 +1808,15 @@ component WideHome inherits Rectangle {
 
                 Rectangle { height: 16px; }
 
+                if root.recents-total > 0: SegmentedControl {
+                    width: 200px;
+                    options: [I18n.t("start.gridView"), I18n.t("start.listView")];
+                    current: root.view;
+                    changed(index) => { root.view-changed(index); }
+                }
+
+                if root.recents-total > 0: Rectangle { height: 16px; }
+
                 if root.recents-total == 0: EmptyProjects {
                     first-edit => { root.link("first-edit"); }
                 }
@@ -1802,12 +1828,6 @@ component WideHome inherits Rectangle {
                     wrap: word-wrap;
                 }
 
-                SegmentedControl {
-                    width: 200px;
-                    options: [I18n.t("start.gridView"), I18n.t("start.listView")];
-                    current: root.view;
-                    changed(index) => { root.view = index; }
-                }
                 if root.view == 1: VerticalLayout {
                     spacing: 4px;
                     for project in root.recents: ProjectRow {
@@ -2135,7 +2155,8 @@ export component StartScreen inherits Rectangle {
     in property <int> recents-total;
     in property <string> query;
     in property <int> sort;
-    in-out property <int> view;
+    in property <int> view;
+    callback view-changed(view: int);
     /// A project is being made: every verb on the page waits for it.
     in property <bool> busy;
     /// "0.2.7"
@@ -2172,7 +2193,8 @@ export component StartScreen inherits Rectangle {
         recents-total: root.recents-total;
         query: root.query;
         sort: root.sort;
-        view <=> root.view;
+        view: root.view;
+        view-changed(view) => { root.view-changed(view); }
         busy: root.busy;
         version: root.version;
         can-drop: root.can-drop;

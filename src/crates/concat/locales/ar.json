@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "تحديث القالب",
   "templates.updateMessage": "هل تريد استبدال «{0}» بالمشروع الحالي؟",
   "templates.editDestination": "اختر مجلدًا لنسخة القالب",
-  "templates.slotCount": "عدد المواضع: {0}"
+  "templates.slotCount": "عدد المواضع: {0}",
+  "start.clearSearch": "مسح البحث"
 }

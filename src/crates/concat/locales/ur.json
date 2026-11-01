@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "ٹیمپلیٹ اپ ڈیٹ کریں",
   "templates.updateMessage": "کیا “{0}” کو موجودہ پروجیکٹ سے بدلیں؟",
   "templates.editDestination": "ٹیمپلیٹ کی نقل کے لیے فولڈر منتخب کریں",
-  "templates.slotCount": "{0} سلاٹس"
+  "templates.slotCount": "{0} سلاٹس",
+  "start.clearSearch": "تلاش صاف کریں"
 }

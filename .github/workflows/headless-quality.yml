@@ -16,9 +16,15 @@ on:
       - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
+      - 'scripts/check_home_ui.py'
+      - 'scripts/fixtures/home-ui/**'
+      - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
       - 'src/crates/concat/src/project_browser.rs'
+      - 'src/crates/concat/src/prefs.rs'
+      - 'src/crates/concat-host/src/dirs.rs'
+      - 'src/crates/concat-host/src/library.rs'
       - 'scripts/test_ci_timings.py'
       - 'scripts/performance_report.py'
       - 'scripts/test_performance_report.py'
@@ -44,9 +50,15 @@ on:
       - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
+      - 'scripts/check_home_ui.py'
+      - 'scripts/fixtures/home-ui/**'
+      - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
       - 'src/crates/concat/src/project_browser.rs'
+      - 'src/crates/concat/src/prefs.rs'
+      - 'src/crates/concat-host/src/dirs.rs'
+      - 'src/crates/concat-host/src/library.rs'
       - 'scripts/test_ci_timings.py'
       - 'scripts/performance_report.py'
       - 'scripts/test_performance_report.py'
@@ -98,6 +110,7 @@ jobs:
         with:
           workspaces: src
           shared-key: headless-project
+          cache-on-failure: true
       - name: Enhance request and estimate planning regressions
         working-directory: src
         run: |
@@ -128,6 +141,14 @@ jobs:
         run: cargo clippy --locked -p concat-core -p concat-project --all-targets -- -D warnings
       - name: Project persistence regressions without native media dependencies
         run: python3 scripts/check_project_io.py
+      - name: Font metrics for the isolated home-screen check
+        run: |
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
+            libfontconfig1-dev libfreetype6-dev
+      - name: Home keyboard and accessible-action regressions without native window
+        run: python3 scripts/check_home_ui.py
       - name: Editing and document regressions
         working-directory: src
         run: cargo test --locked -p concat-core -p concat-project

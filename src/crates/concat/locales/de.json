@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Vorlage aktualisieren",
   "templates.updateMessage": "„{0}“ durch das aktuelle Projekt ersetzen?",
   "templates.editDestination": "Ordner für die Vorlagenkopie wählen",
-  "templates.slotCount": "{0} Platzhalter"
+  "templates.slotCount": "{0} Platzhalter",
+  "start.clearSearch": "Suche löschen"
 }

@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "به‌روزرسانی الگو",
   "templates.updateMessage": "«{0}» با پروژهٔ فعلی جایگزین شود؟",
   "templates.editDestination": "پوشه‌ای برای نسخهٔ الگو انتخاب کنید",
-  "templates.slotCount": "تعداد جایگاه‌ها: {0}"
+  "templates.slotCount": "تعداد جایگاه‌ها: {0}",
+  "start.clearSearch": "پاک کردن جستجو"
 }

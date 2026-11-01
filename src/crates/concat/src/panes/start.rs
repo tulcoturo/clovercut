@@ -55,6 +55,8 @@ pub enum StartMsg {
     /// How the projects are ordered: [`SORT_RECENT`] or [`SORT_NAME`].
     Sort(i32),
     Page(i32),
+    /// Remember thumbnail (0) or compact-list (1) browsing across restarts.
+    ViewChanged(i32),
     /// One of the learn-and-community cards, or the version line, by the
     /// name [`link`] knows it by.
     Link(String),
@@ -330,6 +332,13 @@ impl StartPane {
                 self.page = 0;
             }
             StartMsg::Page(page) => self.page = page.max(0) as usize,
+            StartMsg::ViewChanged(view) => {
+                let list = view == 1;
+                if studio.prefs.project_list_view != list {
+                    studio.prefs.project_list_view = list;
+                    studio.prefs.save(&studio.host.dirs);
+                }
+            }
             StartMsg::Sort(sort) => {
                 self.page = 0;
                 self.sort = if sort == SORT_NAME {

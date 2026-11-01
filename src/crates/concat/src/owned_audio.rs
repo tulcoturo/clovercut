@@ -13,8 +13,11 @@ pub fn matches_copy(source: &Path, target: &Path) -> io::Result<bool> {
     if !existing.is_file() || !original.is_file() || existing.len() != original.len() {
         return Ok(false);
     }
-    let mut source = BufReader::new(std::fs::File::open(source)?);
-    let mut target = BufReader::new(std::fs::File::open(target)?);
+    // Bounded 64 KiB buffers amortise reads on long recordings without loading
+    // the complete files. The local repeated-read baseline is recorded in the
+    // editor workflow audit; file length alone still never establishes identity.
+    let mut source = BufReader::with_capacity(64 * 1024, std::fs::File::open(source)?);
+    let mut target = BufReader::with_capacity(64 * 1024, std::fs::File::open(target)?);
     loop {
         let left = source.fill_buf()?;
         let right = target.fill_buf()?;

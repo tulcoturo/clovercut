@@ -21,13 +21,17 @@ cargo clippy --locked -p concat-core -p concat-project --all-targets -- -D warni
 cargo test --locked -p concat-core -p concat-project
 ```
 
-Project-storage changes also run in the fast job. The isolated check compiles the
+Project, preference and library-history changes also run in the fast job. The isolated check compiles the
 actual `concat-host/src/projects.rs` source with its existing tests, including
 recents, legacy manifests, ordered/concurrent saves and failure recovery:
 
 ```sh
 python3 scripts/check_project_io.py
 ```
+
+This includes the actual preferences, app-directory and library-history modules.
+It checks default/legacy settings, concurrent private-file writes and recovery
+alongside project/template storage, without native media or generated UI.
 
 Run this command from the repository root. `--offline` uses already cached
 packages. The script selects the pinned toolchain through `src/`, uses a temporary
@@ -36,6 +40,25 @@ copy of the workspace lockfile. The workspace lockfile stays unchanged. The chec
 needs no FFmpeg/Slint/GPU/audio libraries and adds no workspace crate. It qualifies
 this storage module, not the host's full media/service integration. Windows-only
 cases still require Windows qualification; Linux runs do not execute them.
+
+## Isolated home-screen keyboard checks
+
+From the repository root:
+
+```sh
+python3 scripts/check_home_ui.py
+```
+
+This imports the actual `ui/start.slint` into a small window fixture and uses
+Slint's testing backend. It checks accessible clear, focus restoration, Escape,
+Tab followed by Enter/Space, and refusal of accessible activation on disabled
+project cards. Strict Clippy runs before the probe. The temporary crate uses the
+locked Slint versions and leaves the workspace lockfile unchanged; `--offline`
+uses cached dependencies. No native window, GPU/audio or application profile is
+opened. Linux needs Fontconfig/FreeType development libraries for text metrics;
+CI installs them on its disposable runner. This runs in headless CI on UI changes, alongside storage/preferences
+checks. It does not qualify physical screen readers, desktop shortcut routing,
+rendered appearance or the complete editing journey.
 
 ## Ordinary validation
 
@@ -65,9 +88,9 @@ Reusable release calls do not expose this selector and always run the engine.
 
 Manual **CI** dispatch also offers `desktop_qa` for the selected ignored desktop
 regressions, after the ordinary engine checks. It provisions Xvfb, a PulseAudio
-null sink and Mesa software rendering on the disposable runner. Twelve cases
+null sink and Mesa software rendering on the disposable runner. Thirteen cases
 cover timeline policy/history/geometry/transport, playback sync/robustness,
-preview/export parity, source preview, durability, lifecycle and clipboard.
+preview/export parity, source preview, durability, lifecycle, clipboard and the state-driven editor journey.
 They run serially and produce a separate JUnit report; absent/skipped cases fail
 qualification. Hardware/model/live-provider probes and the performance benchmark
 are excluded. This option does not establish visual, physical-device, real audio
@@ -75,7 +98,7 @@ output, screen-reader or Windows/macOS qualification. A workflow definition alon
 does not establish that its selected tests have passed.
 
 The ten-minute playback drift measurement is a separate ignored test, excluded
-from the twelve functional cases. In a prepared isolated desktop/audio session,
+from the thirteen functional cases. In a prepared isolated desktop/audio session,
 run it explicitly from `src/` (the CI profile allows fifteen minutes):
 
 ```sh
@@ -85,7 +108,7 @@ cargo nextest run --locked -p concat --lib --profile ci --test-threads 1 --run-i
 It is unqualified until executed; the short functional suite does not establish
 long-run drift or physical A/V synchronization.
 
-For focused repairs, `desktop_only` compiles and executes those same twelve
+For focused repairs, `desktop_only` compiles and executes those same thirteen
 cases under **Selected desktop functional checks**, skipping workspace/gRPC
 checks. This is functional feedback, not full CI or release qualification.
 Standalone selectors are mutually exclusive; combining one with incompatible
@@ -125,6 +148,7 @@ ordinary default test run. Each group below needs an explicit qualification run.
 | `concat` phase-3 timeline | 5 | Isolated graphical session and GPU; transport case also needs FFmpeg. Run when editing cut timing, placement or geometry. |
 | `concat` phase-4 sync, robustness, preview/export parity | 3 | Isolated Slint/GPU/audio session and FFmpeg. Run for transport, timing, rendering or audio changes and before qualifying a desktop release. |
 | `concat` phase-6 performance/memory | 1 | Graphical/GPU/audio session and FFmpeg; labelled hardware baseline. Report samples separately from functional assertions. |
+| `concat` editor journey | 1 | Isolated graphical/audio session, FFmpeg and GPU. State-driven import, edit, save/reopen, moved-media relink and export; independent output inspection. |
 | `concat` source preview | 1 | Graphical session, FFmpeg and audio output. Run when changing library/timeline preview routing. |
 | `concat` durability warning and running-work shutdown | 2 | Isolated graphical/audio session; shutdown case also needs FFmpeg/GPU. Run for lifecycle and recovery changes. |
 | `concat` cross-project clipboard | 1 | Isolated graphical/audio session. Run when changing copying, ownership or destination track placement. |
@@ -238,8 +262,38 @@ presentation wait. Monitor clearing does not prove cold OS/driver/reader caches.
 Process RSS/high-water counters are `null` when unavailable. DRM values identify
 each device and are device-wide, not per-process or necessarily the selected
 adapter; an empty list means no available DRM counters. Actual zeros stay zero.
-The before/after close counters and existing assertions remain; one close does
-not demonstrate a memory plateau or exercise a resource that was already empty.
+The probe also measures the real library-audio adoption/placement call and six
+repeated layered-project open/seek/edit/undo/redo/close cycles, asserting empty
+owned caches after every close. Raw RSS is retained per cycle. These short cycles
+do not establish a memory plateau, event-loop responsiveness or physical playback.
+
+The manual CI workflow accepts `runtime_probe=true`. It runs full CI and the
+selected desktop cases, then collects the probe on Xvfb, a software adapter and a
+null audio sink. `runtime-probe.log` and `runtime-probe.json` are retained with the
+test reports, including partial output on failure. Label these results as virtual
+software observations; they are not a baseline for a user's hardware.
+
+The selected desktop cases include
+`studio::editor_workflow_tests::import_edit_reopen_relink_export`: asynchronous
+import, caption creation, split/undo/redo, rename/save/reopen, actual moved-media
+recovery/undo/redo/reopen and export via the export pane's worker. Its parent
+independently probes codec, dimensions, rate, frame count, audio stream and decoded
+last-frame colour. Every asynchronous stage has a deadline and waits on actual
+application state. It exercises controller messages, not mouse/keyboard gestures.
+The existing durability case separately provokes real manifest replacement and
+directory-sync failures.
+
+To observe audio-copy identity scanning without compiling the GUI:
+
+```sh
+rustc --edition 2024 -O scripts/bench_owned_audio.rs -o /tmp/audio-bench
+/tmp/audio-bench /path/source.wav /path/identical-owned-copy.wav 15
+```
+
+Run these commands from the repository root. Both existing files are read only;
+the preliminary comparison warms their contents. Keep source, file size, raw
+samples, environment and cache limitations. This excludes copying and media
+probing, so it cannot establish total adoption or UI latency.
 
 The pure counter/statistics helpers can be checked without Slint or native media
 libraries, from `src/`:

@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+
+import { StartScreen, RecentProjectData } from "__START_SCREEN__";
+export component HomeProbe inherits Window {
+    width: 1100px;
+    height: 900px;
+    in-out property <string> query: "Project";
+    in-out property <bool> busy;
+    in-out property <int> view;
+    in-out property <int> opens;
+    in property <[RecentProjectData]> projects;
+    StartScreen {
+        width: parent.width;
+        height: parent.height;
+        recents: root.projects;
+        recents-total: root.projects.length;
+        query: root.query;
+        busy: root.busy;
+        view: root.view;
+        version: "QA";
+        search-edited(query) => { root.query = query; }
+        view-changed(view) => { root.view = view; }
+        open-recent(path) => { root.opens += 1; }
+    }
+}

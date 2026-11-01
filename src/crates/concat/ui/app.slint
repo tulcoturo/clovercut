@@ -181,7 +181,8 @@ export component App inherits Window {
     callback start-search-edited(query: string);
     callback start-sort-changed(sort: int);
     callback start-page-changed(page: int);
-    property <int> project-view;
+    in property <int> project-view;
+    callback start-view-changed(view: int);
     in property <int> project-page;
     in property <int> project-pages: 1;
     callback project-title-renamed(name: string);
@@ -651,7 +652,8 @@ export component App inherits Window {
                 recents-total: root.recents-total;
                 query: root.start.query;
                 sort: root.start.sort;
-                view <=> root.project-view;
+                view: root.project-view;
+                view-changed(view) => { root.start-view-changed(view); }
                 page: root.project-page;
                 pages: root.project-pages;
                 page-changed(page) => { root.start-page-changed(page); }

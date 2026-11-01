@@ -1,0 +1,8 @@
+{
+  "source_sha": "b70905d1fbcf154385e46ad4ecad6c72169a5d0e",
+  "scope": "UI generation only; cached build-script binary, not compiling generated Rust or runtime UI qualification",
+  "exit_code": 0,
+  "elapsed_seconds": 17.384663862001617,
+  "child_max_rss_kib": 1560168,
+  "generated_rust_bytes": 95007862
+}

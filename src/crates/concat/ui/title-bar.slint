@@ -54,6 +54,9 @@ component WindowButton inherits Rectangle {
 }
 
 component MenuLabel inherits Rectangle {
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
     in property <string> label;
     /// this label's menu is the one currently open
     in property <bool> current;
@@ -81,6 +84,9 @@ component MenuLabel inherits Rectangle {
 }
 
 component HeaderIconButton inherits Rectangle {
+    accessible-role: button;
+    accessible-label: root.tip;
+    accessible-action-default => { root.clicked(); }
     in property <Glyph> glyph;
     in property <string> tip: "";
 
@@ -482,6 +488,9 @@ export component TitleBar inherits Rectangle {
             padding-left: 4px;
 
             export-button := Rectangle {
+                accessible-role: button;
+                accessible-label: I18n.t("common.export");
+                accessible-action-default => { root.export-clicked(); }
                 width: label.width + icon.width + 28px;
                 height: 26px;
                 border-radius: Theme.r-sm;

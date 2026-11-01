@@ -35,3 +35,10 @@ assets. A library lock coordinates readers and writers across app processes.
 Storage tests cover failed saves, updates, independent copies, deletion and
 libraries larger than 100 projects. The isolated storage check intentionally
 omits native poster extraction; full CI uses the real media backend.
+
+The home-page grid/list choice is remembered across restarts. Existing profiles
+start with thumbnails. Escape clears an active project search; the clear control
+returns focus to the search field while it remains visible.
+
+The search clear button can also be reached with Tab and activated with Enter or
+Space. Its tooltip and accessible name identify the action in the selected locale.

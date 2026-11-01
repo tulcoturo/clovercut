@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "更新模板",
   "templates.updateMessage": "用当前项目替换“{0}”？",
   "templates.editDestination": "选择模板副本的文件夹",
-  "templates.slotCount": "{0} 个占位槽"
+  "templates.slotCount": "{0} 个占位槽",
+  "start.clearSearch": "清除搜索"
 }

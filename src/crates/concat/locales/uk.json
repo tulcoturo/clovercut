@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Оновити шаблон",
   "templates.updateMessage": "Замінити «{0}» поточним проєктом?",
   "templates.editDestination": "Виберіть папку для копії шаблону",
-  "templates.slotCount": "Кількість слотів: {0}"
+  "templates.slotCount": "Кількість слотів: {0}",
+  "start.clearSearch": "Очистити пошук"
 }

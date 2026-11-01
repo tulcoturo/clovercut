@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Actualiser le modèle",
   "templates.updateMessage": "Remplacer « {0} » par le projet actuel ?",
   "templates.editDestination": "Choisissez un dossier pour la copie du modèle",
-  "templates.slotCount": "{0} emplacements"
+  "templates.slotCount": "{0} emplacements",
+  "start.clearSearch": "Effacer la recherche"
 }

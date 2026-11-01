@@ -787,6 +787,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_start_search_edited(on_window!(|state, query: SharedString| {
         state.handle(Msg::Start(StartMsg::SearchEdited(query.to_string())));
     }));
+    app.on_start_view_changed(on_window!(|state, view: i32| {
+        state.handle(Msg::Start(StartMsg::ViewChanged(view)));
+    }));
     app.on_start_page_changed(on_window!(|state, page: i32| {
         state.handle(Msg::Start(StartMsg::Page(page)));
     }));

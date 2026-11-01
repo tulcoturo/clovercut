@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "টেমপ্লেট হালনাগাদ",
   "templates.updateMessage": "বর্তমান প্রকল্প দিয়ে “{0}” প্রতিস্থাপন করবেন?",
   "templates.editDestination": "টেমপ্লেটের অনুলিপির জন্য ফোল্ডার বাছুন",
-  "templates.slotCount": "{0}টি স্লট"
+  "templates.slotCount": "{0}টি স্লট",
+  "start.clearSearch": "অনুসন্ধান মুছুন"
 }

@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "テンプレートを更新",
   "templates.updateMessage": "「{0}」を現在のプロジェクトで置き換えますか？",
   "templates.editDestination": "テンプレートのコピー先フォルダーを選択",
-  "templates.slotCount": "スロット数: {0}"
+  "templates.slotCount": "スロット数: {0}",
+  "start.clearSearch": "検索をクリア"
 }

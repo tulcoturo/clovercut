@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Cập nhật mẫu",
   "templates.updateMessage": "Thay “{0}” bằng dự án hiện tại?",
   "templates.editDestination": "Chọn thư mục cho bản sao mẫu",
-  "templates.slotCount": "{0} vị trí"
+  "templates.slotCount": "{0} vị trí",
+  "start.clearSearch": "Xóa tìm kiếm"
 }

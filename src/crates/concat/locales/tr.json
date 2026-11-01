@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Şablonu güncelle",
   "templates.updateMessage": "“{0}” geçerli projeyle değiştirilsin mi?",
   "templates.editDestination": "Şablon kopyası için bir klasör seçin",
-  "templates.slotCount": "{0} yuva"
+  "templates.slotCount": "{0} yuva",
+  "start.clearSearch": "Aramayı temizle"
 }

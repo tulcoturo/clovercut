@@ -1111,5 +1111,6 @@
   "templates.updateTitle": "Aggiorna modello",
   "templates.updateMessage": "Sostituire «{0}» con il progetto attuale?",
   "templates.editDestination": "Scegli una cartella per la copia del modello",
-  "templates.slotCount": "{0} segnaposto"
+  "templates.slotCount": "{0} segnaposto",
+  "start.clearSearch": "Cancella ricerca"
 }
