@@ -470,7 +470,13 @@ fn phase6_performance_and_memory_suite() {
                 .to_new_media(),
         })
         .unwrap();
-    let a_track = studio.timeline().tracks[1].id.clone();
+    let a_track = studio
+        .apply(Command::AddTrack {
+            bottom: true,
+            kind: Some(concat_project::model::TrackKind::Audio),
+            insert_at: None,
+        })
+        .expect("benchmark audio track must be created");
     for i in 0..12 {
         let cid = studio
             .apply(Command::AddClip {
