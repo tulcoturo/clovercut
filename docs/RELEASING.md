@@ -156,3 +156,9 @@ and third-party notices. Use the workflow's shipping profile and dependency setu
 
 Application state belongs to `io.github.tulcoturo.clovercut`. Project folders
 retain the inherited format, and updater metadata points to Clovercut releases.
+
+### macOS signing and notarization
+
+Without Apple credentials, macOS packages are ad-hoc signed and not notarized. The workflow emits a warning and records this in its job summary. Link users to [first-launch instructions](MACOS_INSTALLATION.md); native startup and signature-integrity checks do not prove Gatekeeper acceptance of an Internet download.
+
+Configure repository secrets `APPLE_CERTIFICATE_P12` (base64 PKCS#12), `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` for Developer ID signing. For notarization also supply `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_PASSWORD`. Partial certificate/identity or notarization configuration fails explicitly. Developer ID signing without notarization is reported separately. Notarized DMGs are stapled and the ticket is validated. Never commit credentials or certificates.

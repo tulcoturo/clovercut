@@ -28,7 +28,7 @@ import { SegmentedControl } from "primitives/segmented-control.slint";
 // - the projects: every one this machine has opened, as a grid of posters
 //   with their running time, edit time and frame, hover actions to show
 //   one in its folder or forget it, a missing folder shown as missing, and
-//   a search and a sort once there are more than a page of them;
+//   search and sorting whenever there are projects;
 // - learn and community: the guides, the first edit, the shortcuts, the
 //   repository, the Discord and how to report a problem, as cards that
 //   open in the browser, and the version with its release notes.
@@ -1680,7 +1680,7 @@ component WideHome inherits Rectangle {
     /// longer line on one tile does not shoulder the others aside.
     property <length> tile-unit: (root.main-w - (root.drop-tile ? 2 : 1) * 14px)
         / (root.drop-tile ? 3.3 : 2.3);
-    property <bool> searchable: root.recents-total > 8 || root.query != "";
+    property <bool> searchable: root.recents-total > 0 || root.query != "";
 
     flick := Flickable {
         content-width: self.width;
@@ -1786,8 +1786,6 @@ component WideHome inherits Rectangle {
                     text: I18n.t("start.recentProjects");
                     count: root.recents-total > 0 ? "\{root.recents-total}" : "";
 
-                    // Past a page of them: by the time there are more
-                    // than a screen holds, the eye is not a search.
                     if root.searchable: SearchField {
                         width: Math.min(260px, root.main-w * 0.32);
                         text: root.query;
@@ -1809,8 +1807,9 @@ component WideHome inherits Rectangle {
                 Rectangle { height: 16px; }
 
                 if root.recents-total > 0: SegmentedControl {
-                    width: 200px;
+                    width: 84px;
                     options: [I18n.t("start.gridView"), I18n.t("start.listView")];
+                    icons: [Glyph.grid-view, Glyph.list-view];
                     current: root.view;
                     changed(index) => { root.view-changed(index); }
                 }
@@ -1954,6 +1953,7 @@ component NarrowHome inherits Rectangle {
     in property <[RecentProjectData]> recents;
     in property <int> recents-total;
     in property <string> query;
+    in property <int> sort;
     in property <bool> busy;
     in property <string> version;
     /// A phone: no folder picker, so no Open; projects live in the app's
@@ -1967,10 +1967,11 @@ component NarrowHome inherits Rectangle {
     callback open-recent(path: string);
     callback forget-recent(path: string);
     callback search-edited(query: string);
+    callback sort-changed(sort: int);
     callback link(name: string);
 
     property <length> pad: 16px;
-    property <bool> searchable: root.recents-total > 8 || root.query != "";
+    property <bool> searchable: root.recents-total > 0 || root.query != "";
 
     flick := Flickable {
         content-width: self.width;
@@ -2060,10 +2061,16 @@ component NarrowHome inherits Rectangle {
 
             if root.searchable: VerticalLayout {
                 padding-top: 12px;
+                spacing: 8px;
                 SearchField {
                     text: root.query;
                     placeholder: I18n.t("start.searchProjects");
                     edited(text) => { root.search-edited(text); }
+                }
+                SegmentedControl {
+                    options: [I18n.t("start.sortRecent"), I18n.t("start.sortName")];
+                    current: root.sort;
+                    changed(index) => { root.sort-changed(index); }
                 }
             }
 
@@ -2217,6 +2224,8 @@ export component StartScreen inherits Rectangle {
         page-changed(page) => { root.page-changed(page); }
         recents-total: root.recents-total;
         query: root.query;
+        sort: root.sort;
+        sort-changed(sort) => { root.sort-changed(sort); }
         busy: root.busy;
         version: root.version;
         phone: root.phone;

@@ -86,6 +86,12 @@ export component SegmentedControl inherits Rectangle {
     }
 
     for option[index] in root.options: Rectangle {
+        accessible-role: button;
+        accessible-label: option;
+        accessible-enabled: root.enabled && !root.disabled[index];
+        accessible-action-default => {
+            if (root.enabled && !root.disabled[index]) { root.select(index); }
+        }
         x: root.inset + index * root.seg-w;
         y: root.inset;
         width: root.seg-w;

@@ -63,8 +63,9 @@ curl -fsSL https://raw.githubusercontent.com/tulcoturo/clovercut/main/scripts/in
 ```
 
 See [Linux installation](docs/INSTALLATION.md) for package selection, manual
-installation and graphics fallback. Desktop releases are the priority; mobile
-builds follow a separate schedule. Changes on `main` may be newer than the
+installation and graphics fallback, and [macOS installation](docs/MACOS_INSTALLATION.md)
+for first-launch and Gatekeeper guidance. Desktop releases are the priority;
+mobile releases are out of scope for now. Changes on `main` may be newer than the
 published packages.
 
 ## Local processing, optional online libraries
