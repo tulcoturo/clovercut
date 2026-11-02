@@ -201,6 +201,27 @@ fn import_edit_reopen_relink_export() {
                     studio.handle(Msg::Export(ExportMsg::FolderChosen(
                         root.to_string_lossy().into_owned(),
                     )));
+                    let other_folder = root.join("other-export-folder");
+                    std::fs::create_dir_all(&other_folder).unwrap();
+                    let original = root.join("existing-a.mp4");
+                    std::fs::write(&original, b"original export").unwrap();
+                    for (folder, name) in [(&root, "existing-b"), (&other_folder, "existing-a")] {
+                        let replacement = folder.join(format!("{name}.mp4"));
+                        std::fs::write(&replacement, b"another export").unwrap();
+                        studio.handle(Msg::Export(ExportMsg::FolderChosen(root.to_string_lossy().into_owned())));
+                        studio.handle(Msg::Export(ExportMsg::NameEdited("existing-a".into())));
+                        studio.handle(Msg::Export(ExportMsg::Start));
+                        assert!(matches!(&studio.confirm, Some(super::Confirm::ReplaceExport { path }) if Path::new(path) == original));
+                        studio.handle(Msg::Export(ExportMsg::FolderChosen(folder.to_string_lossy().into_owned())));
+                        studio.handle(Msg::Export(ExportMsg::NameEdited(name.into())));
+                        studio.confirm_accepted();
+                        assert!(matches!(&studio.confirm, Some(super::Confirm::ReplaceExport { path }) if Path::new(path) == replacement), "changed destination requires its own confirmation");
+                        assert!(!studio.host.exporter.is_busy(), "stale consent must not start a render");
+                        assert_eq!(std::fs::read(&original).unwrap(), b"original export");
+                        assert_eq!(std::fs::read(&replacement).unwrap(), b"another export");
+                        studio.confirm = None;
+                    }
+                    studio.handle(Msg::Export(ExportMsg::FolderChosen(root.to_string_lossy().into_owned())));
                     studio.handle(Msg::Export(ExportMsg::NameEdited(
                         "cancelled-journey".into(),
                     )));
@@ -216,7 +237,7 @@ fn import_edit_reopen_relink_export() {
                     studio.handle(Msg::Export(ExportMsg::Open));
                     studio.handle(Msg::Export(ExportMsg::Again));
                     studio.handle(Msg::Export(ExportMsg::Start));
-                    studio.handle(Msg::Export(ExportMsg::Overwrite));
+                    studio.handle(Msg::Export(ExportMsg::Overwrite("obsolete-target.mp4".into())));
                     assert!(studio.export.open);
                     assert_eq!(studio.export.phase, ExportPhase::Running);
                     assert_eq!(studio.export.progress, 0.25);
@@ -238,7 +259,12 @@ fn import_edit_reopen_relink_export() {
                         return;
                     }
                     studio.handle(Msg::Export(ExportMsg::NameEdited("journey".into())));
+                    let final_output = root.join("journey.mp4");
+                    std::fs::write(&final_output, b"previous completed export").unwrap();
                     studio.handle(Msg::Export(ExportMsg::Start));
+                    assert!(matches!(&studio.confirm, Some(super::Confirm::ReplaceExport { path }) if Path::new(path) == final_output));
+                    assert!(!studio.host.exporter.is_busy());
+                    studio.confirm_accepted();
                     assert_eq!(studio.export.phase, ExportPhase::Running);
                     let replacement = studio.export.request_id().unwrap();
                     assert_ne!(replacement, cancelled_export);

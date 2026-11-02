@@ -2652,9 +2652,9 @@ impl Studio {
             Some(Confirm::RemoveTrack { track_id }) => {
                 self.apply(Command::RemoveTrack { track_id });
             }
-            Some(Confirm::ReplaceExport { .. }) => {
+            Some(Confirm::ReplaceExport { path }) => {
                 self.handle(crate::panes::Msg::Export(
-                    crate::panes::export::ExportMsg::Overwrite,
+                    crate::panes::export::ExportMsg::Overwrite(path),
                 ));
             }
             Some(Confirm::QuitWithoutSaving { .. }) => {

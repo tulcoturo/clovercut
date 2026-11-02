@@ -50,8 +50,8 @@ pub enum ExportMsg {
     /// Show the finished file in the file manager.
     Reveal,
     Start,
-    /// Start over a file already there: the confirmation sheet's answer.
-    Overwrite,
+    /// Start over the specific file shown by the confirmation sheet.
+    Overwrite(String),
     Cancel,
     /// The render's worker reporting where it is.
     Progress {
@@ -208,7 +208,7 @@ impl ExportPane {
                 }
             }
             ExportMsg::Start => self.start(studio),
-            ExportMsg::Overwrite => self.begin(studio, true),
+            ExportMsg::Overwrite(path) => self.begin(studio, Some(&path)),
             ExportMsg::Cancel => {
                 if self.phase != ExportPhase::Running {
                     return;
@@ -480,12 +480,11 @@ impl ExportPane {
     /// Starts the render on a worker, once the name is a file's and no
     /// file is already there; its reports come back as messages.
     fn start(&mut self, studio: &mut Studio) {
-        self.begin(studio, false);
+        self.begin(studio, None);
     }
 
-    /// [`ExportPane::start`], with `overwrite` saying the person has
-    /// answered the sheet that asked about the file already there.
-    fn begin(&mut self, studio: &mut Studio, overwrite: bool) {
+    /// [`ExportPane::start`], with the exact path the person agreed to replace.
+    fn begin(&mut self, studio: &mut Studio, overwrite: Option<&str>) {
         if self.phase == ExportPhase::Running || studio.session.is_none() {
             return;
         }
@@ -511,7 +510,9 @@ impl ExportPane {
         // the confirmation sheet asks, and its answer comes back as
         // `Overwrite`. Nothing is written until then; the engine renders
         // beside the file and renames over it at the end.
-        if !overwrite && std::path::Path::new(&output).exists() {
+        // Consent belongs to the path shown in the confirmation, not whatever
+        // destination the form contains when the answer arrives.
+        if overwrite != Some(output.as_str()) && std::path::Path::new(&output).exists() {
             studio.confirm = Some(crate::studio::Confirm::ReplaceExport { path: output });
             return;
         }
