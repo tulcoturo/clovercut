@@ -935,6 +935,18 @@ jobs:
         set -euo pipefail
         app=Clovercut.app
         dmg="Clovercut-${VERSION}-macos-${{ matrix.arch }}.dmg"
+        # Refuse partial configuration rather than silently producing a
+        # differently trusted package from the one the maintainer intended.
+        if { [ -n "$CERT_P12" ] || [ -n "$IDENTITY" ]; } &&
+           { [ -z "$CERT_P12" ] || [ -z "$IDENTITY" ]; }; then
+          echo "::error::Apple signing requires both certificate and identity."
+          exit 1
+        fi
+        if [ -n "$APPLE_ID$TEAM_ID$APP_PASSWORD" ] &&
+           { [ -z "$APPLE_ID" ] || [ -z "$TEAM_ID" ] || [ -z "$APP_PASSWORD" ] || [ -z "$CERT_P12" ] || [ -z "$IDENTITY" ]; }; then
+          echo "::error::Notarization requires complete Apple credentials and a signing certificate/identity."
+          exit 1
+        fi
         if [ -n "${CERT_P12}" ] && [ -n "${IDENTITY}" ]; then
           keychain=$RUNNER_TEMP/signing.keychain-db
           echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
@@ -959,7 +971,8 @@ jobs:
           codesign --force --options runtime --timestamp --entitlements "$entitlements" -s "$IDENTITY" "$app"
           codesign --verify --deep --strict "$app"
         else
-          echo "No signing identity: ad-hoc signing."
+          echo "::warning::No Apple signing credentials: this macOS package is ad-hoc signed and is not notarized. Gatekeeper may block first launch."
+          echo "macOS package: ad-hoc signed, not notarized; see docs/MACOS_INSTALLATION.md for first-launch instructions." >> "$GITHUB_STEP_SUMMARY"
           codesign --force --deep -s - "$app"
         fi
 
@@ -985,6 +998,11 @@ jobs:
           xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --team-id "$TEAM_ID" \
             --password "$APP_PASSWORD" --wait
           xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          echo "macOS package: Developer ID signed, notarized and stapled." >> "$GITHUB_STEP_SUMMARY"
+        elif [ -n "$IDENTITY" ]; then
+          echo "::warning::Developer ID signing is configured without notarization credentials; Gatekeeper may still block first launch."
+          echo "macOS package: Developer ID signed, not notarized." >> "$GITHUB_STEP_SUMMARY"
         fi
         mkdir -p stage && mv "$dmg" stage/
     - name: Smoke test (macOS)

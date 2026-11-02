@@ -47,6 +47,8 @@ export enum Glyph {
     /// three dots in a row: a menu of more
     more,
     check,
+    grid-view,
+    list-view,
     chevron-down,
     chevron-left,
     /// the Stickers page: a peeling square with a face
@@ -610,6 +612,16 @@ export component Icon inherits Rectangle {
             + " 0 0 1 1 -1Z M4 14h7a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-7a1 1 0 0 1 -1"
             + " -1v-5a1 1 0 0 1 1 -1Z M17 14h3a1 1 0 0 1 1 1v5a1 1 0 0 1 -1 1h-3a1"
             + " 1 0 0 1 -1 -1v-5a1 1 0 0 1 1 -1Z";
+    }
+
+    // Project browser layouts, on the same 24-unit grid as the other marks.
+    if root.glyph == Glyph.grid-view: Stroked {
+        size: root.size; tint: root.tint; weight: root.weight;
+        commands: "M3 3h7v7H3Z M14 3h7v7h-7Z M3 14h7v7H3Z M14 14h7v7h-7Z";
+    }
+    if root.glyph == Glyph.list-view: Stroked {
+        size: root.size; tint: root.tint; weight: root.weight;
+        commands: "M3 5h3v3H3Z M10 6.5h11 M3 16h3v3H3Z M10 17.5h11";
     }
 
     // lucide/diamond
