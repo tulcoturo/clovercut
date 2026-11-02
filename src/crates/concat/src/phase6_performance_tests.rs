@@ -21,6 +21,9 @@ use super::{Models, Studio};
 #[path = "performance_metrics.rs"]
 mod metrics;
 
+#[path = "../../concat-project/examples/support/large_document.rs"]
+mod large_document;
+
 fn read_process_memory_bytes() -> metrics::ProcessMemory {
     std::fs::read_to_string("/proc/self/status")
         .map(|status| metrics::process_memory(&status))
@@ -56,6 +59,136 @@ fn record_memory(stage: &str) {
             "drm_device_wide_vram_bytes": metrics::drm_device_vram(Path::new("/sys/class/drm")),
         }),
     );
+}
+
+fn owned_counters(studio: &Studio) -> [u64; 5] {
+    [
+        studio.host.monitor.pool_cached_bytes() as u64,
+        studio.host.monitor.gpu_pool_bytes(),
+        studio.host.titles.live_bytes() as u64,
+        studio.title_blocks.len() as u64,
+        studio.host.playback.mapped_bytes() as u64,
+    ]
+}
+
+fn large_project_baselines(
+    studio: &mut Studio,
+    app: &crate::ui::App,
+    models: &Models,
+    root: &Path,
+    source: &Path,
+) {
+    for count in [100, 500] {
+        let started = Instant::now();
+        let media = concat_host::media::probe(source.to_str().unwrap())
+            .unwrap()
+            .to_new_media();
+        let (document, clip_id, settings) = large_document::build(count, media, "concat.adjust");
+        let info = projects::create(
+            root.to_str().unwrap(),
+            &format!("Large_{count}"),
+            settings.width,
+            settings.height,
+            settings.rate_num,
+            settings.rate_den,
+        )
+        .unwrap();
+        projects::save(&info.path, &document).unwrap();
+        record_samples(
+            &format!("large_{count}_fixture_build_probe_and_save"),
+            0,
+            &[started.elapsed().as_secs_f64() * 1000.0],
+        );
+        let mut opens = vec![];
+        let mut publishes = vec![];
+        let mut plans = vec![];
+        let mut decodes = vec![];
+        let mut textures = vec![];
+        let mut edits = vec![];
+        let mut closes = vec![];
+        for run in 0..5 {
+            let started = Instant::now();
+            let opened = projects::open(&info.path).unwrap();
+            studio.open_project(opened).unwrap();
+            opens.push(started.elapsed().as_secs_f64() * 1000.0);
+            assert_eq!(studio.timeline().clips.len(), count * 2);
+            let started = Instant::now();
+            studio.publish(app, models);
+            publishes.push(started.elapsed().as_secs_f64() * 1000.0);
+            for time in [
+                0.25,
+                (count / 2) as f64 * 5.0 + 1.0,
+                (count - 1) as f64 * 5.0 + 1.75,
+            ] {
+                let started = Instant::now();
+                studio.seek(time);
+                let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
+                plans.push(started.elapsed().as_secs_f64() * 1000.0);
+                let spec = concat_host::preview::FrameSpec {
+                    canvas: [0, 0, 0, 255],
+                    time,
+                    width: 960,
+                    height: 540,
+                    moving: false,
+                    proxy: false,
+                    color_space: Default::default(),
+                };
+                let started = Instant::now();
+                let sources = studio
+                    .host
+                    .monitor
+                    .frame_sources(clips, &settings, spec)
+                    .unwrap();
+                decodes.push(started.elapsed().as_secs_f64() * 1000.0);
+                let started = Instant::now();
+                let _texture = studio.host.monitor.texture_of(&sources, spec).unwrap();
+                textures.push(started.elapsed().as_secs_f64() * 1000.0);
+            }
+            let original_opacity = studio.clip(&clip_id).unwrap().opacity;
+            let started = Instant::now();
+            studio.apply(Command::UpdateClip {
+                clip_id: clip_id.clone(),
+                patch: ClipPatch {
+                    opacity: Some(0.75),
+                    ..Default::default()
+                },
+            });
+            assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
+            studio.undo();
+            assert_eq!(studio.clip(&clip_id).unwrap().opacity, original_opacity);
+            studio.redo();
+            assert_eq!(studio.clip(&clip_id).unwrap().opacity, 0.75);
+            studio.undo();
+            assert_eq!(studio.clip(&clip_id).unwrap().opacity, original_opacity);
+            edits.push(started.elapsed().as_secs_f64() * 1000.0);
+            let before = owned_counters(studio);
+            let started = Instant::now();
+            studio.close_project().unwrap();
+            closes.push(started.elapsed().as_secs_f64() * 1000.0);
+            let after = owned_counters(studio);
+            record(
+                "lifecycle",
+                serde_json::json!({"scenario": "large_project", "video_clips": count,
+                "caption_cues": count, "run": run + 1, "before_close_counters": before, "after_close_counters": after}),
+            );
+            record_memory(&format!("large_{count}_after_close_{}", run + 1));
+            assert_eq!(
+                after, [0; 5],
+                "large-project owned caches must be empty after close"
+            );
+        }
+        for (name, values) in [
+            ("open_session", opens),
+            ("publish_models", publishes),
+            ("seek_and_preview_plan", plans),
+            ("frame_sources_call", decodes),
+            ("texture_of_host_call", textures),
+            ("validated_edit_undo_redo_undo", edits),
+            ("save_and_close", closes),
+        ] {
+            record_samples(&format!("large_{count}_{name}"), 0, &values);
+        }
+    }
 }
 
 fn generate_fixtures(dir: &Path) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
@@ -277,6 +410,11 @@ fn phase6_performance_and_memory_suite() {
             "physical_ram_bytes": concat_host::memory::total(),
             "reader_pool_budget_bytes": concat_media::ReaderPool::frame_budget(concat_host::memory::total()),
             "preview_pixels": [960, 540], "layered_pixels": [3840, 2160],
+            "large_project_workloads": {"video_clips": [100, 500], "caption_cues_per_video_clip": 1,
+                "stored_filter": "concat.adjust", "runs": 5, "seeks_per_run": 3,
+                "media_scope": "one generated HD source reused by all video clips",
+                "counter_order": ["cpu_pool_bytes", "gpu_pool_bytes", "title_cache_bytes", "title_blocks", "mapped_pcm_bytes"],
+                "publication_scope": "synchronous Slint model publication, not presented frames"},
             "audio_seconds": 180, "caption_cues": 240, "cache_state": "uncontrolled",
             "gpu_timing": "host texture_of call; not device execution or presentation latency",
             "drm_scope": "device-wide; not per-process or tied to the selected adapter",
@@ -1008,6 +1146,7 @@ fn phase6_performance_and_memory_suite() {
             "owned caches must be empty after every close"
         );
     }
+    large_project_baselines(&mut studio, &app, &models, &root, &hd_a);
     record(
         "complete",
         serde_json::json!({"lifecycle_assertions": "passed"}),
