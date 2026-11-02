@@ -182,6 +182,16 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   journey exercises actual import, editing, reopen, moved-media relink and export
   with independent output inspection. Mouse/keyboard qualification remains open.
 
+## Upstream responsiveness follow-up — 2 November
+
+- **Implemented, native CI pending:** adapt `75919f5e` with approximate fast scrubs,
+  exact rest refinement and stale-refinement rejection. Exact export/playback and
+  Clovercut generated-media, precise-clock and cutout/stabilization contracts are
+  retained. Reader-pool regression covers approximation and decoder fallback.
+- **Next, measurement required:** review `f19fda34` idle memory/cache/thread policy
+  separately against the recorded native large-project baseline. No memory or
+  interactive speedup claim follows from the implementation alone.
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested

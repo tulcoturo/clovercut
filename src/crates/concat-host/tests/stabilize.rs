@@ -292,6 +292,7 @@ fn a_shaky_shot_is_measured_and_held_still() {
                 Arc::clone(&clips),
                 &session.settings(),
                 FrameSpec {
+                    nearest: false,
                     canvas: [0, 0, 0, 255],
                     time: k as f64 / 30.0,
                     width: WIDTH,

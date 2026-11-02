@@ -396,3 +396,17 @@ The opt-in runtime probe now extends its existing fixture with 100/500 video cli
 For each size, five open/publish/seek/edit/close cycles record session-open (including project metadata read), synchronous Slint model publication, seek/preview-plan preparation, frame-source acquisition, host `texture_of` calls, a validated edit/undo/redo/undo sequence, and save/close. Three positions per cycle cover the first, middle and last clip at different media offsets; all clips reuse one generated HD file. Fixture generation/probing/persistence is reported separately. Semantic/count checks and history assertions remain mandatory, and owned-cache counters must be zero after each close. Raw RSS/high-water observations are retained.
 
 Run through the existing `runtime_probe=true` CI input. This stays opt-in; ordinary CI does not silently become a large performance suite. Model publication does not mean a presented frame; GPU host-call timing does not measure device execution. The software adapter, uncontrolled repeated caches, shared source and undrained native/UI event queues limit interpretation. Do not infer per-file disk scaling, input latency, a leak/plateau or physical-device performance from this probe.
+
+## Approximate scrubbing and exact refinement
+
+Interactive fast seeks may show a nearby decoded frame, followed by an exact
+frame after the cursor rests. Export, saved frames, playback, stabilized sources
+and time-dependent cutout sources keep exact decoding. The reader-pool regression
+covers keyframe-only decoding and default B-frame footage, exact cache identity,
+and fallback when approximate decoding cannot reach the indexed keyframe.
+
+The opt-in phase-6 probe records `scrub_nearest_frame_sources_after_monitor_clear`
+and `scrub_exact_refinement_frame_sources`, with per-request exactness under
+`scrub_freshness`. A nearest request can already be exact; retain those flags when
+interpreting timing samples. Virtual software-adapter timings do not qualify
+physical interaction latency or establish a controlled before/after speedup.

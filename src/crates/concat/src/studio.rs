@@ -9568,6 +9568,7 @@ impl Studio {
             proxy: false,
             color_space: self.project().active().video.color_space,
             canvas: self.project().active().video.canvas,
+            nearest: false,
         };
         let monitor = self.host.monitor.clone();
         let out_dir = project_dir.join("frames");

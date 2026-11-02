@@ -125,6 +125,7 @@ fn large_project_baselines(
                 let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
                 plans.push(started.elapsed().as_secs_f64() * 1000.0);
                 let spec = concat_host::preview::FrameSpec {
+                    nearest: false,
                     canvas: [0, 0, 0, 255],
                     time,
                     width: 960,
@@ -484,6 +485,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                nearest: false,
                 canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
@@ -505,6 +507,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                nearest: false,
                 canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
@@ -547,6 +550,7 @@ fn phase6_performance_and_memory_suite() {
             let t0 = Instant::now();
             let (clips, settings) = studio.preview_clips(960, 540, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                nearest: false,
                 canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 960,
@@ -580,6 +584,65 @@ fn phase6_performance_and_memory_suite() {
     }
 
     studio.close_project().unwrap();
+
+    // Explicit approximate-preview requests followed by exact refinement.
+    // Retain freshness: on cheap/cached footage the approximate path may
+    // legitimately return an exact frame, so timings alone prove no speedup.
+    for run in 0..3 {
+        studio.host.monitor.clear();
+        let mut coarse = vec![];
+        let mut refined = vec![];
+        let mut freshness = vec![];
+        for time in [2.17, 6.27, 1.37, 5.57, 0.77, 7.13] {
+            let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
+            let spec = concat_host::preview::FrameSpec {
+                time,
+                width: 960,
+                height: 540,
+                moving: false,
+                proxy: false,
+                color_space: Default::default(),
+                canvas: [0, 0, 0, 255],
+                nearest: true,
+            };
+            let started = Instant::now();
+            let sources = studio
+                .host
+                .monitor
+                .frame_sources(Arc::clone(&clips), &settings, spec)
+                .unwrap();
+            coarse.push(started.elapsed().as_secs_f64() * 1000.0);
+            freshness.push(sources.exact());
+            let started = Instant::now();
+            let exact = studio
+                .host
+                .monitor
+                .frame_sources(
+                    clips,
+                    &settings,
+                    concat_host::preview::FrameSpec {
+                        nearest: false,
+                        ..spec
+                    },
+                )
+                .unwrap();
+            refined.push(started.elapsed().as_secs_f64() * 1000.0);
+            assert!(
+                exact.exact(),
+                "refinement must never return an approximation"
+            );
+        }
+        record_samples(
+            "scrub_nearest_frame_sources_after_monitor_clear",
+            run,
+            &coarse,
+        );
+        record_samples("scrub_exact_refinement_frame_sources", run, &refined);
+        record(
+            "lifecycle",
+            serde_json::json!({"scenario": "scrub_freshness", "run": run + 1, "exact_before_refinement": freshness}),
+        );
+    }
 
     // -------------------------------------------------------------------------
     // TASK 6.2A: Long Audio Project (180s stereo 48kHz WAV + 12 spans)
@@ -990,6 +1053,7 @@ fn phase6_performance_and_memory_suite() {
             let t_sec = f as f64 / 30.0;
             let (clips, settings) = studio.preview_clips(3840, 2160, t_sec).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                nearest: false,
                 canvas: [0, 0, 0, 255],
                 time: t_sec,
                 width: 3840,
@@ -1096,6 +1160,7 @@ fn phase6_performance_and_memory_suite() {
             studio.seek(time);
             let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
             let spec = concat_host::preview::FrameSpec {
+                nearest: false,
                 canvas: [0, 0, 0, 255],
                 time,
                 width: 960,

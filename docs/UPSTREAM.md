@@ -7,6 +7,22 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+Reviewed through `f2a260814bb7637ddbfe24c9bc94cb2c73121675` (2 November 2026).
+The scrub adaptation from `75919f5e` is prepared on `perf/upstream-scrubbing`;
+full native CI qualification is pending. It uses approximate frames during fast
+seeks and exact refinement after rest, while playback, export and saved frames
+retain exact decoding. See the [adaptation record](audits/2026-11-02-upstream-scrubbing.md).
+
+The timeline-tab scroll fix `4e1eb116` already has a Clovercut equivalent
+(`9ca0134b`); the Chinese translation batch has no remaining English keys in its
+32 affected messages. Upstream README changes do not replace our project README.
+Memory-policy changes (`f19fda34`) remain a separate follow-up after measurement.
+Caption-language/VAD, expanded chroma keying, GPU-first H.264, settings grouping
+and direct audio-fade handles remain candidates. The transition rewrite
+`f2a26081` is upstream work in progress and is deferred.
+
+### Earlier quick-split review
+
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button
 is adapted through Clovercut's existing split callback, retaining selected/active
 and typed-main-track targeting, locked-track protection and undo. It uses the
