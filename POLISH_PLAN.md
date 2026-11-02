@@ -1,6 +1,6 @@
 # Clovercut quality and polish plan
 
-Updated 30 October 2026. Current release: 0.2.1; original audit baseline: 0.1.9 (`fb8b7f90`).
+Updated 2 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
@@ -10,6 +10,13 @@ acceptance cases across platforms.
 The objective is predictable editing, trustworthy validation and fast feedback.
 There is no test-count reduction target. Preserve data, ownership, cancellation,
 locks, undo and preview/export regressions. No new release is implied by this plan.
+
+## Next review after 0.2.2
+
+- **Delivered:** project-browser keyboard/accessibility polish, small-library search/sorting, remembered grid/list view and export request ownership. Release 0.2.2 is published; its second release run passed all native build/CI gates. The audio cancellation regression now checks the actual chunk boundary instead of using an uncalibrated 100 ms shared-runner limit.
+- **Next source finding to reproduce:** overwrite confirmation stores a destination path, but `Studio::confirm_accepted` discards it and `ExportPane::begin` recomputes the destination from current fields. Check whether changing export state while a confirmation is pending can authorize replacing a different file. Preserve the originally confirmed destination or ask again; do not claim an interactive data-loss reproduction yet.
+- **Next performance qualification:** establish repeatable 100/500-clip projects with captions/effects, recording open, seek and edit/publish times plus memory/resource counters. Separate software-adapter observations from physical presentation/audio and compare identical source/settings before optimizing.
+- **Still open:** Apple Developer ID/notarization (#9), physical audio/screen-reader qualification, sustained A/V drift and prior-version upgrade/recovery scenarios. Documentation or a successful modern-runner launch does not close those qualifications.
 
 ## Current status
 
