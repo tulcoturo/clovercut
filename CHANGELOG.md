@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-11-02
+
+### Fixed
+- Preserve running exports when reopening the panel; reject obsolete callbacks and cancel only the panel's own job.
+- Restore search/sorting for small project libraries and add sorting in narrow desktop windows.
+
+### Changed
+- Remember the project view, use compact grid/list icons, improve spacing and keyboard/accessibility behavior.
+- Reduce owned-audio comparison overhead with bounded 64 KiB buffers.
+- Document macOS Gatekeeper first launch and report signing/notarization status explicitly.
+
+See [complete release notes](docs/releases/0.2.2.md). Earlier 0.1.1–0.2.1 notes remain in `docs/releases/`.
+
+---
+
 ## [0.1.0] - 2026-10-22
 
 ### Added
