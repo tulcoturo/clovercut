@@ -21,6 +21,7 @@ use crate::host::{on_ui, spawn};
 use crate::i18n::{self, t, tf};
 use crate::panes::Msg;
 use crate::platform;
+use crate::request_owner::Pending;
 use crate::studio::{AUDIO_BPS, EXPORT_CRF, EXPORT_SHORT_SIDES, RATES, Studio, home_folder};
 use crate::ui::{ExportData, ExportPhase};
 use slint::{ModelRc, SharedString, VecModel};
@@ -54,16 +55,17 @@ pub enum ExportMsg {
     Cancel,
     /// The render's worker reporting where it is.
     Progress {
+        request_id: u64,
         /// Of the whole, `0..=1`.
         fraction: f32,
         /// What it is doing, in the person's language.
         stage: String,
     },
     /// The render's worker is done: the file written, or why not.
-    Finished(Result<String, String>),
+    Finished(u64, Result<String, String>),
     /// The phone has moved the file to where it shows it - the path under
     /// the phone's storage - or could not, and the file is where it was.
-    Published(Result<String, String>),
+    Published(u64, Result<String, String>),
 }
 
 /// The export sheet's state.
@@ -91,6 +93,9 @@ pub struct ExportPane {
     pub written: String,
     /// When the render started, for a real ETA.
     started_at: Option<std::time::Instant>,
+    // Export is window-wide, independent of the active project/timeline.
+    request: Option<Pending<()>>,
+    cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 impl Default for ExportPane {
@@ -119,11 +124,18 @@ impl Default for ExportPane {
             message: String::new(),
             written: String::new(),
             started_at: None,
+            request: None,
+            cancel: None,
         }
     }
 }
 
 impl ExportPane {
+    /// Identity of the render (or its pending gallery publication).
+    pub(crate) fn request_id(&self) -> Option<u64> {
+        self.request.as_ref().map(Pending::id)
+    }
+
     /// Applies one message. The studio is the rest of the window, for
     /// what the sheet needs to know and to start; the pane's own state is
     /// `self`, and while this runs the studio's copy of it is a blank the
@@ -132,6 +144,10 @@ impl ExportPane {
         match msg {
             ExportMsg::Open => {
                 self.open = true;
+                if self.phase == ExportPhase::Running {
+                    return;
+                }
+                self.request = None;
                 self.phase = ExportPhase::Idle;
                 self.message.clear();
                 // The timeline's own size: the one rung that can be picked;
@@ -162,6 +178,10 @@ impl ExportPane {
                 }
             }
             ExportMsg::Again => {
+                if self.phase == ExportPhase::Running {
+                    return;
+                }
+                self.request = None;
                 self.phase = ExportPhase::Idle;
                 self.progress = 0.0;
             }
@@ -190,12 +210,24 @@ impl ExportPane {
             ExportMsg::Start => self.start(studio),
             ExportMsg::Overwrite => self.begin(studio, true),
             ExportMsg::Cancel => {
-                studio.host.exporter.cancel();
+                if self.phase != ExportPhase::Running {
+                    return;
+                }
+                self.request = None;
+                // The worker may already have released the shared slot while
+                // its result waits in the event queue. Cancel only our job.
+                if let Some(cancel) = self.cancel.take() {
+                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
                 self.phase = ExportPhase::Idle;
                 self.progress = 0.0;
             }
-            ExportMsg::Progress { fraction, stage } => {
-                if self.phase == ExportPhase::Running {
+            ExportMsg::Progress {
+                request_id,
+                fraction,
+                stage,
+            } => {
+                if self.request_id() == Some(request_id) && self.phase == ExportPhase::Running {
                     // Gone back: the export started again from its first
                     // frame on the slower encoder, and the time left is
                     // reckoned from there.
@@ -206,34 +238,48 @@ impl ExportPane {
                     self.stage = stage;
                 }
             }
-            ExportMsg::Finished(Ok(written)) => {
+            ExportMsg::Finished(request_id, Ok(written)) => {
+                if self.request_id() != Some(request_id) || self.phase != ExportPhase::Running {
+                    return;
+                }
+                self.cancel = None;
                 self.phase = ExportPhase::Done;
                 self.progress = 1.0;
                 self.written = written.clone();
                 // A phone moves the file to where its gallery shows it, and
                 // the sheet says "finished" once it is there.
-                let handed = platform::publish_export(written.into(), |result| {
+                let handed = platform::publish_export(written.into(), move |result| {
                     on_ui(move |studio, _, _| {
-                        studio.handle(Msg::Export(ExportMsg::Published(result)));
+                        studio.handle(Msg::Export(ExportMsg::Published(request_id, result)));
                     });
                 });
                 if !handed {
+                    self.request = None;
                     studio.notify(&t("export.exportFinished"), false);
                 }
             }
-            ExportMsg::Published(Ok(path)) => {
+            ExportMsg::Published(request_id, Ok(path)) => {
+                if self.request_id() != Some(request_id) || self.phase != ExportPhase::Done {
+                    return;
+                }
+                self.request = None;
                 self.written = path;
                 studio.notify(&t("export.exportFinished"), false);
             }
-            ExportMsg::Published(Err(error)) => {
+            ExportMsg::Published(request_id, Err(error)) => {
+                if self.request_id() != Some(request_id) || self.phase != ExportPhase::Done {
+                    return;
+                }
+                self.request = None;
                 let folder = platform::published_folder().unwrap_or_default();
                 studio.notify(&tf("export.couldNotPublish", &[&folder, &error]), true);
             }
-            ExportMsg::Finished(Err(error)) => {
-                if self.phase == ExportPhase::Idle {
-                    // Cancelled: the sheet already went back to idle.
+            ExportMsg::Finished(request_id, Err(error)) => {
+                if self.request_id() != Some(request_id) || self.phase != ExportPhase::Running {
                     return;
                 }
+                self.request = None;
+                self.cancel = None;
                 self.phase = ExportPhase::Failed;
                 self.message = error.clone();
                 studio.notify(&tf("export.exportFailed", &[&error]), true);
@@ -440,7 +486,7 @@ impl ExportPane {
     /// [`ExportPane::start`], with `overwrite` saying the person has
     /// answered the sheet that asked about the file already there.
     fn begin(&mut self, studio: &mut Studio, overwrite: bool) {
-        if studio.session.is_none() {
+        if self.phase == ExportPhase::Running || studio.session.is_none() {
             return;
         }
         if studio.timeline().clips.is_empty() {
@@ -522,6 +568,9 @@ impl ExportPane {
         if closed > 0 {
             log::info!("export: closed {closed} idle preview decoder(s) before starting");
         }
+        self.cancel = Some(job.cancel_handle());
+        self.request = Some(Pending::begin(String::new(), ()));
+        let request_id = self.request_id().expect("export request just created");
         self.phase = ExportPhase::Running;
         self.progress = 0.0;
         self.stage = t("export.renderingVideo");
@@ -555,11 +604,17 @@ impl ExportPane {
                         other => other.to_owned(),
                     };
                     on_ui(move |studio, _, _| {
-                        studio.handle(Msg::Export(ExportMsg::Progress { fraction, stage }));
+                        studio.handle(Msg::Export(ExportMsg::Progress {
+                            request_id,
+                            fraction,
+                            stage,
+                        }));
                     });
                 })
             },
-            |studio, _, _, result| studio.handle(Msg::Export(ExportMsg::Finished(result))),
+            move |studio, _, _, result| {
+                studio.handle(Msg::Export(ExportMsg::Finished(request_id, result)))
+            },
         );
     }
 

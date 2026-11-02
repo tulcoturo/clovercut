@@ -103,10 +103,10 @@ pub fn activity(msg: &Msg) -> Option<Activity> {
         Msg::Export(ExportMsg::Start) => {
             return Some(Activity::once(Info, "export: started".to_owned()));
         }
-        Msg::Export(ExportMsg::Finished(Ok(path))) => {
+        Msg::Export(ExportMsg::Finished(_, Ok(path))) => {
             return Some(Activity::once(Info, format!("export: finished, {path}")));
         }
-        Msg::Export(ExportMsg::Finished(Err(error))) => {
+        Msg::Export(ExportMsg::Finished(_, Err(error))) => {
             return Some(Activity::once(Info, format!("export: failed, {error}")));
         }
         Msg::Captions(CaptionsMsg::Begin) => {
