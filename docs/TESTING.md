@@ -373,3 +373,18 @@ destination changes release the completed job without applying it.
 These are deterministic ownership checks, not model inference or interactive
 transcription/playback qualification. Speech placement and style are captured
 with the initiating request; existing project-epoch guards remain in place.
+
+## Large-document baseline without the desktop build
+
+From `src/`, run the optimized actual project-engine example:
+
+```sh
+CARGO_BUILD_JOBS=2 CLOVERCUT_BENCHMARK_MACHINE=local-linux \
+  cargo run --locked --release -p concat-project --example project_baseline > /tmp/project-baseline.json
+```
+
+The fixture uses the actual document commands to build 100 and 500 synthetic video clips, one stored filter per video clip and the same number of caption cues. No media file is opened. Fifteen repeated samples measure JSON parsing plus document loading, document serialization to JSON, and an edit/undo/redo/undo sequence. Semantic equality checks outside the measured sections verify round trips and restoration; undo/redo success checks are included in that sequence's measured time. Fixture construction time is reported separately.
+
+The JSON retains all raw samples, mean/p95/max, source SHA, dirty-tree state, toolchain, workload sizes and machine context. Write reports outside the repository during collection, use a clean source tree, and record the actual compiler/profile and machine when comparing runs. Release optimization is required; the example refuses a debug-profile run.
+
+These are repeated-input, in-memory document observations with uncontrolled caches and scheduling. They exclude disk persistence, autosave, media probing/decoding, title rasterization, GPU work, UI publication, physical input and presentation. Stored filters are document data; their rendering cost is not measured. No performance threshold or editor-wide speed claim follows from these numbers. Native workloads and physical-device checks remain separate.
