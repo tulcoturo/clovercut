@@ -3,8 +3,8 @@
 Clovercut's primary release targets are desktop: Linux x86_64/aarch64 AppImages,
 Windows x86_64/ARM64 installers and portable ZIPs, and macOS Intel/Apple Silicon
 DMGs. The matrix is defined in `scripts/ci/desktop-targets.json`; native dependency
-downloads are checksum-pinned in `scripts/ci/deps.lock`. Mobile builds follow a
-separate schedule and are disabled in the desktop release workflow.
+downloads are checksum-pinned in `scripts/ci/deps.lock`. Mobile releases are out of scope for now and are disabled in the desktop
+release workflow.
 
 ## Local development
 

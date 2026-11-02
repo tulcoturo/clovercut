@@ -519,36 +519,45 @@ fn test_export_cancellation_latency_and_destination_preservation() {
         filter_chain: String::new(),
     };
     let audio_out = root.join("test_audio_cancel.m4a");
-    let audio_cancel = Arc::new(AtomicBool::new(false));
-
-    let ac_clone = Arc::clone(&audio_cancel);
-    let cancel_ts = Arc::new(Mutex::new(None));
-    let cts = Arc::clone(&cancel_ts);
-
-    let audio_thread = std::thread::spawn(move || {
-        audio::mix_to_file_cancelling(&[audio_clip], 6.0, &audio_out, Some(&ac_clone))
-    });
-
-    // Fire audio cancel
-    std::thread::sleep(std::time::Duration::from_millis(1));
-    *cts.lock().unwrap() = Some(Instant::now());
-    audio_cancel.store(true, Ordering::Relaxed);
-
-    let audio_res = audio_thread.join().unwrap();
-    let audio_done = Instant::now();
-    assert!(
-        audio_res.is_err(),
-        "mix_to_file_cancelling must return error on cancellation"
+    let audio_payload = b"previous audio output";
+    std::fs::write(&audio_out, audio_payload).unwrap();
+    let audio_cancel = AtomicBool::new(true);
+    let audio_res = audio::mix_to_file_cancelling(
+        std::slice::from_ref(&audio_clip),
+        6.0,
+        &audio_out,
+        Some(&audio_cancel),
     );
+    assert!(matches!(audio_res, Err(concat_media::Error::Cancelled)));
+    assert_eq!(std::fs::read(&audio_out).unwrap(), audio_payload);
 
-    let audio_latency = audio_done.duration_since(cancel_ts.lock().unwrap().unwrap());
+    // Request cancellation from an actual output callback, after mixing has
+    // started. The next chunk must not be delivered. This measures the
+    // cancellation boundary without a sleep/startup/scheduler race or a
+    // wall-clock performance budget on a shared CI runner.
+    audio_cancel.store(false, Ordering::Relaxed);
+    let mut writes = 0;
+    let mut cancel_at = None;
+    let audio_res =
+        audio::mix_pcm_cancelling(&[audio_clip], &[], 0.0, 6.0, Some(&audio_cancel), |chunk| {
+            assert!(!chunk.is_empty());
+            writes += 1;
+            cancel_at = Some(Instant::now());
+            audio_cancel.store(true, Ordering::Relaxed);
+            Ok(())
+        });
+    assert!(matches!(audio_res, Err(concat_media::Error::Cancelled)));
+    assert_eq!(
+        writes, 1,
+        "no further PCM chunk may be delivered after cancellation"
+    );
     println!(
-        "[Audit E2] Audio mix cancellation latency: {:.2} ms",
-        audio_latency.as_secs_f64() * 1000.0
-    );
-    assert!(
-        audio_latency.as_millis() < 100,
-        "audio cancellation latency must be < 100ms"
+        "[Audit E2] Audio cancellation return after first output chunk: {:.2} ms (observational, not a performance budget)",
+        cancel_at
+            .expect("mixing must deliver a chunk before cancellation")
+            .elapsed()
+            .as_secs_f64()
+            * 1000.0
     );
 
     // 4. Test SingleFlight slot release and retry via Exporter
