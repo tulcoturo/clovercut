@@ -10,11 +10,11 @@ fn key(app: &HomeProbe, text: slint::SharedString) {
     app.window()
         .dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
 }
-fn app() -> HomeProbe {
+fn app_with_count(count: usize) -> HomeProbe {
     let app = HomeProbe::new().unwrap();
     app.set_projects(
         std::rc::Rc::new(slint::VecModel::from(
-            (0..9)
+            (0..count)
                 .map(|i| RecentProjectData {
                     name: format!("Project {i}").into(),
                     path: format!("/synthetic/{i}").into(),
@@ -27,6 +27,9 @@ fn app() -> HomeProbe {
     app.show().unwrap();
     app
 }
+fn app() -> HomeProbe {
+    app_with_count(9)
+}
 fn find(app: &HomeProbe, label: &str) -> ElementHandle {
     ElementHandle::find_by_accessible_label(app, label)
         .next()
@@ -34,6 +37,40 @@ fn find(app: &HomeProbe, label: &str) -> ElementHandle {
 }
 fn main() {
     i_slint_backend_testing::init_no_event_loop();
+    for width in [1100, 600] {
+        for count in [1, 8, 9] {
+            let app = app_with_count(count);
+            app.set_query("".into());
+            app.window().set_size(slint::PhysicalSize::new(width, 900));
+            find(&app, "start.searchProjects");
+            find(&app, "start.sortName").invoke_accessible_default_action();
+            assert_eq!(
+                app.get_sort(),
+                1,
+                "name sorting is available at {width}px with {count} projects"
+            );
+            find(&app, "start.sortRecent").invoke_accessible_default_action();
+            assert_eq!(app.get_sort(), 0);
+            if width == 1100 {
+                find(&app, "start.listView").invoke_accessible_default_action();
+                assert_eq!(app.get_view(), 1);
+                find(&app, "start.gridView").invoke_accessible_default_action();
+                assert_eq!(app.get_view(), 0);
+            }
+            app.hide().unwrap();
+        }
+    }
+    let empty = app_with_count(0);
+    empty.set_query("".into());
+    assert!(
+        ElementHandle::find_by_accessible_label(&empty, "start.searchProjects")
+            .next()
+            .is_none()
+    );
+    empty.hide().unwrap();
+    println!(
+        "home UI: small-library search, sorting and icon view controls passed at wide/narrow widths"
+    );
     let app = app();
     let clear = find(&app, "start.clearSearch");
     clear.invoke_accessible_default_action();

@@ -8,6 +8,7 @@ export component HomeProbe inherits Window {
     in-out property <string> query: "Project";
     in-out property <bool> busy;
     in-out property <int> view;
+    in-out property <int> sort;
     in-out property <int> opens;
     in property <[RecentProjectData]> projects;
     StartScreen {
@@ -18,6 +19,8 @@ export component HomeProbe inherits Window {
         query: root.query;
         busy: root.busy;
         view: root.view;
+        sort: root.sort;
+        sort-changed(sort) => { root.sort = sort; }
         version: "QA";
         search-edited(query) => { root.query = query; }
         view-changed(view) => { root.view = view; }
