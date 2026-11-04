@@ -32,6 +32,9 @@ export global CaptionsLibrary {
     in-out property <int> audio-source: -1;
     in-out property <[string]> models;
     in-out property <int> model: 0;
+    in-out property <[string]> languages;
+    in-out property <int> language;
+    in-out property <bool> language-fixed;
     in-out property <int> placement: 0;
     in-out property <int> size: 1;
     in-out property <string> script-text;
@@ -41,6 +44,7 @@ export global CaptionsLibrary {
     in-out property <string> message;
     callback source-changed(index: int);
     callback model-changed(index: int);
+    callback language-changed(index: int);
     callback placement-changed(index: int);
     callback size-changed(index: int);
     callback text-edited(text: string);
@@ -123,6 +127,27 @@ export component CaptionsPanel inherits Rectangle {
                     placeholder: I18n.t("common.noneInstalled");
                     enabled: CaptionsLibrary.models.length > 0 && !CaptionsLibrary.running;
                     changed(index) => { CaptionsLibrary.model-changed(index); }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text {
+                    width: 64px;
+                    text: I18n.t("captions.language");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Select {
+                    horizontal-stretch: 1;
+                    accessible-role: combobox;
+                    accessible-label: I18n.t("captions.language");
+                    options: CaptionsLibrary.languages;
+                    current: CaptionsLibrary.language;
+                    enabled: !CaptionsLibrary.running && !CaptionsLibrary.language-fixed
+                        && CaptionsLibrary.languages.length > 1;
+                    changed(index) => { CaptionsLibrary.language-changed(index); }
                 }
             }
             if !CaptionsLibrary.ready: Text {

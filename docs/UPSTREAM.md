@@ -23,6 +23,12 @@ The next candidate adapts direct timeline fades (`a4838588`) with explicit
 commit/cancel gestures and bounded-geometry protection. See the
 [adaptation record](audits/2026-11-04-timeline-fades.md). Native CI is pending.
 
+A subsequent candidate adds the independent [Remove Black package](audits/2026-11-04-remove-black.md)
+from `2b594e8e` and [spoken-language selection](audits/2026-11-04-caption-language.md)
+from `e2b20c27`, including Clovercut's inline caption panel. The old chroma-key
+renderer is retained; VAD speech concatenation and the larger inspector rewrite
+remain separate adaptations. Native CI for this candidate is pending.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

@@ -19,6 +19,7 @@
 
 #[cfg(feature = "chatterbox")]
 pub mod chatterbox;
+pub mod languages;
 pub mod transcribe;
 pub mod tts;
 

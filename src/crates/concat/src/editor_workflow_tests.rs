@@ -81,7 +81,34 @@ fn import_edit_reopen_relink_export() {
             .success()
     );
     let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
+    let dirs = concat_host::AppDirs::locate().unwrap();
+    let mut prefs = crate::prefs::Preferences::load(&dirs);
+    prefs.caption_language = Some("pt-BR".into());
+    prefs.save(&dirs);
     let mut studio = Studio::new(Host::start(gpu).unwrap());
+    assert_eq!(
+        studio.captions.language.as_deref(),
+        Some("pt"),
+        "the inline panel restores and normalizes the saved language before any sheet opens"
+    );
+    let indonesian = concat_speech::languages::LANGUAGES
+        .iter()
+        .position(|(code, _)| *code == "id")
+        .unwrap() as i32
+        + 1;
+    studio.handle(crate::panes::Msg::Captions(
+        crate::panes::captions::CaptionsMsg::LanguageChanged(indonesian),
+    ));
+    assert_eq!(
+        crate::prefs::Preferences::load(&dirs)
+            .caption_language
+            .as_deref(),
+        Some("id")
+    );
+    assert!(
+        !studio.captions.open,
+        "inline selection does not open the sheet"
+    );
     let app = App::new().unwrap();
     let info = projects::create(root.to_str().unwrap(), "Journey", 160, 90, 10, 1).unwrap();
     studio.open_project(info.clone()).unwrap();

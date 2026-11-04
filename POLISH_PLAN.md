@@ -200,6 +200,12 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   synthetic handles on bounded clip slices. Pointer tests use the actual UI;
   controller/persistence qualification is selected for desktop CI.
 
+- **Subsequent candidate, native CI pending:** Remove Black from `2b594e8e`, with
+  11 shader probes and transparent/stacked composition checked on software Vulkan;
+  spoken-language choice from `e2b20c27` in the sheet and inline panel, with saved
+  preference and per-run capture. The new VAD processing and legacy chroma-key
+  migration remain separate work; do not claim a transcription accuracy gain.
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested

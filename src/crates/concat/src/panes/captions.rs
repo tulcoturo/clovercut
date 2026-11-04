@@ -58,6 +58,8 @@ pub enum CaptionsMsg {
     SourceChanged(i32),
     TextEdited(String),
     ModelChanged(i32),
+    /// Auto-detect (row zero) or a known spoken language.
+    LanguageChanged(i32),
     PlacementChanged(i32),
     SizeChanged(i32),
     /// Run the pass the sheet describes.
@@ -120,6 +122,8 @@ pub struct CaptionsPane {
     pub text: String,
     /// Row in the installed transcriber list.
     pub model: usize,
+    /// Remembered spoken language; None asks Whisper to detect it.
+    pub language: Option<String>,
     /// 0 bottom, 1 centre, 2 top.
     pub placement: usize,
     /// 0 small, 1 medium, 2 large.
@@ -175,6 +179,13 @@ impl CaptionsPane {
             }
             CaptionsMsg::TextEdited(text) => self.text = text,
             CaptionsMsg::ModelChanged(index) => self.model = index.max(0) as usize,
+            CaptionsMsg::LanguageChanged(index) => {
+                if !self.running && !self.english_only(studio) {
+                    self.language = language_at(index);
+                    studio.prefs.caption_language = self.language.clone();
+                    studio.prefs.save(&studio.host.dirs);
+                }
+            }
             CaptionsMsg::PlacementChanged(index) => {
                 self.placement = (index.max(0) as usize).min(2);
             }
@@ -513,6 +524,12 @@ impl CaptionsPane {
             clip,
             chosen_with: studio.sole_selection(),
             model,
+            language: studio
+                .prefs
+                .caption_language
+                .as_deref()
+                .and_then(concat_speech::languages::canonical)
+                .map(str::to_owned),
             placement: 0,
             size: 1,
             timings: std::mem::take(&mut self.timings),
@@ -614,6 +631,7 @@ impl CaptionsPane {
             return;
         };
 
+        let language = self.language.clone();
         if target_id == "__all__" {
             let mut sound_clips: Vec<_> = studio
                 .timeline()
@@ -702,6 +720,7 @@ impl CaptionsPane {
                             source_start: job.source_start,
                             window: job.window,
                             model_id: model.clone(),
+                            language: language.clone(),
                         };
                         let segs = match transcriber.transcribe(&dirs, &req, move |stage| {
                             on_ui_in_project(epoch, move |studio, _, _| {
@@ -745,6 +764,7 @@ impl CaptionsPane {
             source_start: clip.source_start,
             window: clip.duration * clip.speed,
             model_id: model.clone(),
+            language,
         };
         let dirs = studio.host.dirs.clone();
         let transcriber = Arc::clone(&studio.host.transcriber);
@@ -796,6 +816,26 @@ impl CaptionsPane {
         );
     }
 
+    fn english_only(&self, studio: &Studio) -> bool {
+        installed(&studio.settings.transcribers)
+            .get(self.model)
+            .is_some_and(|model| concat_speech::transcribe::english_only(&model.id))
+    }
+
+    /// Shared by the sheet and the inline desktop panel, even with the sheet closed.
+    pub fn language_rows(&self, studio: &Studio) -> Vec<slint::SharedString> {
+        if self.english_only(studio) {
+            return vec!["English".into()];
+        }
+        std::iter::once(t("captions.autoDetect").into())
+            .chain(
+                concat_speech::languages::LANGUAGES
+                    .iter()
+                    .map(|(_, name)| (*name).into()),
+            )
+            .collect()
+    }
+
     /// The sheet as Slint shows it.
     pub fn data(&self, studio: &Studio) -> CaptionsSheetData {
         let sources = sources(studio);
@@ -814,6 +854,12 @@ impl CaptionsPane {
             source,
             text: self.text.as_str().into(),
             model: self.model as i32,
+            language: if self.english_only(studio) {
+                0
+            } else {
+                language_row(self.language.as_deref()) as i32
+            },
+            language_fixed: self.english_only(studio),
             placement: self.placement as i32,
             size: self.size as i32,
             running: self.running,
@@ -831,6 +877,25 @@ impl CaptionsPane {
             message: self.message.as_str().into(),
         }
     }
+}
+
+fn language_row(code: Option<&str>) -> usize {
+    code.and_then(|code| {
+        concat_speech::languages::LANGUAGES
+            .iter()
+            .position(|(known, _)| *known == code)
+    })
+    .map_or(0, |index| index + 1)
+}
+
+/// The language at row `index` of the list; `None` for "Auto-detect" and
+/// for a row past its end.
+fn language_at(index: i32) -> Option<String> {
+    usize::try_from(index)
+        .ok()
+        .and_then(|row| row.checked_sub(1))
+        .and_then(|row| concat_speech::languages::LANGUAGES.get(row))
+        .map(|(code, _)| (*code).to_owned())
 }
 
 /// Keep generated captions as a portable asset and insert their first collection.
@@ -1184,6 +1249,18 @@ fn srt_commands(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn language_rows_round_trip_and_invalid_choices_use_auto() {
+        assert_eq!(super::language_at(0), None);
+        assert_eq!(super::language_at(-1), None);
+        assert_eq!(super::language_at(i32::MAX), None);
+        assert_eq!(super::language_row(Some("unknown")), 0);
+        for (code, _) in concat_speech::languages::LANGUAGES {
+            let row = super::language_row(Some(code));
+            assert_eq!(super::language_at(row as i32).as_deref(), Some(*code));
+        }
+    }
+
     use super::*;
 
     #[test]

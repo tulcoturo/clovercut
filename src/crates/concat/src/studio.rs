@@ -734,6 +734,8 @@ pub struct Models {
     pub bar: Rc<VecModel<MenuItemData>>,
     /// The sheets' option lists: what is installed, and who can speak.
     pub caption_models: Rc<VecModel<SharedString>>,
+    /// Spoken languages shared by the sheet and inline caption panel.
+    pub caption_languages: Rc<VecModel<SharedString>>,
     pub caption_rows: Rc<VecModel<crate::ui::CaptionRowData>>,
     pub caption_sources: Rc<VecModel<crate::ui::CaptionSourceData>>,
     pub speech_models: Rc<VecModel<SharedString>>,
@@ -823,6 +825,7 @@ impl Models {
             menu: Rc::new(VecModel::default()),
             bar: Rc::new(VecModel::default()),
             caption_models: Rc::new(VecModel::default()),
+            caption_languages: Rc::new(VecModel::default()),
             caption_rows: Rc::new(VecModel::default()),
             caption_sources: Rc::new(VecModel::default()),
             speech_models: Rc::new(VecModel::default()),
@@ -2409,6 +2412,11 @@ impl Studio {
     /// read off disk.
     pub fn new(host: Host) -> Self {
         let prefs = Preferences::load(&host.dirs);
+        let caption_language = prefs
+            .caption_language
+            .as_deref()
+            .and_then(concat_speech::languages::canonical)
+            .map(str::to_owned);
         let mut start = crate::panes::start::StartPane::default();
         if let Some(location) = prefs.project_location() {
             start.location = location.to_owned();
@@ -2523,7 +2531,10 @@ impl Studio {
             title_blocks: HashMap::new(),
             drop: None,
             project_sheet: crate::panes::project::ProjectPane::default(),
-            captions: crate::panes::captions::CaptionsPane::default(),
+            captions: crate::panes::captions::CaptionsPane {
+                language: caption_language,
+                ..Default::default()
+            },
             speech: crate::panes::speech::SpeechPane::with_saved(&host.dirs),
             sounds: crate::panes::sounds::SoundsPane::open(&host.dirs),
             stickers: crate::panes::stickers::StickersPane::open(&host.dirs),
@@ -13766,6 +13777,7 @@ impl Studio {
                 .map(|model| SharedString::from(model.name.as_str()))
                 .collect(),
         );
+        sync(&models.caption_languages, self.captions.language_rows(self));
         let captions_sheet = self.captions.data(self);
         app.set_captions(captions_sheet.clone());
         let selected_group = self
@@ -13836,6 +13848,9 @@ impl Studio {
         caption_library.set_audio_source(captions_sheet.source);
         caption_library.set_models(models.caption_models.clone().into());
         caption_library.set_model(captions_sheet.model);
+        caption_library.set_languages(models.caption_languages.clone().into());
+        caption_library.set_language(captions_sheet.language);
+        caption_library.set_language_fixed(captions_sheet.language_fixed);
         caption_library.set_placement(captions_sheet.placement);
         caption_library.set_size(captions_sheet.size);
         caption_library.set_script_text(captions_sheet.text);

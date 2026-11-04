@@ -31,6 +31,13 @@ use whisper_rs::{
     WhisperVadContextParams, WhisperVadParams,
 };
 
+pub use crate::languages::LANGUAGES;
+
+/// Whether a known transcriber model accepts English alone.
+pub fn english_only(id: &str) -> bool {
+    known(id).is_some_and(|model| model.english_only)
+}
+
 use crate::{DownloadProgress, JobStage};
 
 /// One downloadable Whisper model. Sizes are approximate, for progress bars
@@ -372,6 +379,9 @@ pub struct TranscribeRequest {
     pub window: f64,
     /// Which model to use, e.g. "base.en".
     pub model_id: String,
+    /// Spoken language code; omitted or unknown means automatic detection.
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 struct LoadedModel {
@@ -585,16 +595,15 @@ impl Transcriber {
             .unwrap_or(4);
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_n_threads(threads as i32);
-        // The language is whisper's to hear, when it can hear more than
-        // one: a multilingual model detects it from the first window. An
+        // The chosen language, or first-window detection when automatic.
+        // An
         // English-only model asked for "auto" still runs the detection,
         // over a vocabulary it was never trained on, and "hears" Thai at
         // one percent - so it is simply told English.
-        params.set_language(Some(if context.is_multilingual() {
-            "auto"
-        } else {
-            "en"
-        }));
+        params.set_language(Some(crate::languages::requested(
+            request.language.as_deref(),
+            !context.is_multilingual(),
+        )));
         params.set_print_special(false);
         params.set_print_progress(false);
         params.set_print_realtime(false);
@@ -689,6 +698,31 @@ fn keep_segment(start: f64, end: f64, text: String) -> Option<Segment> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn legacy_transcription_requests_default_to_auto() {
+        let mut wire = serde_json::json!({
+            "path": "voice.wav", "sourceStart": 0, "window": 1, "modelId": "base"
+        });
+        let request: super::TranscribeRequest = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(request.language, None);
+        wire["language"] = serde_json::json!("pt-BR");
+        let request: super::TranscribeRequest = serde_json::from_value(wire).unwrap();
+        assert_eq!(
+            crate::languages::requested(request.language.as_deref(), false),
+            "pt"
+        );
+    }
+
+    #[test]
+    fn listed_languages_are_known_to_whisper() {
+        for (code, _) in super::LANGUAGES {
+            assert!(
+                whisper_rs::get_lang_id(code).is_some(),
+                "unknown code {code}"
+            );
+        }
+    }
+
     use super::*;
 
     /// Prints the captions a downloaded model makes of a file, for timing
@@ -712,6 +746,7 @@ mod tests {
                     source_start: 0.0,
                     window,
                     model_id,
+                    language: std::env::var("CONCAT_CAPTION_LANGUAGE").ok(),
                 },
                 |_| {},
             )
@@ -850,6 +885,7 @@ mod real_audio {
             source_start: 0.0,
             window: 30.0,
             model_id: "tiny.en".to_owned(),
+            language: None,
         };
         let segments = transcriber
             .transcribe(&dirs, &request, |stage| eprintln!("{stage:?}"))
