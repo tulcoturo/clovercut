@@ -34,3 +34,13 @@ Validation:
   startup restoration and persistence from the inline controller. These native
   checks remain CI qualification; no downloaded-model transcription or accuracy
   improvement is claimed from the local UI and policy checks.
+
+## Native compilation follow-up
+
+The first native CI attempt (`41880797565`) found an E0451 privacy error in the
+startup struct-update expression. Startup now uses `CaptionsPane::with_saved_language`,
+which constructs private pane state inside its owning module. Fields remain
+private; the constructor normalizes the saved code using the tested policy.
+The branch incorporates main after PR #17 merged (`b9587300`), and requires a
+fresh native CI result before integration. The initial failed run does not
+qualify the caption controller or the new effect's complete desktop integration.
