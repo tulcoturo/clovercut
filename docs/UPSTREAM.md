@@ -7,6 +7,26 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+Reviewed through `8c86502d` (4 November 2026). The
+[full inventory and decisions](audits/2026-11-04-upstream-review.md) covers all 51
+commits after the previous `f2a26081` review and the earlier feature backlog.
+
+The current candidate adapts scrubbing (`75919f5e`), VideoToolbox quality
+(`5ab7fd14`), shared-device export recovery (`359839d7`), selected dependency
+updates (`d64e7f25`) and the idle-cache portion of `f19fda34`. Full CI passed on
+`a6a9a352`, including 14 desktop journeys and the complete runtime probe
+([qualification](audits/2026-11-04-desktop-upstream-qualification.md)). Decoder thread counts and allocator policy retain their current values.
+The timeline-tab scroll fix already has a Clovercut equivalent (`9ca0134b`).
+Upstream codec removals, speech replacement, licensing changes and the transition
+rewrite are separate decisions, not automatic imports.
+
+The next candidate adapts direct timeline fades (`a4838588`) with explicit
+commit/cancel gestures and bounded-geometry protection. See the
+[adaptation record](audits/2026-11-04-timeline-fades.md). Native CI passed as part
+of the same `a6a9a352` qualification.
+
+### Earlier quick-split review
+
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button
 is adapted through Clovercut's existing split callback, retaining selected/active
 and typed-main-track targeting, locked-track protection and undo. It uses the

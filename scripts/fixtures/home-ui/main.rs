@@ -37,6 +37,47 @@ fn find(app: &HomeProbe, label: &str) -> ElementHandle {
 }
 fn main() {
     i_slint_backend_testing::init_no_event_loop();
+    let wheel = HomeProbe::new().unwrap();
+    wheel.set_wheel_test(true);
+    wheel.window().set_size(slint::PhysicalSize::new(1100, 900));
+    wheel.show().unwrap();
+    let area = find(&wheel, "wheel-test");
+    let at = area.absolute_position();
+    let scroll = |delta_y| {
+        wheel
+            .window()
+            .dispatch_event(slint::platform::WindowEvent::PointerScrolled {
+                position: slint::LogicalPosition::new(at.x + 50.0, at.y + 50.0),
+                delta_x: 0.0,
+                delta_y,
+            });
+    };
+    for expected in [-40.0, -80.0, -120.0] {
+        scroll(-40.0);
+        assert_eq!(
+            wheel.get_wheel_offset(),
+            expected,
+            "wheel updates immediately"
+        );
+    }
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(250));
+    assert_eq!(
+        wheel.get_wheel_offset(),
+        -120.0,
+        "no delayed wheel animation"
+    );
+    scroll(-2000.0);
+    assert_eq!(wheel.get_wheel_offset(), -800.0, "clamped at bottom");
+    scroll(30.0);
+    assert_eq!(
+        wheel.get_wheel_offset(),
+        -770.0,
+        "reverses without dead travel"
+    );
+    scroll(2000.0);
+    assert_eq!(wheel.get_wheel_offset(), 0.0, "clamped at top");
+    wheel.hide().unwrap();
+    println!("wheel UI: immediate repeated ticks, rest, limits and reversal passed");
     for width in [1100, 600] {
         for count in [1, 8, 9] {
             let app = app_with_count(count);

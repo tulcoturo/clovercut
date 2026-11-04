@@ -32,7 +32,8 @@ fn cross_project_paste_and_group_duplicate_preserve_state_and_undo() {
         std::fs::remove_dir_all(&root).unwrap();
         assert!(
             output.status.success(),
-            "{}\n{}",
+            "child status: {}\n{}\n{}",
+            output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
@@ -281,4 +282,7 @@ fn cross_project_paste_and_group_duplicate_preserve_state_and_undo() {
     timer.stop();
     assert!(finished.get());
     println!("clipboard-ui: ok");
+    // Like the other isolated native journeys, finish before process-global
+    // graphics/audio destructors run. All project assertions and close ran above.
+    crate::leave(0);
 }

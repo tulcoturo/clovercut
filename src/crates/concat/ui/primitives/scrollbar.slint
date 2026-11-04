@@ -165,3 +165,35 @@ export component ThinHScrollbar inherits Rectangle {
         }
     }
 }
+
+// Desktop wheel ticks move immediately. The native Flickable retains touch
+// dragging and kinetic input when direct-wheel is disabled for the phone UI.
+export component DirectWheelFlickable inherits Rectangle {
+    in property <bool> direct-wheel: true;
+    in property <bool> interactive: true;
+    in property <length> content-width: self.width;
+    in property <length> content-height: self.height;
+    in-out property <length> content-x <=> flick.content-x;
+    in-out property <length> content-y <=> flick.content-y;
+    clip: true;
+    TouchArea {
+        width: root.width;
+        height: root.height;
+        scroll-event(event) => {
+            if (!root.direct-wheel) { return EventResult.reject; }
+            root.content-x = Math.max(Math.min(0px, root.width - root.content-width),
+                Math.min(0px, root.content-x + event.delta-x));
+            root.content-y = Math.max(Math.min(0px, root.height - root.content-height),
+                Math.min(0px, root.content-y + event.delta-y));
+            return EventResult.accept;
+        }
+        flick := Flickable {
+            width: root.width;
+            height: root.height;
+            interactive: root.interactive && !root.direct-wheel;
+            content-width: root.content-width;
+            content-height: root.content-height;
+            @children
+        }
+    }
+}

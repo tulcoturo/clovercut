@@ -17,10 +17,11 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument("--suite", choices=("home", "timeline"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
-    fixtures = root / "scripts/fixtures/home-ui"
+    fixtures = root / "scripts/fixtures" / f"{args.suite}-ui"
     lock = (workspace / "Cargo.lock").read_bytes()
     packages = tomllib.loads(lock.decode())["package"]
     version = tomllib.loads((workspace / "Cargo.toml").read_text())["workspace"]["package"]["version"]
@@ -45,7 +46,14 @@ def main():
         for name in ("main.rs", "build.rs"):
             (scratch / name).write_bytes((fixtures / name).read_bytes())
         source = json.dumps(str(workspace / "crates/concat/ui/start.slint"))[1:-1]
-        (scratch / "probe.slint").write_text((fixtures / "probe.slint").read_text().replace("__START_SCREEN__", source))
+        scrollbar = json.dumps(str(workspace / "crates/concat/ui/primitives/scrollbar.slint"))[1:-1]
+        lanes = json.dumps(str(workspace / "crates/concat/ui/timeline/lanes.slint"))[1:-1]
+        model = json.dumps(str(workspace / "crates/concat/ui/timeline/model.slint"))[1:-1]
+        probe = (fixtures / "probe.slint").read_text()
+        (scratch / "probe.slint").write_text(
+            probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar)
+                .replace("__LANES__", lanes).replace("__TIMELINE_MODEL__", model)
+        )
         env = os.environ.copy()
         env.setdefault("CARGO_TARGET_DIR", str(workspace / "target"))
         env.setdefault("CARGO_BUILD_JOBS", "2")

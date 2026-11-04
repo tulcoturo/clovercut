@@ -1107,9 +1107,19 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
 
     // ── tabs ──
-    editor.on_timeline_track_scrolled(on_window!(|state, position: f32| {
-        state.handle(Msg::Timeline(TimelineMsg::TrackScrolled(position)));
-    }));
+    // Scrolling changes one viewport property. Rebuilding the entire window's
+    // models and refreshing artwork on every wheel tick stalls older machines.
+    editor.on_timeline_track_scrolled(|position: f32| {
+        Shell::with(|shell, app| {
+            if position.is_finite() && position >= 0.0 {
+                shell
+                    .studio
+                    .borrow_mut()
+                    .handle(Msg::Timeline(TimelineMsg::TrackScrolled(position)));
+                app.global::<Editor>().set_timeline_track_scroll(position);
+            }
+        });
+    });
     editor.on_tab_selected(on_window!(|state, index: i32| {
         let Some(id) = state
             .project()
@@ -1281,6 +1291,20 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_clip_volume(on_lanes!(|state, id: SharedString, gain: f32| {
         state.clip_volume(&id, gain);
     }));
+    editor.on_clip_fade(on_lanes!(|state,
+                                   id: SharedString,
+                                   out: bool,
+                                   seconds: f32| {
+        state.clip_fade(&id, out, seconds);
+    }));
+    editor.on_clip_fade_started(on_lanes!(|state, id: SharedString, out: bool| {
+        state.clip_fade_started(&id, out);
+    }));
+    editor.on_clip_fade_finished(on_lanes!(
+        |state, id: SharedString, out: bool, cancelled: bool| {
+            state.clip_fade_finished(&id, out, cancelled);
+        }
+    ));
     editor.on_save_frame(on_window!(|state| {
         state.save_frame_as();
     }));
@@ -2945,15 +2969,25 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // leaves files behind. One reopens on its next frame. Held here, for
     // the life of the loop.
     let reader_sweep = slint::Timer::default();
+    let quiet = std::cell::Cell::new((u64::MAX, false));
     reader_sweep.start(
         slint::TimerMode::Repeated,
         std::time::Duration::from_secs(5),
-        || {
-            let closed = concat_host::scheduler()
-                .pool()
-                .close_idle(std::time::Duration::from_secs(10));
+        move || {
+            let pool = concat_host::scheduler().pool();
+            let closed = pool.close_idle(std::time::Duration::from_secs(10));
             if closed > 0 {
                 log::debug!("memory: closed {closed} idle decoder(s)");
+            }
+            let asked = pool.asked();
+            let (seen, trimmed) = quiet.get();
+            if asked != seen {
+                quiet.set((asked, false));
+            } else if !trimmed {
+                quiet.set((asked, true));
+                pool.trim(96 * 1024 * 1024);
+                Shell::with(|shell, _| shell.studio.borrow().host.monitor.shrink());
+                log::debug!("memory: quiet preview caches trimmed");
             }
         },
     );

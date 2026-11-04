@@ -1,6 +1,6 @@
 # Clovercut quality and polish plan
 
-Updated 2 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
+Updated 4 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
@@ -181,6 +181,26 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Implemented, awaiting CI qualification:** a separate state-driven controller
   journey exercises actual import, editing, reopen, moved-media relink and export
   with independent output inspection. Mouse/keyboard qualification remains open.
+
+## Upstream responsiveness follow-up — 2 November
+
+- **Native CI passed on `a6a9a352`:** adapt `75919f5e` with approximate fast scrubs,
+  exact rest refinement and stale-refinement rejection. Exact export/playback and
+  Clovercut generated-media, precise-clock and cutout/stabilization contracts are
+  retained. Reader-pool regression covers approximation and decoder fallback.
+- **Native CI passed on `a6a9a352`:** issue #18 direct home wheel scrolling and narrow
+  timeline viewport publication; VideoToolbox quality and shared-device export
+  recovery; selected dependency updates. See the [4 November inventory](docs/audits/2026-11-04-upstream-review.md).
+- **Implemented, measurement pending:** idle-cache portion of `f19fda34`; normal
+  active budgets remain available. Decoder thread/allocator changes are deferred.
+  No memory plateau or interactive speedup is claimed before qualification.
+
+- **Native CI passed on `a6a9a352`:** direct timeline fade handles (`a4838588`),
+  with explicit commit/cancel, one undo step per drag, lock protection and no
+  synthetic handles on bounded clip slices. Pointer tests use the actual UI;
+  controller/persistence qualification passed with all 14 desktop journeys.
+  [Raw runtime evidence and limits](docs/audits/2026-11-04-desktop-upstream-qualification.md)
+  remain separate from physical Monterey interaction and memory-plateau claims.
 
 ## Completion evidence
 

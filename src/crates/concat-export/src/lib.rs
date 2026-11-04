@@ -1706,10 +1706,11 @@ const NO_RENDERER: &str = "this device's GPU could not be used to draw with";
 const NO_RENDERER: &str = "no GPU or software renderer is available to draw with";
 
 /// How many times an export's device may die under it before the export
-/// gives up: the first death is answered with a fresh device on the GPU,
-/// which a reset adapter opens again; the next with the software adapter,
-/// which draws the same picture however slowly; a third says the machine
-/// cannot draw this export at all.
+/// gives up: the first death is answered on the GPU again - on the device
+/// the export was lent, where it was lent one, and otherwise a fresh
+/// device, which a reset adapter opens again; the next with the software
+/// adapter, which draws the same picture however slowly; a third says the
+/// machine cannot draw this export at all.
 const DEVICE_LOSSES: u32 = 3;
 
 /// A compositor to go on with after the export's device died, `losses`
@@ -1723,7 +1724,22 @@ const DEVICE_LOSSES: u32 = 3;
 /// already encoded are kept and the next is drawn on the new device. A
 /// device that stops answering for [`concat_render::gpu::DEVICE_WAIT`], or
 /// reports an error under a frame, counts as lost too (#297).
-fn recovered(losses: u32, hdr: bool) -> Result<WgpuCompositor, String> {
+///
+/// `lent` is the dead compositor when the export was lent the window's
+/// device. The first death then goes on in a sibling of it: the same
+/// device, with pools and caches of its own, so whatever the dead one held
+/// is let go. "Lost" is mostly that - a frame out of memory or refused -
+/// and the device itself lives on. A device opened afresh instead is the
+/// second road through the driver that [`render_on`] exists to avoid: on a
+/// laptop with two GPUs it is the discrete one while the window draws on
+/// the other, and the driver ended the app there (#202; audit 2026-10-20,
+/// H7). Where the device itself has died, the sibling's first frame fails
+/// too, and the second death goes to the software adapter as before.
+fn recovered(
+    losses: u32,
+    hdr: bool,
+    lent: Option<&WgpuCompositor>,
+) -> Result<WgpuCompositor, String> {
     if losses >= DEVICE_LOSSES {
         return Err(format!(
             "the GPU device was lost {losses} times part way through the export - reset, \
@@ -1732,10 +1748,10 @@ fn recovered(losses: u32, hdr: bool) -> Result<WgpuCompositor, String> {
             concat_render::gpu::DEVICE_WAIT.as_secs()
         ));
     }
-    let fresh = if losses == 1 {
-        WgpuCompositor::new()
-    } else {
-        WgpuCompositor::software()
+    let fresh = match (losses, lent) {
+        (1, Some(lent)) => Some(lent.sibling()),
+        (1, None) => WgpuCompositor::new(),
+        _ => WgpuCompositor::software(),
     };
     let mut compositor = fresh.ok_or_else(|| {
         format!("the GPU device was lost part way through the export, and {NO_RENDERER}")
@@ -1802,6 +1818,9 @@ fn render_picture(
     reporter: &mut Reporter<'_>,
 ) -> Result<(), String> {
     let effect_offset = quantise(request.effect_time_offset, rate);
+    // Whether the window lent its device: a death under the export is then
+    // answered on that device again before anything else (see `recovered`).
+    let lent = compositor.is_some();
     let mut compositor = match compositor {
         Some(lent) => lent,
         None => best_compositor()?,
@@ -2083,7 +2102,8 @@ fn render_picture(
                     adapter.name,
                     time.as_f64(),
                 );
-                compositor = recovered(losses, hdr)?;
+                let fresh = recovered(losses, hdr, lent.then_some(&compositor))?;
+                compositor = fresh;
                 composed = composite_treated(
                     &mut EffectClock {
                         inner: &mut compositor,
@@ -2448,9 +2468,17 @@ pub struct PreviewSources {
     plan: FramePlan,
     treatments: Vec<Treatment>,
     transitions: Vec<TransitionSpan>,
+    exact: bool,
 }
 
 impl PreviewSources {
+    /// Whether every picture in the frame is the one at its instant, and
+    /// not the nearest one at hand a scrub was shown instead; see
+    /// [`preview_sources_of`].
+    pub fn exact(&self) -> bool {
+        self.exact
+    }
+
     /// The frame's description, with every treatment that is shaders
     /// alone already in it; a compositor draws this and nothing else. A
     /// treatment that needs FFmpeg is not in it: see
@@ -2527,7 +2555,7 @@ pub fn preview_sources(
     pool: &concat_media::ReaderPool,
     request: &PreviewFrameRequest,
 ) -> Result<PreviewSources, String> {
-    preview_sources_of(pool, &preview_timeline(request), request.time, false)
+    preview_sources_of(pool, &preview_timeline(request), request.time, false, false)
 }
 
 /// The pool's request for one planned layer: the source frame at the
@@ -2554,12 +2582,17 @@ fn frame_request(
 }
 
 /// [`preview_sources`] for one instant of a plan already built. With
-/// `proxy`, a file with a stand-in is read from it.
+/// `proxy`, a file with a stand-in is read from it. With `nearest` - a
+/// scrub - a picture that would take long to reach is shown by the nearest
+/// one at hand instead (see `ReaderPool::frame_nearest`), and the sources
+/// say whether that happened; the caller asks again without it once the
+/// scrub rests.
 pub fn preview_sources_of(
     pool: &concat_media::ReaderPool,
     plan: &PreviewPlan,
     seconds: f64,
     proxy: bool,
+    nearest: bool,
 ) -> Result<PreviewSources, String> {
     let rate = plan.rate;
     let BuiltTimeline {
@@ -2587,6 +2620,7 @@ pub fn preview_sources_of(
 
     let mut layers: Vec<PlannedLayer> = Vec::with_capacity(plan_at.layers.len());
     let mut failures: Vec<String> = Vec::new();
+    let mut exact = true;
     for layer in &plan_at.layers {
         let (decode_width, decode_height) = decode_sizes
             .get(&layer.clip)
@@ -2600,14 +2634,26 @@ pub fn preview_sources_of(
                 .map_or(0.0, |clip| clip.fraction_at(time));
             source.0.frame(at, plan.width, plan.height)
         } else {
-            pool.frame(&frame_request(
+            let request = frame_request(
                 plan,
                 layer,
                 (decode_width, decode_height),
                 stills.contains(&layer.clip),
                 proxy,
-            ))
-            .map_err(|error| error.to_string())
+            );
+            // Time-dependent masks/stabilization require their exact source.
+            let found = if nearest
+                && !cutouts.contains_key(&layer.clip)
+                && !stabilized.contains_key(&layer.clip)
+            {
+                pool.frame_nearest(&request).map(|found| {
+                    exact &= found.exact;
+                    found.frame
+                })
+            } else {
+                pool.frame(&request)
+            };
+            found.map_err(|error| error.to_string())
         };
         match decoded {
             Ok(frame) => {
@@ -2682,6 +2728,7 @@ pub fn preview_sources_of(
         plan: frame_plan,
         treatments: treatments.clone(),
         transitions: transitions.clone(),
+        exact,
     })
 }
 
@@ -2878,7 +2925,7 @@ mod tests {
         let plan = preview_plan(&[sticker.clone()], 16, 16, 30, 1, ColorSpace::Sdr);
         let pool = concat_media::ReaderPool::new(1024 * 1024, 1);
         let frame = |time| {
-            let sources = preview_sources_of(&pool, &plan, time, false).unwrap();
+            let sources = preview_sources_of(&pool, &plan, time, false, false).unwrap();
             let layer = &sources.plan().layers[0];
             assert!(!layer.paced);
             layer.source.as_ref().unwrap().pixels().to_vec()
@@ -4045,14 +4092,42 @@ mod tests {
     /// the export with a message that says how many there were.
     #[test]
     fn an_export_gives_up_after_enough_device_losses() {
-        let Err(error) = recovered(DEVICE_LOSSES, false) else {
+        let Err(error) = recovered(DEVICE_LOSSES, false, None) else {
             panic!("a third loss gives up");
         };
         assert!(error.contains("lost 3 times"), "{error}");
         assert!(error.contains("not answering"), "{error}");
         if WgpuCompositor::new().is_some() {
-            let fresh = recovered(1, true).expect("a machine that draws opens another device");
+            let fresh =
+                recovered(1, true, None).expect("a machine that draws opens another device");
             assert!(!fresh.lost());
+        }
+    }
+
+    /// An export lent the window's device goes on on that device after the
+    /// first loss - a sibling of the dead compositor, on the same adapter -
+    /// rather than opening another, which on a laptop with two GPUs is the
+    /// other chip (audit 2026-10-20, H7). Losses past it go to the software
+    /// adapter, lent or not.
+    #[test]
+    fn a_lent_device_is_drawn_on_again_after_the_first_loss() {
+        let Some(window) = WgpuCompositor::new() else {
+            eprintln!("no adapter here; skipped");
+            return;
+        };
+        let mut again =
+            recovered(1, false, Some(&window)).expect("a sibling opens on a live device");
+        let frame = again.render(&FramePlan {
+            canvas: [17, 85, 153, 255],
+            ..FramePlan::empty(16, 16)
+        });
+        assert_eq!(&frame.pixels()[..4], &[17, 85, 153, 255]);
+        assert!(!again.lost());
+        let (was, now) = (window.adapter_info(), again.adapter_info());
+        assert_eq!((was.name, was.backend), (now.name, now.backend));
+        if WgpuCompositor::software().is_some() {
+            let slow = recovered(2, false, Some(&window)).expect("the software adapter opens");
+            assert!(slow.on_software_adapter());
         }
     }
 
