@@ -140,6 +140,16 @@ pub struct CaptionsPane {
 }
 
 impl CaptionsPane {
+    /// Restore the spoken language without exposing the pane's private job state.
+    pub fn with_saved_language(language: Option<&str>) -> Self {
+        Self {
+            language: language
+                .and_then(concat_speech::languages::canonical)
+                .map(str::to_owned),
+            ..Self::default()
+        }
+    }
+
     /// Applies one message. The studio is the rest of the window; while
     /// this runs the studio's copy of the pane is a blank it must not read.
     pub fn update(&mut self, msg: CaptionsMsg, studio: &mut Studio) {

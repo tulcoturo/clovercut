@@ -2412,11 +2412,9 @@ impl Studio {
     /// read off disk.
     pub fn new(host: Host) -> Self {
         let prefs = Preferences::load(&host.dirs);
-        let caption_language = prefs
-            .caption_language
-            .as_deref()
-            .and_then(concat_speech::languages::canonical)
-            .map(str::to_owned);
+        let captions = crate::panes::captions::CaptionsPane::with_saved_language(
+            prefs.caption_language.as_deref(),
+        );
         let mut start = crate::panes::start::StartPane::default();
         if let Some(location) = prefs.project_location() {
             start.location = location.to_owned();
@@ -2531,10 +2529,7 @@ impl Studio {
             title_blocks: HashMap::new(),
             drop: None,
             project_sheet: crate::panes::project::ProjectPane::default(),
-            captions: crate::panes::captions::CaptionsPane {
-                language: caption_language,
-                ..Default::default()
-            },
+            captions,
             speech: crate::panes::speech::SpeechPane::with_saved(&host.dirs),
             sounds: crate::panes::sounds::SoundsPane::open(&host.dirs),
             stickers: crate::panes::stickers::StickersPane::open(&host.dirs),
