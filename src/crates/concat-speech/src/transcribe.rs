@@ -703,6 +703,17 @@ fn keep_segment(start: f64, end: f64, text: String) -> Option<Segment> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn reel_timing_refines_in_original_coordinates() {
+        let samples = vec![0.0; 320_000];
+        let speech = [(2.0, 3.0), (12.0, 13.0)];
+        let reel = crate::speech_reel::SpeechReel::new(&samples, &speech);
+        let (start, end) = reel.source_span(3.0, 6.0);
+        assert_eq!(super::on_speech(start, end, &speech), (12.0, 13.0));
+        let (start, end) = reel.source_span(0.0, 3.0);
+        assert_eq!(super::on_speech(start, end, &speech), (2.0, 3.0));
+    }
+
+    #[test]
     fn legacy_transcription_requests_default_to_auto() {
         let mut wire = serde_json::json!({
             "path": "voice.wav", "sourceStart": 0, "window": 1, "modelId": "base"

@@ -25,3 +25,9 @@ mapping bounds. The headless workflow runs these tests without native speech
 libraries. Full native compilation and recognition quality with a downloaded
 Whisper model remain pending; these tests do not establish transcription
 accuracy or a performance gain.
+
+Headless GitHub validation passed on `b267365f` (run 41887445211).
+The first native dispatch (41887446290) failed during checkout because the
+supplied ref was abbreviated; no compilation or tests ran. It was relaunched
+with the full 40-character source SHA in run 41888041844. A subsequent native
+regression also covers source mapping followed by speech-boundary refinement.

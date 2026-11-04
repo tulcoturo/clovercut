@@ -450,3 +450,17 @@ native speech libraries. Native coverage verifies the linked Whisper language
 list, omitted request fields and startup/preference persistence in the editor
 journey. An optional real-file run accepts `CONCAT_CAPTION_LANGUAGE`; these UI and
 policy checks do not establish transcription accuracy or qualify a new VAD path.
+
+### Speech-reel timestamp mapping
+
+From `src/`, run the pure mapping regression tests without native models:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings -W missing-docs crates/concat-speech/src/speech_reel.rs -o /tmp/clovercut-speech-reel-tests
+/tmp/clovercut-speech-reel-tests
+```
+
+These verify sample extraction, padding merges, fallback and endpoint mapping.
+The native speech suite additionally verifies that mapped segments are refined
+against speech spans in original clip coordinates. Recognition quality still
+requires the explicit model/audio transcription checks described above.
