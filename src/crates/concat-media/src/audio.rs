@@ -1714,6 +1714,55 @@ mod tests {
     }
 
     #[test]
+    fn aac_tail_trimming_keeps_a_one_second_transient_in_place() {
+        use crate::{AudioDecoder, AudioOptions};
+        let dir = std::env::temp_dir().join(format!("clovercut-aac-tail-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("click.wav");
+        tone_wav(&source, 6.1);
+        let mut bytes = std::fs::read(&source).unwrap();
+        bytes[44..].fill(0);
+        let click = 44 + MIX_RATE as usize * 4;
+        for offset in [click, click + 2] {
+            bytes[offset..offset + 2].copy_from_slice(&30_000_i16.to_le_bytes());
+        }
+        std::fs::write(&source, bytes).unwrap();
+        let duration = 288_007.0 / f64::from(MIX_RATE);
+        let output = dir.join("click.m4a");
+        let piece = AudioClip {
+            path: source,
+            duration,
+            ..clip("")
+        };
+        mix_to_file(&[piece], duration, &output).unwrap();
+        let input = ffmpeg::format::input(&output).unwrap();
+        let stream = input.streams().best(ffmpeg::media::Type::Audio).unwrap();
+        let seconds = f64::from(stream.time_base()) * stream.duration() as f64;
+        assert!((seconds - duration).abs() <= 0.001, "duration: {seconds}");
+        let mut decoder = AudioDecoder::open(&output, &AudioOptions::default()).unwrap();
+        let mut decoded = Vec::new();
+        while let Some(chunk) = decoder.next_i16().unwrap() {
+            decoded.extend(chunk);
+        }
+        let (peak, value) = decoded
+            .chunks_exact(2)
+            .enumerate()
+            .max_by_key(|(_, pair)| i32::from(pair[0]).abs())
+            .unwrap();
+        assert!(
+            i32::from(value[0]).abs() > 1000,
+            "click must remain audible"
+        );
+        assert!(
+            peak.abs_diff(MIX_RATE as usize) <= 2,
+            "click moved to sample {peak}"
+        );
+        drop(input);
+        drop(decoder);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn saved_audio_uses_pcm_for_wav_and_keeps_aac_for_m4a() {
         use crate::{AudioDecoder, AudioOptions};
         let dir =
