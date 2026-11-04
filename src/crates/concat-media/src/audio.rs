@@ -659,6 +659,20 @@ impl MixInput {
     }
 }
 
+/// Trim only the AAC tail; the muxer still needs negative priming packets.
+fn trim_aac_tail(packet: &mut ffmpeg::Packet, samples: i64) -> bool {
+    if let Some(pts) = packet.pts() {
+        if pts >= samples {
+            return false;
+        }
+        let remaining = samples.saturating_sub(pts);
+        if packet.duration() > remaining {
+            packet.set_duration(remaining);
+        }
+    }
+    true
+}
+
 /// Choose a linked Opus encoder and its native sample layout.
 fn opus_encoder() -> Result<(&'static str, Sample)> {
     use ffmpeg::util::format::sample::Type;
@@ -793,6 +807,7 @@ pub fn mix_to_file_with_cancelling(
         .map(|stream| stream.time_base())
         .unwrap_or(ffmpeg::Rational::new(1, MIX_RATE as i32));
     let encoder_time_base = ffmpeg::Rational::new(1, MIX_RATE as i32);
+    let samples = (duration.max(0.0) * f64::from(MIX_RATE)).round() as i64;
     let drain = |encoder: &mut encoder::audio::Encoder,
                  output: &mut ffmpeg::format::context::Output|
      -> Result<()> {
@@ -800,6 +815,10 @@ pub fn mix_to_file_with_cancelling(
             let mut packet = ffmpeg::Packet::empty();
             match encoder.receive_packet(&mut packet) {
                 Ok(()) => {
+                    // Preserve priming; trim AAC tail padding in the sample clock.
+                    if !wav && !opus && !trim_aac_tail(&mut packet, samples) {
+                        continue;
+                    }
                     packet.set_stream(0);
                     packet.rescale_ts(encoder_time_base, stream_time_base);
                     packet
@@ -1649,6 +1668,25 @@ mod tests {
         std::fs::remove_dir_all(dir).expect("removes test files");
     }
 
+    #[test]
+    fn aac_tail_preserves_priming_and_trims_or_drops_padding() {
+        for (pts, duration, keep, expected) in [
+            (Some(-1024), 1024, true, 1024),
+            (Some(0), 1024, true, 1024),
+            (Some(5120), 1024, true, 887),
+            (Some(6007), 1024, false, 1024),
+            (Some(6144), 1024, false, 1024),
+            (None, 1024, true, 1024),
+        ] {
+            let mut packet = ffmpeg::Packet::empty();
+            packet.set_pts(pts);
+            packet.set_duration(duration);
+            assert_eq!(super::trim_aac_tail(&mut packet, 6007), keep);
+            assert_eq!(packet.pts(), pts);
+            assert_eq!(packet.duration(), expected);
+        }
+    }
+
     fn tone_wav(path: &Path, seconds: f64) {
         let count = (seconds * f64::from(MIX_RATE)) as usize;
         let mut data = Vec::with_capacity(count * 4);
@@ -1699,6 +1737,13 @@ mod tests {
             let input = ffmpeg::format::input(&output).unwrap();
             let stream = input.streams().best(ffmpeg::media::Type::Audio).unwrap();
             let wav = extension != "m4a";
+            if !wav {
+                let seconds = f64::from(stream.time_base()) * stream.duration() as f64;
+                assert!(
+                    (seconds - duration).abs() <= 1.0 / 1000.0,
+                    "AAC container duration {seconds} exceeds mix {duration}"
+                );
+            }
             assert_eq!(
                 stream.parameters().id(),
                 if wav {

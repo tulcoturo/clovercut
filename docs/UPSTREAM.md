@@ -25,6 +25,11 @@ commit/cancel gestures and bounded-geometry protection. See the
 [adaptation record](audits/2026-11-04-timeline-fades.md). Native CI passed as part
 of the same `a6a9a352` qualification.
 
+A separate [AAC tail candidate](audits/2026-11-04-aac-tail.md) selectively
+adapts packet-end trimming from `536a416d`, preserving encoder selection and
+Opus/PCM handling. Linux audio regressions pass; platform encoders are not yet
+adapted or qualified.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button
