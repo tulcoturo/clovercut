@@ -583,8 +583,6 @@ fn phase6_performance_and_memory_suite() {
         );
     }
 
-    studio.close_project().unwrap();
-
     // Explicit approximate-preview requests followed by exact refinement.
     // Retain freshness: on cheap/cached footage the approximate path may
     // legitimately return an exact frame, so timings alone prove no speedup.
@@ -595,6 +593,10 @@ fn phase6_performance_and_memory_suite() {
         let mut freshness = vec![];
         for time in [2.17, 6.27, 1.37, 5.57, 0.77, 7.13] {
             let (clips, settings) = studio.preview_clips(960, 540, time).unwrap();
+            assert!(
+                !clips.is_empty(),
+                "scrub samples require the open HD fixture"
+            );
             let spec = concat_host::preview::FrameSpec {
                 time,
                 width: 960,
@@ -643,6 +645,26 @@ fn phase6_performance_and_memory_suite() {
             serde_json::json!({"scenario": "scrub_freshness", "run": run + 1, "exact_before_refinement": freshness}),
         );
     }
+
+    // Explicitly exercise the idle trim operation; this does not simulate
+    // five seconds of event-loop inactivity or establish an RSS plateau.
+    let before_trim = owned_counters(&studio);
+    let trim_started = Instant::now();
+    concat_host::scheduler().pool().trim(96 * 1024 * 1024);
+    studio.host.monitor.shrink();
+    let trim_ms = trim_started.elapsed().as_secs_f64() * 1000.0;
+    let after_trim = owned_counters(&studio);
+    assert!(after_trim[0] <= before_trim[0]);
+    assert!(after_trim[0] <= 96 * 1024 * 1024);
+    record(
+        "lifecycle",
+        serde_json::json!({
+            "scenario": "explicit_idle_cache_trim", "duration_ms": trim_ms,
+            "before_owned_counters": before_trim, "after_owned_counters": after_trim,
+        }),
+    );
+    record_memory("after_explicit_idle_cache_trim");
+    studio.close_project().unwrap();
 
     // -------------------------------------------------------------------------
     // TASK 6.2A: Long Audio Project (180s stereo 48kHz WAV + 12 spans)

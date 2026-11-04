@@ -273,7 +273,13 @@ impl<K: Hash + Eq + Clone> FrameCache<K> {
             self.held -= previous.pixels().len();
         }
         self.held += bytes;
-        while self.held > self.budget {
+        self.shrink_to(self.budget);
+    }
+
+    /// Lets the least recently used frames go until at most `keep` bytes
+    /// are held.
+    fn shrink_to(&mut self, keep: usize) {
+        while self.held > keep {
             let Some(oldest) = self
                 .frames
                 .iter()
@@ -642,6 +648,9 @@ impl CacheStats {
 
 #[derive(Default)]
 struct Counters {
+    /// Frames asked for, cached or not: what tells a sweep the pool has
+    /// been idle since it last looked; see [`ReaderPool::asked`].
+    asked: AtomicU64,
     decoded: AtomicU64,
     source_hits: AtomicU64,
     treated_hits: AtomicU64,
@@ -747,6 +756,25 @@ impl ReaderPool {
     /// not asked for in a while are closed by [`ReaderPool::close_idle`].
     pub fn sized_for(total_memory: Option<u64>) -> Self {
         Self::new(Self::frame_budget(total_memory), 8)
+    }
+
+    /// How many frames have been asked of the pool so far: unchanged
+    /// between two looks, nothing was asked for in between.
+    pub fn asked(&self) -> u64 {
+        self.counters.asked.load(Ordering::Relaxed)
+    }
+
+    /// Lets the frame caches go down to `keep` bytes between them, the
+    /// least recently used first: what a pool nobody is asking frames of
+    /// holds on to. The frames near where the monitor last was are the
+    /// last to go, so a scrub that starts again there is still free.
+    pub fn trim(&self, keep: usize) {
+        if let Ok(mut cache) = self.sources.lock() {
+            cache.shrink_to(keep / 4 * 3);
+        }
+        if let Ok(mut cache) = self.treated.lock() {
+            cache.shrink_to(keep / 4);
+        }
     }
 
     /// Closes the warm readers nobody has asked for in `idle`, and that no
@@ -887,6 +915,7 @@ impl ReaderPool {
     /// reads, its facts, and the key of the frame at the level that covers
     /// the request.
     fn locate(&self, request: &FrameRequest) -> Result<(Arc<MediaFacts>, SourceKey)> {
+        Self::count(&self.counters.asked);
         let mut path = self.path_for(request);
         let facts = match self.facts_for(&path, request.still) {
             Ok(facts) => facts,
@@ -1260,6 +1289,7 @@ impl ReaderPool {
         range: Option<ColorRange>,
         deep: bool,
     ) -> Result<Arc<Frame>> {
+        Self::count(&self.counters.asked);
         let chain = chain.filter(|chain| !chain.trim().is_empty());
         let pre = pre.filter(|pre| !pre.trim().is_empty());
         let facts = self.facts_for(path, still)?;
@@ -1756,6 +1786,28 @@ pub(crate) mod tests {
         assert!(cache.get(&key(1)).is_none(), "coldest was evicted");
         assert!(cache.get(&key(2)).is_some());
         assert_eq!(cache.held(), 32);
+    }
+
+    #[test]
+    fn idle_trim_keeps_recent_frames_and_the_active_budget() {
+        let mut cache = FrameCache::new(48);
+        let held = Arc::new(Frame::black(2, 2));
+        cache.insert(0, Arc::clone(&held));
+        cache.insert(1, Arc::new(Frame::black(2, 2)));
+        cache.insert(2, Arc::new(Frame::black(2, 2)));
+        cache.get(&0).unwrap();
+        cache.shrink_to(16);
+        assert_eq!(cache.held(), 16);
+        assert!(cache.holds(&0));
+        assert!(!cache.holds(&1));
+        assert!(!cache.holds(&2));
+        cache.shrink_to(0);
+        assert_eq!(cache.held(), 0);
+        assert_eq!(held.pixels().len(), 16, "an in-flight frame stays alive");
+        for key in 0..3 {
+            cache.insert(key, Arc::new(Frame::black(2, 2)));
+        }
+        assert_eq!(cache.held(), 48, "activity restores the normal budget");
     }
 
     /// A still held in memory is served under its name at the size asked

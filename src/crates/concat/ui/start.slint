@@ -6,7 +6,7 @@ import { Theme } from "theme/theme.slint";
 import { Button, CopyChip, Modal } from "primitives/modal.slint";
 import { FocusRing } from "primitives/focus-ring.slint";
 import { Glyph, Icon } from "icons.slint";
-import { ThinScrollbar } from "primitives/scrollbar.slint";
+import { ThinScrollbar, DirectWheelFlickable } from "primitives/scrollbar.slint";
 import { Tip } from "primitives/tooltip.slint";
 import { Focus } from "util.slint";
 import { NumberField } from "primitives/number-field.slint";
@@ -1682,7 +1682,7 @@ component WideHome inherits Rectangle {
         / (root.drop-tile ? 3.3 : 2.3);
     property <bool> searchable: root.recents-total > 0 || root.query != "";
 
-    flick := Flickable {
+    flick := DirectWheelFlickable {
         content-width: self.width;
         content-height: Math.max(self.height, page.height + root.pad-top + root.pad);
         interactive: page.height + root.pad-top + root.pad > self.height;
@@ -1973,8 +1973,9 @@ component NarrowHome inherits Rectangle {
     property <length> pad: 16px;
     property <bool> searchable: root.recents-total > 0 || root.query != "";
 
-    flick := Flickable {
+    flick := DirectWheelFlickable {
         content-width: self.width;
+        direct-wheel: !root.phone;
         content-height: Math.max(self.height, stack.preferred-height);
         interactive: stack.preferred-height > self.height;
 

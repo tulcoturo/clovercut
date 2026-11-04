@@ -87,6 +87,7 @@ pub fn activity(msg: &Msg) -> Option<Activity> {
             TimelineMsg::Hovered(_)
             | TimelineMsg::HoverEnded
             | TimelineMsg::Scrolled(_)
+            | TimelineMsg::TrackScrolled(_)
             | TimelineMsg::Resized(_),
         )
         | Msg::Export(ExportMsg::Progress { .. })

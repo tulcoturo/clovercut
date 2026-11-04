@@ -45,7 +45,11 @@ def main():
         for name in ("main.rs", "build.rs"):
             (scratch / name).write_bytes((fixtures / name).read_bytes())
         source = json.dumps(str(workspace / "crates/concat/ui/start.slint"))[1:-1]
-        (scratch / "probe.slint").write_text((fixtures / "probe.slint").read_text().replace("__START_SCREEN__", source))
+        scrollbar = json.dumps(str(workspace / "crates/concat/ui/primitives/scrollbar.slint"))[1:-1]
+        probe = (fixtures / "probe.slint").read_text()
+        (scratch / "probe.slint").write_text(
+            probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar)
+        )
         env = os.environ.copy()
         env.setdefault("CARGO_TARGET_DIR", str(workspace / "target"))
         env.setdefault("CARGO_BUILD_JOBS", "2")
