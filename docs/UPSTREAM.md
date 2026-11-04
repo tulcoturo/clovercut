@@ -19,6 +19,10 @@ The timeline-tab scroll fix already has a Clovercut equivalent (`9ca0134b`).
 Upstream codec removals, speech replacement, licensing changes and the transition
 rewrite are separate decisions, not automatic imports.
 
+The next candidate adapts direct timeline fades (`a4838588`) with explicit
+commit/cancel gestures and bounded-geometry protection. See the
+[adaptation record](audits/2026-11-04-timeline-fades.md). Native CI is pending.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

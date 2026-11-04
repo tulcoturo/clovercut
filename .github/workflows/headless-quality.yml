@@ -18,6 +18,7 @@ on:
       - 'scripts/check_project_io.py'
       - 'scripts/check_home_ui.py'
       - 'scripts/fixtures/home-ui/**'
+      - 'scripts/fixtures/timeline-ui/**'
       - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
@@ -52,6 +53,7 @@ on:
       - 'scripts/check_project_io.py'
       - 'scripts/check_home_ui.py'
       - 'scripts/fixtures/home-ui/**'
+      - 'scripts/fixtures/timeline-ui/**'
       - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
@@ -149,6 +151,8 @@ jobs:
             libfontconfig1-dev libfreetype6-dev
       - name: Home keyboard and accessible-action regressions without native window
         run: python3 scripts/check_home_ui.py
+      - name: Timeline fade pointer regressions without native window
+        run: python3 scripts/check_home_ui.py --suite timeline
       - name: Editing and document regressions
         working-directory: src
         run: cargo test --locked -p concat-core -p concat-project

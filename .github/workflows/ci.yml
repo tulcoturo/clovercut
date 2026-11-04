@@ -347,7 +347,7 @@ jobs:
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           cases = ET.parse('target/nextest/ci/junit-desktop.xml').findall('.//testcase')
-          assert len(cases) >= 13, f'Expected at least 13 selected desktop cases, got {len(cases)}'
+          assert len(cases) >= 14, f'Expected at least 14 selected desktop cases, got {len(cases)}'
           assert not any(case.find('skipped') is not None for case in cases), 'Selected desktop cases were skipped'
           PY
 

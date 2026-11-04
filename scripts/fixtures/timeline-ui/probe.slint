@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { Clip } from "__LANES__";
+import { ClipData, ClipKind, TimelineTool, TrackKind } from "__TIMELINE_MODEL__";
+export component TimelineProbe inherits Window {
+    width: 500px;
+    height: 200px;
+    in property <bool> locked;
+    in property <bool> finger;
+    in property <bool> windowed;
+    in property <TimelineTool> tool;
+    in-out property <float> fade-in;
+    in-out property <float> fade-out;
+    out property <int> starts;
+    out property <int> finishes;
+    out property <int> changes;
+    Clip {
+        x: 20px;
+        y: 20px;
+        width: 400px;
+        height: 100px;
+        track-kind: TrackKind.audio;
+        tool: root.tool;
+        locked: root.locked;
+        finger: root.finger;
+        px-per-second: 100px;
+        item: {id: "sound", name: "sound", kind: ClipKind.audio, duration: 4,
+            selected: true, fade-handles: !root.windowed, volume: 1,
+            fade-in: root.fade-in, fade-out: root.fade-out,
+            fade-in-start: 1, fade-in-end: 0, fade-out-start: 0, fade-out-end: 1};
+        fade-started(out) => { root.starts += 1; }
+        fade-dragged(out, seconds) => {
+            root.changes += 1;
+            if (out) { root.fade-out = seconds; } else { root.fade-in = seconds; }
+        }
+        fade-finished(out, cancelled) => { root.finishes += 1; }
+    }
+}

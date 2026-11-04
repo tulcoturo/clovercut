@@ -1046,6 +1046,7 @@ pub struct Studio {
     /// a rebuild of the mix and a full publish. The commit is held until
     /// the moves pause; the echo shows the value meanwhile.
     commit_pending: bool,
+    fade_drag: Option<(String, bool)>,
     /// The clip the held commit is for: the one that was selected when the
     /// inspector wrote to the echo. Kept apart from the selection because
     /// the two can come apart before the commit lands - a press on the
@@ -2504,6 +2505,7 @@ impl Studio {
             flat_base: None,
             flat: None,
             commit_pending: false,
+            fade_drag: None,
             commit_targets: Vec::new(),
             words: None,
             commit_timer: slint::Timer::default(),
@@ -7271,6 +7273,7 @@ impl Studio {
     /// that would drop the echo it lives on - a command from elsewhere, an
     /// undo, a gesture on the lanes or the stage.
     pub fn flush_commit(&mut self) {
+        self.fade_drag = None;
         if !self.commit_pending {
             return;
         }
@@ -9680,6 +9683,76 @@ impl Studio {
         self.clip_commit();
     }
 
+    /// Start a fade gesture independently of selection and earlier knob edits.
+    pub fn clip_fade_started(&mut self, id: &str, out: bool) {
+        self.flush_commit();
+        let Some(clip) = self.clip(id) else { return };
+        if self.locked(&clip.track_id)
+            || !matches!(clip.kind, model::ClipKind::Audio | model::ClipKind::Video)
+        {
+            return;
+        }
+        self.last_commit = None;
+        if let Some(session) = self.session.as_mut() {
+            session.end_gesture();
+        }
+        self.commit_targets = vec![id.to_owned()];
+        self.fade_drag = Some((id.to_owned(), out));
+    }
+
+    /// Keep the fade in the echo until release, even across pauses in the drag.
+    pub fn clip_fade(&mut self, id: &str, out: bool, seconds: f32) {
+        if !seconds.is_finite()
+            || self
+                .fade_drag
+                .as_ref()
+                .is_none_or(|(target, side)| target != id || *side != out)
+        {
+            return;
+        }
+        let Some(clip) = self.clip(id) else { return };
+        if self.locked(&clip.track_id) {
+            return;
+        }
+        self.begin_echo();
+        if let Some(clip) = self.echo_clip_mut(id) {
+            let seconds = f64::from(seconds).clamp(0.0, clip.duration / 2.0);
+            if out {
+                clip.fade_out = seconds;
+            } else {
+                clip.fade_in = seconds;
+            }
+        }
+        self.commit_pending = true;
+        self.sync_audio();
+        self.request_preview();
+    }
+
+    pub fn clip_fade_finished(&mut self, id: &str, out: bool, cancelled: bool) {
+        if self
+            .fade_drag
+            .as_ref()
+            .is_none_or(|(target, side)| target != id || *side != out)
+        {
+            return;
+        }
+        self.fade_drag = None;
+        if cancelled {
+            self.echo = None;
+            self.commit_targets.clear();
+            self.commit_pending = false;
+            self.sync_audio();
+            self.request_preview();
+        } else {
+            self.flush_commit();
+            self.commit_targets.clear();
+        }
+        self.last_commit = None;
+        if let Some(session) = self.session.as_mut() {
+            session.end_gesture();
+        }
+    }
+
     /// The split tool pressed clip `id` at `seconds`: one cut, on the
     /// frame nearest the press, unless it is within a frame of either end
     /// or the lane is locked.
@@ -11265,6 +11338,8 @@ impl Studio {
                             .as_ref()
                             .map(|transition| transition.duration as f32)
                             .unwrap_or(0.0),
+                        fade_handles: view.offset == 0.0
+                            && (view.duration - clip.duration).abs() < 1e-6,
                         fade_in: head.0 as f32,
                         fade_in_start: head.1,
                         fade_in_end: head.2,

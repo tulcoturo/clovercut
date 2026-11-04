@@ -195,6 +195,11 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   active budgets remain available. Decoder thread/allocator changes are deferred.
   No memory plateau or interactive speedup is claimed before qualification.
 
+- **Next candidate, native CI pending:** direct timeline fade handles (`a4838588`),
+  with explicit commit/cancel, one undo step per drag, lock protection and no
+  synthetic handles on bounded clip slices. Pointer tests use the actual UI;
+  controller/persistence qualification is selected for desktop CI.
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested

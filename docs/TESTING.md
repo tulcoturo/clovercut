@@ -423,3 +423,15 @@ The phase-6 probe retains `explicit_idle_cache_trim` duration and owned counters
 This explicitly calls the trim operation on the open HD fixture; it does not
 simulate timer idleness or prove an RSS plateau. The pool test verifies LRU
 retention, in-flight frame ownership and refill to the original active budget.
+
+## Direct timeline fades
+
+Run `python3 scripts/check_home_ui.py --offline --suite timeline` for pointer
+regressions against the actual Clip component. It covers both fade directions,
+limits, edge reset and exclusion for locked tracks, touch, windowed clips and the
+split tool. The isolated native
+`phase3_timeline_tests::fade_handles_commit_cancel_and_preserve_other_edits` case
+checks controller history, cancellation, pending edits and persistence. It is
+selected by the existing desktop phase-3 filter; this candidate requires at least
+14 selected desktop cases. UI code generation alone does not qualify native Rust
+integration or physical audio feedback.

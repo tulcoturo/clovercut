@@ -683,3 +683,127 @@ fn transport_clock_matches_decoded_and_published_frame() {
     );
     app.run().unwrap();
 }
+
+#[test]
+#[ignore = "requires an isolated graphical session and GPU"]
+fn fade_handles_commit_cancel_and_preserve_other_edits() {
+    isolated_fixture(
+        "studio::phase3_timeline_tests::fade_handles_commit_cancel_and_preserve_other_edits",
+        |studio, info| {
+            let mut ids = Vec::new();
+            for kind in [model::MediaKind::Audio, model::MediaKind::Video] {
+                let track_id = if kind == model::MediaKind::Audio {
+                    studio
+                        .apply(Command::AddTrack {
+                            bottom: true,
+                            kind: Some(model::TrackKind::Audio),
+                            insert_at: None,
+                        })
+                        .unwrap()
+                } else {
+                    studio
+                        .timeline()
+                        .tracks
+                        .iter()
+                        .find(|track| track.is_main)
+                        .unwrap()
+                        .id
+                        .clone()
+                };
+                let item = serde_json::from_value(serde_json::json!({
+                    "path": format!("{}/fade-{kind:?}.mkv", info.path), "name": "fade fixture",
+                    "kind": kind, "duration": 8.0, "hasAudio": true
+                }))
+                .unwrap();
+                let media_id = studio.apply(Command::AddMedia { item }).unwrap();
+                ids.push(
+                    studio
+                        .apply(Command::AddClip {
+                            media_id,
+                            track_id,
+                            start: 0.0,
+                            ripple: false,
+                        })
+                        .unwrap(),
+                );
+            }
+            let original = studio.project().clone();
+            studio.selection = vec![ids[1].clone()];
+            for id in &ids {
+                studio.clip_fade_started(id, false);
+                studio.clip_fade(id, false, 1.0);
+                studio.clip_fade(id, false, f32::NAN);
+                assert_eq!(studio.clip(id).unwrap().fade_in, 1.0);
+                studio.clip_fade(id, false, 99.0);
+                assert_eq!(studio.clip(id).unwrap().fade_in, 4.0);
+                assert_eq!(
+                    studio.session.as_ref().unwrap().project(),
+                    &original,
+                    "drag only changes the echo until release"
+                );
+                assert!(
+                    !studio.commit_timer.running(),
+                    "a paused drag cannot commit itself"
+                );
+                studio.clip_fade_finished(id, false, false);
+                assert!(studio.echo.is_none());
+                let first = studio.project().clone();
+                studio.session.as_mut().unwrap().save(None).unwrap();
+                reopened_matches(info, &first);
+                studio.clip_fade_started(id, true);
+                studio.clip_fade(id, true, 1.5);
+                studio.clip_fade_finished(id, true, false);
+                studio.undo();
+                assert_eq!(
+                    studio.project(),
+                    &first,
+                    "a second drag is a separate undo step"
+                );
+                studio.undo();
+                assert_eq!(
+                    studio.project(),
+                    &original,
+                    "one undo removes every move of the first drag"
+                );
+                studio.clip_fade_started(id, false);
+                studio.clip_fade(id, false, 2.0);
+                studio.clip_fade_finished(id, false, true);
+                assert_eq!(
+                    studio.project(),
+                    &original,
+                    "cancel discards the entire fade echo"
+                );
+                assert!(studio.echo.is_none());
+                studio.clip_fade_started(id, false);
+                studio.clip_fade_finished(id, false, false);
+                assert!(
+                    studio.echo.is_none(),
+                    "a click without movement leaves no echo"
+                );
+            }
+            // The fade must not consume a pending edit belonging to another clip.
+            studio.clip_volume(&ids[1], 0.5);
+            studio.clip_fade_started(&ids[0], false);
+            studio.clip_fade(&ids[0], false, 1.0);
+            studio.clip_fade(&ids[1], false, 3.0);
+            studio.clip_fade_finished(&ids[1], false, true);
+            assert_eq!(studio.clip(&ids[0]).unwrap().fade_in, 1.0);
+            studio.clip_fade_finished(&ids[0], false, false);
+            studio.undo();
+            assert_eq!(studio.clip(&ids[1]).unwrap().volume, 0.5);
+            assert_eq!(studio.clip(&ids[0]).unwrap().fade_in, 0.0);
+            studio.undo();
+            assert_eq!(studio.project(), &original);
+            let track = studio.clip(&ids[0]).unwrap().track_id.clone();
+            studio.track_flags(studio.row_of(&track), true, false, true);
+            let locked = studio.project().clone();
+            studio.clip_fade_started(&ids[0], false);
+            studio.clip_fade(&ids[0], false, 2.0);
+            studio.clip_fade_finished(&ids[0], false, false);
+            assert_eq!(studio.project(), &locked, "locked lanes reject the gesture");
+            println!(
+                "fade gestures: audio/video, limits, commit, undo, cancel, persistence and locks passed"
+            );
+        },
+    );
+}
