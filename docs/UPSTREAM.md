@@ -13,15 +13,17 @@ commits after the previous `f2a26081` review and the earlier feature backlog.
 
 The current candidate adapts scrubbing (`75919f5e`), VideoToolbox quality
 (`5ab7fd14`), shared-device export recovery (`359839d7`), selected dependency
-updates (`d64e7f25`) and the idle-cache portion of `f19fda34`. Full CI remains
-pending. Decoder thread counts and allocator policy retain their current values.
+updates (`d64e7f25`) and the idle-cache portion of `f19fda34`. Full CI passed on
+`a6a9a352`, including 14 desktop journeys and the complete runtime probe
+([qualification](audits/2026-11-04-desktop-upstream-qualification.md)). Decoder thread counts and allocator policy retain their current values.
 The timeline-tab scroll fix already has a Clovercut equivalent (`9ca0134b`).
 Upstream codec removals, speech replacement, licensing changes and the transition
 rewrite are separate decisions, not automatic imports.
 
 The next candidate adapts direct timeline fades (`a4838588`) with explicit
 commit/cancel gestures and bounded-geometry protection. See the
-[adaptation record](audits/2026-11-04-timeline-fades.md). Native CI is pending.
+[adaptation record](audits/2026-11-04-timeline-fades.md). Native CI passed as part
+of the same `a6a9a352` qualification.
 
 A subsequent candidate adds the independent [Remove Black package](audits/2026-11-04-remove-black.md)
 from `2b594e8e` and [spoken-language selection](audits/2026-11-04-caption-language.md)

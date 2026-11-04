@@ -30,3 +30,11 @@ candidate commit. Native application qualification remains pending their results
 The phase-6 probe records separate nearest/refinement timings and exactness flags;
 no controlled speedup or physical interaction latency is claimed here. Memory
 policy from upstream `f19fda34` is deliberately a separate follow-up.
+
+## Subsequent native qualification
+
+Full CI passed on `a6a9a352ca3575cab82ada82272e5b6e6bde8f4a`: workspace
+Clippy/tests, doctests, gRPC and all 14 selected desktop journeys. The runtime
+probe completed with exit zero. See the [qualification record](2026-11-04-desktop-upstream-qualification.md)
+for raw observations and limits; earlier pending notes above describe the
+implementation-time state. Physical Monterey interaction remains unqualified.
