@@ -1,6 +1,6 @@
 # Clovercut quality and polish plan
 
-Updated 2 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
+Updated 4 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
 [quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
 live in [TESTING.md](docs/TESTING.md).
@@ -188,9 +188,12 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   exact rest refinement and stale-refinement rejection. Exact export/playback and
   Clovercut generated-media, precise-clock and cutout/stabilization contracts are
   retained. Reader-pool regression covers approximation and decoder fallback.
-- **Next, measurement required:** review `f19fda34` idle memory/cache/thread policy
-  separately against the recorded native large-project baseline. No memory or
-  interactive speedup claim follows from the implementation alone.
+- **Implemented, CI pending:** issue #18 direct home wheel scrolling and narrow
+  timeline viewport publication; VideoToolbox quality and shared-device export
+  recovery; selected dependency updates. See the [4 November inventory](docs/audits/2026-11-04-upstream-review.md).
+- **Implemented, measurement pending:** idle-cache portion of `f19fda34`; normal
+  active budgets remain available. Decoder thread/allocator changes are deferred.
+  No memory plateau or interactive speedup is claimed before qualification.
 
 ## Completion evidence
 

@@ -410,3 +410,16 @@ and `scrub_exact_refinement_frame_sources`, with per-request exactness under
 `scrub_freshness`. A nearest request can already be exact; retain those flags when
 interpreting timing samples. Virtual software-adapter timings do not qualify
 physical interaction latency or establish a controlled before/after speedup.
+
+## Desktop wheel input and idle-cache trimming
+
+`scripts/check_home_ui.py --offline` exercises the shared desktop scroll
+component with real Slint pointer-wheel events: repeated immediate deltas, no
+movement after rest, both limits and immediate reversal. Existing home search,
+sort, view and keyboard checks run against the actual start screen. These are
+simulated input checks, not physical Monterey latency measurements.
+
+The phase-6 probe retains `explicit_idle_cache_trim` duration and owned counters.
+This explicitly calls the trim operation on the open HD fixture; it does not
+simulate timer idleness or prove an RSS plateau. The pool test verifies LRU
+retention, in-flight frame ownership and refill to the original active budget.

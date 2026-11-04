@@ -7,19 +7,17 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
-Reviewed through `f2a260814bb7637ddbfe24c9bc94cb2c73121675` (2 November 2026).
-The scrub adaptation from `75919f5e` is prepared on `perf/upstream-scrubbing`;
-full native CI qualification is pending. It uses approximate frames during fast
-seeks and exact refinement after rest, while playback, export and saved frames
-retain exact decoding. See the [adaptation record](audits/2026-11-02-upstream-scrubbing.md).
+Reviewed through `8c86502d` (4 November 2026). The
+[full inventory and decisions](audits/2026-11-04-upstream-review.md) covers all 51
+commits after the previous `f2a26081` review and the earlier feature backlog.
 
-The timeline-tab scroll fix `4e1eb116` already has a Clovercut equivalent
-(`9ca0134b`); the Chinese translation batch has no remaining English keys in its
-32 affected messages. Upstream README changes do not replace our project README.
-Memory-policy changes (`f19fda34`) remain a separate follow-up after measurement.
-Caption-language/VAD, expanded chroma keying, GPU-first H.264, settings grouping
-and direct audio-fade handles remain candidates. The transition rewrite
-`f2a26081` is upstream work in progress and is deferred.
+The current candidate adapts scrubbing (`75919f5e`), VideoToolbox quality
+(`5ab7fd14`), shared-device export recovery (`359839d7`), selected dependency
+updates (`d64e7f25`) and the idle-cache portion of `f19fda34`. Full CI remains
+pending. Decoder thread counts and allocator policy retain their current values.
+The timeline-tab scroll fix already has a Clovercut equivalent (`9ca0134b`).
+Upstream codec removals, speech replacement, licensing changes and the transition
+rewrite are separate decisions, not automatic imports.
 
 ### Earlier quick-split review
 
