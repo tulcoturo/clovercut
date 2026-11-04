@@ -36,3 +36,11 @@ Validation:
   generation. The desktop gate now requires at least 14 selected cases.
 
 No published release or physical pointer/audio qualification is implied.
+
+## Subsequent native qualification
+
+Full CI passed on `a6a9a352ca3575cab82ada82272e5b6e6bde8f4a`: workspace
+Clippy/tests, doctests, gRPC and all 14 selected desktop journeys. The runtime
+probe completed with exit zero. See the [qualification record](2026-11-04-desktop-upstream-qualification.md)
+for raw observations and limits; earlier pending notes above describe the
+implementation-time state. Physical Monterey interaction remains unqualified.
