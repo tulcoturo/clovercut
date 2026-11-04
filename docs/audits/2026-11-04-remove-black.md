@@ -22,3 +22,15 @@ Clovercut saves default links with no explicit parameters, so detecting legacy
 links only by removed `similarity`/`softness` keys is insufficient to preserve
 all existing projects. Do not silently replace that renderer while importing this
 independent new package.
+
+Native runs 41886591753 and 41888173961 compiled successfully but each failed
+one ordinary regression: the imported square card was 360×360 rather than
+Clovercut's required 480×270. The runs passed 1336/1337 and 1340/1341 ordinary
+tests respectively; neither completed the later full qualification stages.
+
+The card is regenerated at 480×270 using the current `concat_host::cards`
+`Card::of` and `Painter::with_city`/`draw_to` implementation, bundled reference
+images, actual Remove Black shader and Vulkan llvmpipe. The resulting JPEG was
+visually inspected. This uses the standard card rendering path, rather than
+relaxing the existing dimensions regression. Fresh native qualification is
+required for the corrected candidate.
