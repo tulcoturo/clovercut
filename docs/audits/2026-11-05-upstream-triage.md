@@ -16,7 +16,7 @@ qualification of every feature.
 | `773efd12` | Clovercut already exposes caption generation in the inline library; inspect for remaining useful differences. |
 | `0b1f125d`, `c009d037` | Editable shapes and MCP sizing form a larger coordinated feature; retain existing API/tool schema compatibility. |
 | `80ed9457`, `0b94e48f` | JSON Schema API export is useful for automation; adapt only after inventorying Clovercut's extended contract. |
-| `b27a3943` | Small empty-home external-link affordance candidate; compare existing home actions first. |
+| `b27a3943` | Adapted in merged PR #24: external-link arrow on the empty-home guide; existing home UI suite and headless CI passed. |
 | `761a0233`, `8aa44956`, `87017346`, `29814cd8`, `784021e7` | Test/lint fixes need comparison with Clovercut's codecs, tests and speech implementation rather than direct import. |
 | `fcb52f72`, `9ab67d05`, `df53aa6c`, `483c9d6a` | Upstream audit/legal/repository/README presentation changes are not automatic Clovercut changes. Preserve our audit evidence and project presentation. |
 
