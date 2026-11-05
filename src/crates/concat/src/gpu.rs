@@ -57,6 +57,8 @@ impl Gpu {
         };
         let mut descriptor = wgpu::InstanceDescriptor {
             backends,
+            flags: concat_render::gpu::instance_flags(),
+            memory_budget_thresholds: concat_render::gpu::MEMORY_BUDGET,
             ..wgpu::InstanceDescriptor::new_without_display_handle()
         };
         // FXC, never wgpu's default `Auto`: Concat ships no dxcompiler.dll,
