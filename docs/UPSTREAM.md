@@ -25,6 +25,14 @@ commit/cancel gestures and bounded-geometry protection. See the
 [adaptation record](audits/2026-11-04-timeline-fades.md). Native CI passed as part
 of the same `a6a9a352` qualification.
 
+The independent [Remove Black package](audits/2026-11-04-remove-black.md),
+[spoken-language selection](audits/2026-11-04-caption-language.md) and
+[speech-reel timing](audits/2026-11-04-speech-reel.md) are now integrated.
+The [combined native qualification](audits/2026-11-05-caption-effects-qualification.md)
+passed 1341 ordinary, 30 gRPC and 14 virtual-desktop tests. Physical Mac and
+recognition-quality checks remain separate. The existing chroma-key renderer
+is retained and the larger inspector rewrite remains separate.
+
 A separate [AAC tail candidate](audits/2026-11-04-aac-tail.md) selectively
 adapts packet-end trimming from `536a416d`, preserving encoder selection and
 Opus/PCM handling. Linux audio regressions pass; platform encoders are not yet

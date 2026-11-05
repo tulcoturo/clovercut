@@ -2551,3 +2551,55 @@ fn a_filter_on_transparency_reads_straight_colour_and_keeps_coverage() {
         assert!(got.abs_diff(expected) <= 2, "{pixel:?}");
     }
 }
+
+/// Remove Black must produce straight foreground colour with partial coverage,
+/// so a dim glow has no dark fringe and applying it again preserves the alpha.
+#[test]
+fn remove_black_preserves_glow_and_transparent_composition() {
+    let Some(mut gpu) = heavy_gpu() else { return };
+    let pass = concat_effects::Catalogue::builtin()
+        .get("concat.remove-black")
+        .unwrap()
+        .trial_pass()
+        .unwrap();
+    for (input, expected_alpha) in [
+        ([0, 0, 0, 255], Some(0)),
+        ([255, 255, 255, 255], Some(255)),
+        ([255, 255, 255, 128], Some(128)),
+        ([128, 0, 0, 255], None),
+    ] {
+        let mut source = Frame::black(8, 8);
+        source.fill(input);
+        let mut layer = PlannedLayer::picture(crate::detached_clip(), Arc::new(source));
+        layer.effects = vec![pass.clone()];
+        let mut plan = FramePlan {
+            canvas: [0, 0, 0, 0],
+            layers: vec![layer],
+            ..FramePlan::empty(8, 8)
+        };
+        let once = gpu.render(&plan);
+        let pixel = &once.pixels()[..4];
+        if let Some(alpha) = expected_alpha {
+            assert!(pixel[3].abs_diff(alpha) <= 1, "{input:?}: {pixel:?}");
+        } else {
+            assert!(
+                pixel[0] >= 250 && pixel[1] == 0 && pixel[2] == 0,
+                "straight red: {pixel:?}"
+            );
+            assert!(
+                pixel[3] > 0 && pixel[3] < 128,
+                "a dim glow stays translucent: {pixel:?}"
+            );
+        }
+        plan.layers[0].effects.push(pass.clone());
+        let twice = gpu.render(&plan);
+        assert!(
+            once.pixels()
+                .iter()
+                .zip(twice.pixels())
+                .all(|(a, b)| a.abs_diff(*b) <= 1),
+            "stacking must preserve alpha and foreground colour: {input:?}"
+        );
+        assert!(!gpu.lost());
+    }
+}

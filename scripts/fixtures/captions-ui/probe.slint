@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { CaptionsDialog } from "__CAPTIONS_DIALOG__";
+import { CaptionsPanel, CaptionsLibrary } from "__CAPTIONS_PANEL__";
+export { CaptionsLibrary }
+export component CaptionsProbe inherits Window {
+    width: 800px;
+    height: 900px;
+    in property <bool> dialog;
+    in property <bool> running;
+    in property <bool> fixed;
+    in-out property <int> language;
+    in-out property <int> changes;
+    if !root.dialog: CaptionsPanel { width: 400px; height: parent.height; }
+    if root.dialog: CaptionsDialog {
+        width: parent.width;
+        height: parent.height;
+        data: {open: true, from-voice: true, sources: ["voice"], source: 0,
+            ready: true, language: root.language, language-fixed: root.fixed,
+            running: root.running};
+        models: ["base"];
+        languages: root.fixed ? ["English"] : ["Auto-detect", "Bahasa Indonesia", "Português"];
+        language-changed(index) => { root.language = index; root.changes += 1; }
+    }
+}
