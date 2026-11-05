@@ -9,8 +9,9 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 A 5 November fetch found 24 additional commits through `483c9d6a`.
 The [new inventory](audits/2026-11-05-upstream-triage.md) is an initial triage;
-[GPU initialization](audits/2026-11-05-gpu-initialization.md) is the first new
-candidate. The earlier detailed review below remains applicable.
+[GPU initialization](audits/2026-11-05-gpu-initialization.md) passed full native
+CI with 1341 ordinary, 30 gRPC and 14 virtual-desktop tests. Physical Mac startup
+and VRAM-pressure behavior remain unqualified. The earlier detailed review below remains applicable.
 
 Reviewed through `8c86502d` (4 November 2026). The
 [full inventory and decisions](audits/2026-11-04-upstream-review.md) covers all 51

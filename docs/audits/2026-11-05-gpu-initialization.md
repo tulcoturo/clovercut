@@ -24,3 +24,17 @@ Remove Black shader fixtures plus transparent/stacked composition, both with
 default flags and with indirect-call validation explicitly enabled. These are
 software Vulkan checks, not Metal/physical GPU, VRAM-pressure or native window
 qualification. Full native CI remains pending.
+
+## Completed native qualification
+
+[Full CI 42088292582](https://github.com/tulcoturo/clovercut/actions/runs/42088292582)
+passed on `dc58a5adfcdccec648db6e9ebc045f8240cfc7fd`: strict workspace/gRPC
+Clippy, 1341 ordinary tests, documentation examples, 30 gRPC tests, 14 selected
+virtual-desktop journeys and audio connector regressions. Reports are retained
+locally under `/home/turotulco/Work/clovercut-pr23-qualification`.
+
+The later main merge incorporates separately qualified AAC and home-guide
+changes; the GPU implementation, dependency declaration and lockfile are
+unchanged from the qualified commit (`git diff` is empty for those files).
+This combined merge was not a second complete CI run. Physical Metal, native
+Mac startup and VRAM-pressure behavior remain unqualified.
