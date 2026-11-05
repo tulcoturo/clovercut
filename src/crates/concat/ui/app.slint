@@ -957,6 +957,7 @@ export component App inherits Window {
 
     in property <RelinkData> relink;
     callback relink-all();
+    callback relink-remove(id: string);
     callback relink-dismiss();
 
     ProjectDialog {
@@ -1017,6 +1018,7 @@ export component App inherits Window {
         height: root.height;
         data: root.relink;
         relink-all => { root.relink-all(); }
+        remove(id) => { root.relink-remove(id); }
         dismiss => { root.relink-dismiss(); }
     }
 
