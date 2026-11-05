@@ -931,6 +931,7 @@ export component SettingsDialog inherits Modal {
             finger: root.phone;
 
             if root.data.tab == 8: VerticalLayout {
+                padding-top: 10px;
                 spacing: 16px;
                 Text { text: I18n.t("libraries.hint"); color: Theme.fg-muted; wrap: word-wrap; font-size: Theme.fs; }
                 Text { text: I18n.t("libraries.groupAudio"); color: Theme.fg; font-size: Theme.fs + 2px; font-weight: 600; }
@@ -1031,6 +1032,7 @@ export component SettingsDialog inherits Modal {
             }
 
             if root.data.tab == 0: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     ruled: false;
                     first: true;
@@ -1180,9 +1182,26 @@ export component SettingsDialog inherits Modal {
             // the first. The change still goes out as a callback, so Rust
             // stays the one place a remembered preference will be written.
             if root.data.tab == 1: VerticalLayout {
-                DialogSection {
+                padding-top: 10px;
+                // Scale leads because it changes every other control's size.
+                // The existing callback retains live application and persistence.
+                if !root.phone: DialogSection {
                     ruled: false;
                     first: true;
+                    title: I18n.t("settings.scale");
+                    hint: I18n.t("settings.scaleHint");
+                    choices: [
+                        I18n.t("settings.scaleSystem"),
+                        "100%", "110%", "125%", "150%", "175%", "200%",
+                    ];
+                    choice: Theme.ui-scale;
+                    open: false;
+                    chose(index) => { root.scale-changed(index); }
+                }
+
+                DialogSection {
+                    ruled: false;
+                    first: root.phone;
                     title: I18n.t("settings.theme");
 
                     SegmentedControl {
@@ -1344,39 +1363,10 @@ export component SettingsDialog inherits Modal {
                         }
                     }
                 }
-
-                // The interface scale: how much larger than the display's own
-                // scale the window is drawn. Most of Concat was built on a
-                // small laptop and reads small on a large screen, which is
-                // what this row is for.
-                //
-                // The desk's alone. It rides on the window backend's
-                // SLINT_SCALE_FACTOR, which winit reads and the phone's
-                // backend does not: on Android the scale comes from the
-                // display density and a config change would take the choice
-                // back, so offering the row there would be a control that
-                // does not hold. Phones set their size the system's way
-                // anyway. The backend takes it as a multiplier rather than as
-                // a property, so Rust hands the window a scale-factor event
-                // to apply it (lib.rs, `on_settings_scale_changed`).
-                // https://github.com/jub0t/Concat/issues/320
-                if !root.phone: DialogSection {
-                    ruled: false;
-                    title: I18n.t("settings.scale");
-                    hint: I18n.t("settings.scaleHint");
-
-                    Select {
-                        options: [
-                            I18n.t("settings.scaleSystem"),
-                            "100%", "110%", "125%", "150%", "175%", "200%",
-                        ];
-                        current: Theme.ui-scale;
-                        changed(index) => { root.scale-changed(index); }
-                    }
-                }
             }
 
             if root.data.tab == 2: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     ruled: false;
                     first: true;
@@ -1422,6 +1412,7 @@ export component SettingsDialog inherits Modal {
             }
 
             if root.data.tab == 3: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     ruled: false;
                     first: true;
@@ -1446,6 +1437,7 @@ export component SettingsDialog inherits Modal {
             // putting a script on another machine, and the page says
             // plainly when the address it is given reaches past this one.
             if root.data.tab == 4 && !root.phone: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     ruled: false;
                     first: true;
@@ -1648,6 +1640,7 @@ export component SettingsDialog inherits Modal {
             // A desk's affair, like the Automation page: a phone's store does
             // its updating.
             if root.data.tab == 6 && !root.phone: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     ruled: false;
                     first: true;
@@ -1746,6 +1739,7 @@ export component SettingsDialog inherits Modal {
             }
 
             if root.data.tab == 5: VerticalLayout {
+                padding-top: 10px;
                 // The name and the build, and nothing under them: the engine
                 // and the FFmpeg it links are rows of the table below, where
                 // a report reads them from.
@@ -1866,6 +1860,7 @@ export component SettingsDialog inherits Modal {
             }
 
             if root.data.tab == 7 && !root.phone: VerticalLayout {
+                padding-top: 10px;
                 DialogSection {
                     first: true;
                     title: I18n.t("settings.shortcuts");

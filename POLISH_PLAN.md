@@ -202,11 +202,16 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   [Raw runtime evidence and limits](docs/audits/2026-11-04-desktop-upstream-qualification.md)
   remain separate from physical Monterey interaction and memory-plateau claims.
 
-- **Subsequent candidate, native CI pending:** Remove Black from `2b594e8e`, with
-  11 shader probes and transparent/stacked composition checked on software Vulkan;
-  spoken-language choice from `e2b20c27` in the sheet and inline panel, with saved
-  preference and per-run capture. The new VAD processing and legacy chroma-key
-  migration remain separate work; do not claim a transcription accuracy gain.
+- **Integrated, native CI passed:** Remove Black from `2b594e8e`, saved
+  spoken-language selection and speech-reel timing from `e2b20c27`.
+  [Combined qualification](docs/audits/2026-11-05-caption-effects-qualification.md):
+  1341 ordinary, 30 gRPC and 14 virtual-desktop tests. Legacy chroma-key
+  migration and measured transcription accuracy remain separate work.
+
+- **Settings layout candidate:** selectively adapt `2fe7e68b`: consistent top
+  inset on every page, with interface scale first in Appearance using the shared
+  header dropdown. Preserve existing scale callback, available values, custom
+  playhead colour and desktop-only scale visibility.
 
 ## Completion evidence
 
