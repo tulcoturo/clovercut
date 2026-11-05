@@ -616,6 +616,13 @@ fn transport_clock_matches_decoded_and_published_frame() {
                     if *clock != 50.0 * den as f64 / num as f64 {
                         continue;
                     }
+                    // A seek immediately after opening can be classified as
+                    // a scrub. Its nearest frame is allowed to arrive first;
+                    // playback must still wait for the correct paused frame.
+                    // The final timeout below keeps refinement mandatory.
+                    if spec.nearest && actual != 50 % 8 {
+                        continue;
+                    }
                     assert_eq!(*clock, 50.0 * den as f64 / num as f64);
                     assert_eq!(actual, 50 % 8, "paused exact frame 50 must be decoded");
                     paused_frame_seen = true;
