@@ -33,10 +33,10 @@ passed 1341 ordinary, 30 gRPC and 14 virtual-desktop tests. Physical Mac and
 recognition-quality checks remain separate. The existing chroma-key renderer
 is retained and the larger inspector rewrite remains separate.
 
-A separate [AAC tail candidate](audits/2026-11-04-aac-tail.md) selectively
+The qualified [AAC tail adaptation](audits/2026-11-04-aac-tail.md) selectively
 adapts packet-end trimming from `536a416d`, preserving encoder selection and
-Opus/PCM handling. Linux audio regressions pass; platform encoders are not yet
-adapted or qualified.
+Opus/PCM handling. Full native CI passed on `b79af76f` with 1343 ordinary, 30 gRPC and 14
+virtual-desktop tests. Platform encoders are not yet adapted or qualified.
 
 ### Earlier quick-split review
 
