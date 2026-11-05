@@ -659,6 +659,20 @@ impl MixInput {
     }
 }
 
+/// Trim only the AAC tail; the muxer still needs negative priming packets.
+fn trim_aac_tail(packet: &mut ffmpeg::Packet, samples: i64) -> bool {
+    if let Some(pts) = packet.pts() {
+        if pts >= samples {
+            return false;
+        }
+        let remaining = samples.saturating_sub(pts);
+        if packet.duration() > remaining {
+            packet.set_duration(remaining);
+        }
+    }
+    true
+}
+
 /// Choose a linked Opus encoder and its native sample layout.
 fn opus_encoder() -> Result<(&'static str, Sample)> {
     use ffmpeg::util::format::sample::Type;
@@ -793,6 +807,7 @@ pub fn mix_to_file_with_cancelling(
         .map(|stream| stream.time_base())
         .unwrap_or(ffmpeg::Rational::new(1, MIX_RATE as i32));
     let encoder_time_base = ffmpeg::Rational::new(1, MIX_RATE as i32);
+    let samples = (duration.max(0.0) * f64::from(MIX_RATE)).round() as i64;
     let drain = |encoder: &mut encoder::audio::Encoder,
                  output: &mut ffmpeg::format::context::Output|
      -> Result<()> {
@@ -800,6 +815,10 @@ pub fn mix_to_file_with_cancelling(
             let mut packet = ffmpeg::Packet::empty();
             match encoder.receive_packet(&mut packet) {
                 Ok(()) => {
+                    // Preserve priming; trim AAC tail padding in the sample clock.
+                    if !wav && !opus && !trim_aac_tail(&mut packet, samples) {
+                        continue;
+                    }
                     packet.set_stream(0);
                     packet.rescale_ts(encoder_time_base, stream_time_base);
                     packet
@@ -1649,6 +1668,25 @@ mod tests {
         std::fs::remove_dir_all(dir).expect("removes test files");
     }
 
+    #[test]
+    fn aac_tail_preserves_priming_and_trims_or_drops_padding() {
+        for (pts, duration, keep, expected) in [
+            (Some(-1024), 1024, true, 1024),
+            (Some(0), 1024, true, 1024),
+            (Some(5120), 1024, true, 887),
+            (Some(6007), 1024, false, 1024),
+            (Some(6144), 1024, false, 1024),
+            (None, 1024, true, 1024),
+        ] {
+            let mut packet = ffmpeg::Packet::empty();
+            packet.set_pts(pts);
+            packet.set_duration(duration);
+            assert_eq!(super::trim_aac_tail(&mut packet, 6007), keep);
+            assert_eq!(packet.pts(), pts);
+            assert_eq!(packet.duration(), expected);
+        }
+    }
+
     fn tone_wav(path: &Path, seconds: f64) {
         let count = (seconds * f64::from(MIX_RATE)) as usize;
         let mut data = Vec::with_capacity(count * 4);
@@ -1676,6 +1714,55 @@ mod tests {
     }
 
     #[test]
+    fn aac_tail_trimming_keeps_a_one_second_transient_in_place() {
+        use crate::{AudioDecoder, AudioOptions};
+        let dir = std::env::temp_dir().join(format!("clovercut-aac-tail-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("click.wav");
+        tone_wav(&source, 6.1);
+        let mut bytes = std::fs::read(&source).unwrap();
+        bytes[44..].fill(0);
+        let click = 44 + MIX_RATE as usize * 4;
+        for offset in [click, click + 2] {
+            bytes[offset..offset + 2].copy_from_slice(&30_000_i16.to_le_bytes());
+        }
+        std::fs::write(&source, bytes).unwrap();
+        let duration = 288_007.0 / f64::from(MIX_RATE);
+        let output = dir.join("click.m4a");
+        let piece = AudioClip {
+            path: source,
+            duration,
+            ..clip("")
+        };
+        mix_to_file(&[piece], duration, &output).unwrap();
+        let input = ffmpeg::format::input(&output).unwrap();
+        let stream = input.streams().best(ffmpeg::media::Type::Audio).unwrap();
+        let seconds = f64::from(stream.time_base()) * stream.duration() as f64;
+        assert!((seconds - duration).abs() <= 0.001, "duration: {seconds}");
+        let mut decoder = AudioDecoder::open(&output, &AudioOptions::default()).unwrap();
+        let mut decoded = Vec::new();
+        while let Some(chunk) = decoder.next_i16().unwrap() {
+            decoded.extend(chunk);
+        }
+        let (peak, value) = decoded
+            .chunks_exact(2)
+            .enumerate()
+            .max_by_key(|(_, pair)| i32::from(pair[0]).abs())
+            .unwrap();
+        assert!(
+            i32::from(value[0]).abs() > 1000,
+            "click must remain audible"
+        );
+        assert!(
+            peak.abs_diff(MIX_RATE as usize) <= 2,
+            "click moved to sample {peak}"
+        );
+        drop(input);
+        drop(decoder);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn saved_audio_uses_pcm_for_wav_and_keeps_aac_for_m4a() {
         use crate::{AudioDecoder, AudioOptions};
         let dir =
@@ -1699,6 +1786,13 @@ mod tests {
             let input = ffmpeg::format::input(&output).unwrap();
             let stream = input.streams().best(ffmpeg::media::Type::Audio).unwrap();
             let wav = extension != "m4a";
+            if !wav {
+                let seconds = f64::from(stream.time_base()) * stream.duration() as f64;
+                assert!(
+                    (seconds - duration).abs() <= 1.0 / 1000.0,
+                    "AAC container duration {seconds} exceeds mix {duration}"
+                );
+            }
             assert_eq!(
                 stream.parameters().id(),
                 if wav {

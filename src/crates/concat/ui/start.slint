@@ -567,11 +567,14 @@ component PillButton inherits Rectangle {
     in property <bool> primary;
     in property <bool> enabled: true;
     in property <bool> block;
+    /// Marks a link that opens in the browser.
+    in property <bool> external;
 
     callback clicked();
 
     property <bool> lit: touch.has-hover && root.enabled;
-    property <length> mark: root.glyph == Glyph.none ? 0px : 15px;
+    property <length> mark: (root.glyph == Glyph.none ? 0px : 15px)
+        + (root.external ? 13px + root.gap : 0px);
     property <length> gap: root.glyph == Glyph.none ? 0px : 8px;
     property <brush> ink: root.primary ? Theme.launch-page
         : root.lit ? Theme.fg
@@ -610,6 +613,14 @@ component PillButton inherits Rectangle {
             font-size: Theme.fs-xl;
             font-weight: Theme.weight-title;
             vertical-alignment: center;
+        }
+        if root.external: VerticalLayout {
+            alignment: center;
+            Icon {
+                glyph: Glyph.arrow-up-right;
+                size: 13px;
+                tint: root.ink;
+            }
         }
     }
 
@@ -1504,6 +1515,7 @@ component EmptyProjects inherits Rectangle {
             PillButton {
                 label: I18n.t("start.firstEdit");
                 glyph: Glyph.circle-play;
+                external: true;
                 clicked => { root.first-edit(); }
             }
         }
