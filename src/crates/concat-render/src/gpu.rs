@@ -301,6 +301,22 @@ const WORK_FALLBACK: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// frame a software adapter draws at 8K.
 pub const DEVICE_WAIT: std::time::Duration = std::time::Duration::from_secs(30);
 
+/// Instance flags shared by the window and standalone compositor devices.
+/// Indirect-call validation compiles an unused compute pipeline at device
+/// startup, which fails on some older Metal drivers. Other validation stays
+/// enabled; `WGPU_VALIDATION_INDIRECT_CALL=1` restores this check for diagnosis.
+pub fn instance_flags() -> wgpu::InstanceFlags {
+    (wgpu::InstanceFlags::default() - wgpu::InstanceFlags::VALIDATION_INDIRECT_CALL).with_env()
+}
+
+/// Refuse allocations at 95% of the adapter budget and report device loss
+/// at 99%, allowing existing export recovery to handle memory exhaustion.
+/// These thresholds are used by Vulkan and Direct3D 12; Metal ignores them.
+pub const MEMORY_BUDGET: wgpu::MemoryBudgetThresholds = wgpu::MemoryBudgetThresholds {
+    for_resource_creation: Some(95),
+    for_device_loss: Some(99),
+};
+
 /// A picture copied texel for texel into a target of the same size, through
 /// the colour conversion at each end of the working space: an uploaded
 /// frame into it (`fs_upload`), and a finished frame out of it into the
@@ -907,6 +923,8 @@ impl WgpuCompositor {
     fn on_backends(backends: wgpu::Backends, software_only: bool) -> Option<Self> {
         let mut descriptor = wgpu::InstanceDescriptor {
             backends,
+            flags: instance_flags(),
+            memory_budget_thresholds: MEMORY_BUDGET,
             ..wgpu::InstanceDescriptor::new_without_display_handle()
         };
         // FXC, never wgpu's default `Auto`: Concat ships no dxcompiler.dll,

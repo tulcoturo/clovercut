@@ -149,6 +149,8 @@ concat-core.workspace = true
 concat-media.workspace = true
 concat-project.workspace = true
 concat-export.workspace = true
+# Share device initialization policy with the standalone compositor.
+concat-render = { workspace = true, features = ["gpu"] }
 concat-host = { workspace = true, features = ["gpu"] }
 concat-speech = { workspace = true, features = ["chatterbox"] }
 # The Settings sheet's Automation page: the Concat API on a socket while the

@@ -7,6 +7,11 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+A 5 November fetch found 24 additional commits through `483c9d6a`.
+The [new inventory](audits/2026-11-05-upstream-triage.md) is an initial triage;
+[GPU initialization](audits/2026-11-05-gpu-initialization.md) is the first new
+candidate. The earlier detailed review below remains applicable.
+
 Reviewed through `8c86502d` (4 November 2026). The
 [full inventory and decisions](audits/2026-11-04-upstream-review.md) covers all 51
 commits after the previous `f2a26081` review and the earlier feature backlog.
