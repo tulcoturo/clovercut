@@ -48,6 +48,7 @@ mod ios;
 mod keymap;
 mod meters;
 mod platform;
+mod workspace_layout;
 /// What a phone's own crate installs before the window runs: the way to
 /// the system's file picker, and where a finished export is put so the
 /// phone shows it. See `platform::pick_files_async` and
@@ -407,6 +408,27 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.global::<Theme>()
         .set_ui_scale(studio.prefs.scale_index() as i32);
 
+    if !phone
+        && let Some(layout) = studio
+            .prefs
+            .layout
+            .as_ref()
+            .filter(|_| studio.prefs.remembers_layout())
+    {
+        if let (Some(width), Some(height)) = (layout.width, layout.height)
+            && width.is_finite()
+            && height.is_finite()
+        {
+            app.window().set_size(slint::LogicalSize::new(
+                width.clamp(900.0, 7680.0),
+                height.clamp(560.0, 4320.0),
+            ));
+        }
+        if layout.maximized {
+            app.window().set_maximized(true);
+        }
+    }
+
     let shell = Rc::new(Shell {
         app: app.as_weak(),
         studio: RefCell::new(studio),
@@ -626,6 +648,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_titlebar_close(|| {
         log::info!("close: titlebar X pressed");
         Shell::with(|shell, app| {
+            shell.studio.borrow_mut().save_layout(app.window());
             let outcome = close_window(
                 || shell.studio.borrow_mut().close_project(),
                 || {
@@ -652,6 +675,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         log::info!("close: system close request (Alt+F4 / taskbar)");
         let saved = std::cell::Cell::new(true);
         Shell::with(|shell, app| {
+            shell.studio.borrow_mut().save_layout(app.window());
             let outcome = close_window(
                 || shell.studio.borrow_mut().close_project(),
                 || {
@@ -684,6 +708,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                 if app.get_window_maximized() != maximized {
                     app.set_window_maximized(maximized);
                 }
+                // Resize can be emitted during publication; defer the Studio
+                // borrow, and debounce persistence for the launch screen too.
+                let _ = slint::invoke_from_event_loop(|| {
+                    Shell::with(|shell, _| shell.studio.borrow().remember_layout_soon());
+                });
             }
         }
     });
@@ -720,7 +749,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         ($($handler:tt)*) => { handler!(publish_lanes, $($handler)*) };
     }
     macro_rules! on_dock {
-        ($($handler:tt)*) => { handler!(publish_dock, $($handler)*) };
+        ($($handler:tt)*) => { handler!(publish_dock_remembered, $($handler)*) };
     }
 
     let editor = app.global::<Editor>();
@@ -2362,6 +2391,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_settings_proxies_changed(on_window!(|state, on: bool| {
         state.handle(Msg::Settings(SettingsMsg::ProxiesChanged(on)));
     }));
+    app.on_settings_remember_layout_changed(on_window!(|state, on: bool| {
+        state.handle(Msg::Settings(SettingsMsg::RememberLayoutChanged(on)));
+    }));
     app.on_settings_gpu_changed(on_window!(|state, on: bool| {
         state.handle(Msg::Settings(SettingsMsg::GpuChanged(on)));
     }));
@@ -2746,6 +2778,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
                 }
                 if action == "close-window" {
                     log::info!("close: File > Close Window");
+                    shell.studio.borrow_mut().save_layout(app.window());
                     let outcome = close_window(
                         || shell.studio.borrow_mut().close_project(),
                         || {

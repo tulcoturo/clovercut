@@ -8,7 +8,7 @@ qualification of every feature.
 | --- | --- |
 | `4ab430e6`, `f0587664` | Shared device flags and memory thresholds adapted in the GPU candidate; macOS raster-window safe start remains separate. |
 | `e938cfdf` | Review export pipelining/YUV conversion separately against alpha, colour/HDR, cancellation and atomic export guarantees. |
-| `f500664b` | Reviewed against existing presets; preserve preset identity and Reset semantics. See workspace/restart review. |
+| `f500664b` | Workspace candidate implemented with named preset identity and Reset semantics; local storage/UI-generation checks pass, native CI pending. See remember-workspace audit. |
 | `a21dd4f6` | Candidate missing-media removal: preserve Undo across every timeline and reject stale relink results. |
 | `b5e19da2` | Reviewed save-before-exit flow; launch failure, active recording/export and lock release need explicit handling. See workspace/restart review. |
 | `25cf5073` | CapCut importer requires separate format, path handling, fixture and unsupported-feature review. |

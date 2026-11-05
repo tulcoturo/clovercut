@@ -233,10 +233,12 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   strict project Clippy, Slint source generation and all 25 locale inventories
   pass. Full native controller qualification remains pending.
 
-- **Next workspace work:** persist selected preset alongside wide/compact docks,
-  and retain Reset semantics, preference recovery and bounded geometry. Keep
-  restart offers separate until save/recording/export/project-lock behavior is
-  accounted for. [Source review and implementation requirements](docs/audits/2026-11-05-workspace-restart-review.md).
+- **Workspace persistence candidate:** retain selected preset alongside wide/compact
+  docks, Reset semantics, preference recovery and bounded window geometry. Debounce
+  edits/resizes and flush normal close paths. 53 storage/preference tests, strict
+  isolated Clippy, Slint source generation and 25 locales pass; native controller
+  qualification remains pending. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
+  Restart offers remain separate pending save/recording/export/project-lock handling.
 
 ## Completion evidence
 

@@ -51,7 +51,7 @@ mod masking;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
-use crate::dock::{Dock, DockLayout, SEAT_GAP, default_dock, row_at, row_top};
+use crate::dock::{Dock, DockLayout, SEAT_GAP, row_at, row_top};
 use crate::format::{
     WAVE_BAR, WAVE_PITCH, colour_of, frames_timecode, hex_of, hex_with_alpha, rate_label,
     running_time, wave_columns, wave_path, when_phrase,
@@ -1068,6 +1068,7 @@ pub struct Studio {
     /// while that clip is still the one selected.
     words: Option<(String, usize, usize)>,
     commit_timer: slint::Timer,
+    layout_timer: slint::Timer,
     /// What the catalogue shelves were last built from; while nothing in
     /// it changes the shelves are not rebuilt.
     shelf_stamp: std::cell::RefCell<Option<ShelfStamp>>,
@@ -2412,6 +2413,17 @@ impl Studio {
     /// read off disk.
     pub fn new(host: Host) -> Self {
         let prefs = Preferences::load(&host.dirs);
+        let saved = prefs.layout.as_ref().filter(|_| prefs.remembers_layout());
+        let current_layout_preset = saved.map(|layout| layout.preset).unwrap_or_default();
+        let dock = saved
+            .and_then(|layout| layout.wide.as_ref())
+            .and_then(Dock::from_saved)
+            .unwrap_or_else(|| current_layout_preset.build_dock());
+        let dock_aside = saved
+            .and_then(|layout| layout.compact.as_ref())
+            .and_then(Dock::from_saved)
+            .unwrap_or_else(crate::dock::compact_dock);
+
         let captions = crate::panes::captions::CaptionsPane::with_saved_language(
             prefs.caption_language.as_deref(),
         );
@@ -2495,9 +2507,9 @@ impl Studio {
             posters_pending: HashSet::new(),
             lengths: HashMap::new(),
             project_name: t("common.untitledProject"),
-            dock: default_dock(),
-            current_layout_preset: crate::dock::LayoutPreset::Default,
-            dock_aside: crate::dock::compact_dock(),
+            dock,
+            current_layout_preset,
+            dock_aside,
             compact: false,
             workspace: (0.0, 0.0),
             inspector_minimums: HashMap::new(),
@@ -2515,6 +2527,7 @@ impl Studio {
             commit_targets: Vec::new(),
             words: None,
             commit_timer: slint::Timer::default(),
+            layout_timer: slint::Timer::default(),
             shelf_stamp: std::cell::RefCell::new(None),
             look_art: std::cell::RefCell::new(HashMap::new()),
             card_paths: HashMap::new(),
@@ -11177,6 +11190,62 @@ impl Studio {
         // A timeline put back while something plays brings its meters
         // with it; one taken away stops them at their next tick.
         self.wake_meters();
+    }
+
+    /// [`Studio::publish_dock`] for a change to the arrangement, which is
+    /// remembered once the panels settle.
+    pub fn publish_dock_remembered(&self, app: &App, models: &Models) {
+        self.publish_dock(app, models);
+        self.remember_layout_soon();
+    }
+
+    /// Saves the layout a moment after the last change: a gutter drag or a
+    /// window resize arrives as a stream, and the file is written once.
+    pub fn remember_layout_soon(&self) {
+        if !self.prefs.remembers_layout() || self.meters.phone {
+            return;
+        }
+        self.layout_timer.start(
+            slint::TimerMode::SingleShot,
+            std::time::Duration::from_millis(600),
+            || {
+                crate::host::Shell::with(|shell, app| {
+                    shell.studio.borrow_mut().save_layout(app.window());
+                });
+            },
+        );
+    }
+
+    /// Writes the docks and the window's size into the settings, when they
+    /// changed and Settings > General says to remember them. A phone's
+    /// shell has no dock to keep.
+    pub fn save_layout(&mut self, window: &slint::Window) {
+        self.layout_timer.stop();
+        if !self.prefs.remembers_layout() || self.meters.phone {
+            return;
+        }
+        let (wide, compact) = if self.compact {
+            (&self.dock_aside, &self.dock)
+        } else {
+            (&self.dock, &self.dock_aside)
+        };
+        let mut layout = self.prefs.layout.clone().unwrap_or_default();
+        layout.preset = self.current_layout_preset;
+        layout.wide = Some(wide.to_saved());
+        layout.compact = Some(compact.to_saved());
+        let maximized = crate::platform::is_maximized(window);
+        layout.maximized = maximized;
+        // A maximised, full-screen or minimised window's size is not the
+        // one to come back to; the last ordinary size is kept instead.
+        let size = window.size().to_logical(window.scale_factor());
+        if !maximized && !window.is_fullscreen() && size.width >= 320.0 && size.height >= 240.0 {
+            layout.width = Some(size.width);
+            layout.height = Some(size.height);
+        }
+        if self.prefs.layout.as_ref() != Some(&layout) {
+            self.prefs.layout = Some(layout);
+            self.prefs.save(&self.host.dirs);
+        }
     }
 
     pub fn set_layout_preset(&mut self, preset: crate::dock::LayoutPreset) {
