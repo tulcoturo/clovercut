@@ -565,6 +565,17 @@ impl Transcriber {
             return Err("transcription cancelled".to_owned());
         }
 
+        // Two hardware threads are left to playback, the window and decoders.
+        // Share that limit between voice detection and transcription.
+        let threads = std::thread::available_parallelism()
+            .map(|count| count.get().saturating_sub(2).clamp(1, 8))
+            .unwrap_or(4);
+        let speech = speech_spans(dirs, &samples, threads);
+        if cancel.load(Ordering::Relaxed) {
+            return Err("transcription cancelled".to_owned());
+        }
+        let reel = crate::speech_reel::SpeechReel::new(&samples, &speech);
+
         let mut loaded = self
             .model
             .lock()
@@ -590,9 +601,6 @@ impl Transcriber {
         // the window and the decoders. On every one of a four-core
         // machine's eight, whisper starved them, and the preview stuttered
         // and its sound broke up for as long as a run went on (#388).
-        let threads = std::thread::available_parallelism()
-            .map(|count| count.get().saturating_sub(2).clamp(1, 8))
-            .unwrap_or(4);
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_n_threads(threads as i32);
         // The chosen language, or first-window detection when automatic.
@@ -625,7 +633,7 @@ impl Transcriber {
         }
         // Whisper calls back as it starts each window, with how far into
         // the sound it is; the window it starts reads thirty seconds more.
-        let window = (30.0 / request.window).min(1.0) as f32;
+        let window = (30.0 / reel.seconds()).min(1.0) as f32;
         progress(JobStage::Working {
             done: 0.0,
             next: window,
@@ -638,16 +646,11 @@ impl Transcriber {
             });
         });
 
-        // Where the speech is, for timing the captions; see `VAD_MODEL`.
-        // Without it the captions come out as whisper timed them.
+        // Detection and reel construction above may have been cancelled.
         if cancel.load(Ordering::Relaxed) {
             return Err("transcription cancelled".to_owned());
         }
-        let speech = speech_spans(dirs, &samples, threads);
-        if cancel.load(Ordering::Relaxed) {
-            return Err("transcription cancelled".to_owned());
-        }
-        let run = state.full(params, &samples);
+        let run = state.full(params, reel.samples());
 
         // An abort ends whisper's run as an error of its own - "failed to
         // encode", -6 - so a Cancel read as a failure, and the person was
@@ -668,6 +671,7 @@ impl Transcriber {
                 // Whisper's timestamps are centiseconds.
                 let start = segment.start_timestamp() as f64 / 100.0;
                 let end = segment.end_timestamp() as f64 / 100.0;
+                let (start, end) = reel.source_span(start, end);
                 let (start, end) = on_speech(start, end, &speech);
                 let text = segment.to_str_lossy().ok()?.trim().to_owned();
                 keep_segment(start, end, text)
@@ -698,6 +702,17 @@ fn keep_segment(start: f64, end: f64, text: String) -> Option<Segment> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn reel_timing_refines_in_original_coordinates() {
+        let samples = vec![0.0; 320_000];
+        let speech = [(2.0, 3.0), (12.0, 13.0)];
+        let reel = crate::speech_reel::SpeechReel::new(&samples, &speech);
+        let (start, end) = reel.source_span(3.0, 6.0);
+        assert_eq!(super::on_speech(start, end, &speech), (12.0, 13.0));
+        let (start, end) = reel.source_span(0.0, 3.0);
+        assert_eq!(super::on_speech(start, end, &speech), (2.0, 3.0));
+    }
+
     #[test]
     fn legacy_transcription_requests_default_to_auto() {
         let mut wire = serde_json::json!({

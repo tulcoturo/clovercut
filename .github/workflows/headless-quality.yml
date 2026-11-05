@@ -21,6 +21,7 @@ on:
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
       - 'src/crates/concat-speech/src/languages.rs'
+      - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
@@ -58,6 +59,7 @@ on:
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
       - 'src/crates/concat-speech/src/languages.rs'
+      - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
       - 'src/crates/concat-host/src/projects.rs'
       - 'src/crates/concat-host/src/templates.rs'
@@ -147,6 +149,11 @@ jobs:
         run: |
           clippy-driver --edition 2024 --test -D warnings -W missing-docs crates/concat-speech/src/languages.rs -o /tmp/clovercut-caption-language-tests
           /tmp/clovercut-caption-language-tests
+      - name: Speech reel timing without native speech libraries
+        working-directory: src
+        run: |
+          clippy-driver --edition 2024 --test -D warnings -W missing-docs crates/concat-speech/src/speech_reel.rs -o /tmp/clovercut-speech-reel-tests
+          /tmp/clovercut-speech-reel-tests
       - name: Lint editing and document logic
         working-directory: src
         run: cargo clippy --locked -p concat-core -p concat-project --all-targets -- -D warnings
