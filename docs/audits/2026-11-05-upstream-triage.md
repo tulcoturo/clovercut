@@ -8,9 +8,9 @@ qualification of every feature.
 | --- | --- |
 | `4ab430e6`, `f0587664` | Shared device flags and memory thresholds adapted in the GPU candidate; macOS raster-window safe start remains separate. |
 | `e938cfdf` | Review export pipelining/YUV conversion separately against alpha, colour/HDR, cancellation and atomic export guarantees. |
-| `f500664b` | Compare workspace/window restoration against Clovercut's existing preferences and desktop layouts before importing. |
+| `f500664b` | Reviewed against existing presets; preserve preset identity and Reset semantics. See workspace/restart review. |
 | `a21dd4f6` | Candidate missing-media removal: preserve Undo across every timeline and reject stale relink results. |
-| `b5e19da2` | Candidate restart offer: preserve dirty projects, recording/export state and relaunch recovery. |
+| `b5e19da2` | Reviewed save-before-exit flow; launch failure, active recording/export and lock release need explicit handling. See workspace/restart review. |
 | `25cf5073` | CapCut importer requires separate format, path handling, fixture and unsupported-feature review. |
 | `d75331bc`, `2b29732e` | Compare enhancement controls/progress against existing cancellation and estimates. |
 | `773efd12` | Clovercut already exposes caption generation in the inline library; inspect for remaining useful differences. |
@@ -22,3 +22,5 @@ qualification of every feature.
 
 Earlier feature backlog remains in the 4 November review. This inventory adds
 new candidates; it does not supersede compatibility decisions there.
+
+Detailed workspace/restart review: [source comparison](2026-11-05-workspace-restart-review.md).
