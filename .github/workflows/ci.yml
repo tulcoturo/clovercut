@@ -246,9 +246,12 @@ jobs:
       # -D warnings covers rustc lints too (missing_docs among them), so a
       # public item without documentation fails here, not in review. Lints
       # before execution; their compilation cost is reported separately.
+      # Generated Slint Rust can exceed 45 minutes on a cold hosted runner
+      # (run 42068736838). Match the existing test-build compile budget;
+      # execution limits and the single-job memory cap remain unchanged.
       - run: cargo clippy --workspace --all-targets --features concat/ui-walkthrough -- -D warnings
         if: inputs.desktop_only != true
-        timeout-minutes: 45
+        timeout-minutes: 75
         working-directory: src
 
       # The tests are compiled in a step of their own, so a slow compile
