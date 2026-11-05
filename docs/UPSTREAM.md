@@ -25,6 +25,17 @@ commit/cancel gestures and bounded-geometry protection. See the
 [adaptation record](audits/2026-11-04-timeline-fades.md). Native CI passed as part
 of the same `a6a9a352` qualification.
 
+A subsequent candidate adds the independent [Remove Black package](audits/2026-11-04-remove-black.md)
+from `2b594e8e` and [spoken-language selection](audits/2026-11-04-caption-language.md)
+from `e2b20c27`, including Clovercut's inline caption panel. The old chroma-key
+renderer is retained; the larger inspector rewrite remains separate. Native CI
+for this candidate is pending.
+
+A stacked [speech-reel candidate](audits/2026-11-04-speech-reel.md) now adapts
+speech concatenation from `e2b20c27`, with explicit seam endpoint mapping and
+fallback to full audio when detection finds no usable speech. Headless CI passed;
+native integration and recognition quality remain pending.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

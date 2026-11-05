@@ -435,3 +435,32 @@ checks controller history, cancellation, pending edits and persistence. It is
 selected by the existing desktop phase-3 filter; this candidate requires at least
 14 selected desktop cases. UI code generation alone does not qualify native Rust
 integration or physical audio feedback.
+
+## Cutout and spoken-language candidates
+
+The built-in shader probe suite automatically includes `concat.remove-black`.
+`gpu::tests::remove_black_preserves_glow_and_transparent_composition` additionally
+checks straight foreground colour, partial coverage and stacked alpha. Require an
+adapter when qualifying shaders; a software Vulkan run is not physical GPU evidence.
+
+Run `python3 scripts/check_home_ui.py --offline --suite captions` for selection in
+the actual sheet and inline panel, including an English-only model's locked list.
+The pure `concat-speech/src/languages.rs` policy also runs in headless CI without
+native speech libraries. Native coverage verifies the linked Whisper language
+list, omitted request fields and startup/preference persistence in the editor
+journey. An optional real-file run accepts `CONCAT_CAPTION_LANGUAGE`; these UI and
+policy checks do not establish transcription accuracy or qualify a new VAD path.
+
+### Speech-reel timestamp mapping
+
+From `src/`, run the pure mapping regression tests without native models:
+
+```sh
+clippy-driver --edition 2024 --test -D warnings -W missing-docs crates/concat-speech/src/speech_reel.rs -o /tmp/clovercut-speech-reel-tests
+/tmp/clovercut-speech-reel-tests
+```
+
+These verify sample extraction, padding merges, fallback and endpoint mapping.
+The native speech suite additionally verifies that mapped segments are refined
+against speech spans in original clip coordinates. Recognition quality still
+requires the explicit model/audio transcription checks described above.

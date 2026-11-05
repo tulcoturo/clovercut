@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Exercise the actual home screen with Slint's simulated keyboard/accessibility backend.
+"""Exercise actual home, timeline or caption controls with Slint's testing backend.
 
 No native window, GPU, audio, personal profile or copied UI implementation.
 This complements full desktop CI; it does not qualify physical accessibility.
@@ -17,7 +17,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
@@ -49,10 +49,13 @@ def main():
         scrollbar = json.dumps(str(workspace / "crates/concat/ui/primitives/scrollbar.slint"))[1:-1]
         lanes = json.dumps(str(workspace / "crates/concat/ui/timeline/lanes.slint"))[1:-1]
         model = json.dumps(str(workspace / "crates/concat/ui/timeline/model.slint"))[1:-1]
+        captions_dialog = json.dumps(str(workspace / "crates/concat/ui/dialogs/captions.slint"))[1:-1]
+        captions_panel = json.dumps(str(workspace / "crates/concat/ui/workspace/captions-panel.slint"))[1:-1]
         probe = (fixtures / "probe.slint").read_text()
         (scratch / "probe.slint").write_text(
             probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar)
                 .replace("__LANES__", lanes).replace("__TIMELINE_MODEL__", model)
+                .replace("__CAPTIONS_DIALOG__", captions_dialog).replace("__CAPTIONS_PANEL__", captions_panel)
         )
         env = os.environ.copy()
         env.setdefault("CARGO_TARGET_DIR", str(workspace / "target"))
