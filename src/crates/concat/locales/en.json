@@ -560,6 +560,7 @@
   "settings.general": "General",
   "settings.gpu": "Draw on the GPU",
   "settings.gpuHint": "Off, the window and the preview draw in software: slower, but out of the way of a graphics driver that closes Clovercut. It turns off by itself if Clovercut closes while starting, until Clovercut's next update. Takes effect the next time Clovercut starts.",
+  "settings.gpuMacHint": "Off, only the window is drawn in software; video rendering still uses the GPU. Takes effect next time Clovercut starts.",
   "settings.gpuNextStart": "Clovercut will draw this way from the next time it starts.",
   "settings.hideTheToken": "Hide the token",
   "settings.inUse": "In use",

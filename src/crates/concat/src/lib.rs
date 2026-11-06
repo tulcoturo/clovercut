@@ -3190,9 +3190,15 @@ const SAFE_AFTER: std::time::Duration = std::time::Duration::from_secs(15);
 /// on, and on Android, where the safe way is OpenGL ES in place of Vulkan:
 /// a phone whose Vulkan driver dies on the first frame closed on every
 /// launch, and the backend's fall back to OpenGL ES only catches a surface
-/// that fails to open (#507). A Mac has neither.
+/// that fails to open (#507). On macOS the window uses Skia rasterization while
+/// video composition stays on Metal, which has no software adapter.
 fn safe_start() -> (Option<concat_host::jobs::Tripwire>, bool) {
-    if !cfg!(any(windows, target_os = "linux", target_os = "android")) {
+    if !cfg!(any(
+        windows,
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos"
+    )) {
         return (None, false);
     }
     let Ok(dirs) = concat_host::AppDirs::locate() else {
@@ -3220,11 +3226,11 @@ fn safe_start() -> (Option<concat_host::jobs::Tripwire>, bool) {
 
 /// `clovercut --software`: Settings > General's GPU switch turned off before
 /// the window opens, so this launch and every one after it draws in
-/// software - the way into a window that a driver draws as coloured
-/// squares, where the switch itself cannot be seen. The switch turns it
+/// software (the window only on macOS), allowing access when a driver
+/// draws coloured squares and the switch itself cannot be seen. The switch turns it
 /// back on. Nothing where [`safe_start`] has no software rasteriser.
 pub fn draw_in_software() {
-    if !cfg!(any(windows, target_os = "linux")) {
+    if !cfg!(any(windows, target_os = "linux", target_os = "macos")) {
         log::warn!("start: --software has no software rasteriser to draw on here");
         return;
     }

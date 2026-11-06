@@ -44,6 +44,11 @@ adapts packet-end trimming from `536a416d`, preserving encoder selection and
 Opus/PCM handling. Full native CI passed on `b79af76f` with 1343 ordinary, 30 gRPC and 14
 virtual-desktop tests. Platform encoders are not yet adapted or qualified.
 
+A separate [macOS safe-start candidate](audits/2026-11-06-macos-safe-start.md)
+adapts the remaining raster-window behavior of `4ab430e6`, retaining Metal video
+composition and the existing macOS deployment minimum. Physical Mac startup is
+not yet qualified.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

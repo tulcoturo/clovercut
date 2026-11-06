@@ -560,6 +560,7 @@
   "settings.general": "Općenito",
   "settings.gpu": "Crtaj na GPU-u",
   "settings.gpuHint": "Isključeno, prozor i pregled crtaju se softverski: sporije, ali izvan dosega grafičkog upravljačkog programa koji zatvara Clovercut. Samo se isključuje ako se Clovercut zatvori tijekom pokretanja. Primjenjuje se od sljedećeg pokretanja Clovercuta.",
+  "settings.gpuMacHint": "Kad je isključeno, samo se prozor iscrtava softverski; video se i dalje iscrtava pomoću GPU-a. Primjenjuje se pri sljedećem pokretanju Clovercuta.",
   "settings.gpuNextStart": "Clovercut će ovako crtati od sljedećeg pokretanja.",
   "settings.hideTheToken": "Sakrij token",
   "settings.inUse": "U uporabi",

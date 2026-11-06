@@ -560,6 +560,7 @@
   "settings.general": "全般",
   "settings.gpu": "GPU で描画",
   "settings.gpuHint": "オフでは、ウィンドウとプレビューをソフトウェアで描画します。遅くなりますが、Clovercut を終了させてしまうグラフィックドライバーを避けられます。起動中に Clovercut が終了した場合は自動でオフになります。次に Clovercut を起動したときから反映されます。",
+  "settings.gpuMacHint": "オフの場合、ウィンドウのみをソフトウェアで描画し、動画の描画には引き続きGPUを使用します。Clovercutの次回起動時に反映されます。",
   "settings.gpuNextStart": "次回の起動から、Clovercut はこの方法で描画します。",
   "settings.hideTheToken": "トークンを隠す",
   "settings.inUse": "使用中",

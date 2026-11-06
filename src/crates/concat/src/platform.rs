@@ -455,9 +455,12 @@ pub fn select_backend(
     on_focused: impl Fn() + 'static,
     on_exiting: impl Fn() + 'static,
 ) -> Result<Option<Gpu>, PlatformError> {
-    // The device the renderer and the monitor share. Taken first, because
-    // the backend is selected with it.
-    let mut gpu = Gpu::acquire();
+    let apple_safe = cfg!(target_os = "macos")
+        && std::env::var("CONCAT_GPU")
+            .is_ok_and(|value| value.trim().eq_ignore_ascii_case("software"));
+    // A macOS safe window needs no GPU device. Avoid opening one only to
+    // discard it; the video compositor opens its separate Metal device later.
+    let mut gpu = if apple_safe { None } else { Gpu::acquire() };
     // A software adapter is not shared. Skia drew the window through
     // Direct3D 12 on WARP, and the monitor composited on the same device:
     // when WARP removed it (0x887A0005, as a clip went onto the timeline),
@@ -467,11 +470,17 @@ pub fn select_backend(
     // path run on a CPU - and the monitor composites on a device of its
     // own, on the software adapter too (CONCAT_GPU, which the compositor
     // reads), handing the window pixels as it does with no GPU at all.
-    let software = gpu.as_ref().is_some_and(Gpu::is_software);
-    if software {
+    // Metal has no software adapter. An explicit safe start must choose
+    // Skia's CPU renderer instead of falling back to another Metal window.
+    let software = apple_safe || gpu.as_ref().is_some_and(Gpu::is_software);
+    if apple_safe {
+        log::warn!("safe start: the window draws on the CPU; video composition still uses Metal");
+    } else if software {
         log::warn!(
             "the GPU adapter is a software rasteriser; the window draws on the CPU and the monitor on a device of its own"
         );
+    }
+    if software {
         // SAFETY: the process is single-threaded at this point - the
         // backend, the engine's threads and the window all come after
         // this function - so nothing reads the environment concurrently.

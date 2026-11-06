@@ -560,6 +560,7 @@
   "settings.general": "Chung",
   "settings.gpu": "Vẽ bằng GPU",
   "settings.gpuHint": "Khi tắt, cửa sổ và bản xem trước được vẽ bằng phần mềm: chậm hơn, nhưng tránh được trình điều khiển đồ họa khiến Clovercut bị đóng. Tùy chọn này tự tắt nếu Clovercut bị đóng khi đang khởi động. Có hiệu lực từ lần khởi động Clovercut tiếp theo.",
+  "settings.gpuMacHint": "Khi tắt, chỉ cửa sổ được vẽ bằng phần mềm; video vẫn dùng GPU. Có hiệu lực khi khởi động Clovercut lần tiếp theo.",
   "settings.gpuNextStart": "Clovercut sẽ vẽ theo cách này từ lần khởi động tiếp theo.",
   "settings.hideTheToken": "Ẩn mã thông báo",
   "settings.inUse": "Đang sử dụng",

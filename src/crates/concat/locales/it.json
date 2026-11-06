@@ -560,6 +560,7 @@
   "settings.general": "Generale",
   "settings.gpu": "Disegna sulla GPU",
   "settings.gpuHint": "Disattivato, la finestra e l'anteprima vengono disegnate via software: più lento, ma al riparo da un driver grafico che chiude Clovercut. Si disattiva da solo se Clovercut si chiude durante l'avvio. Ha effetto dal prossimo avvio di Clovercut.",
+  "settings.gpuMacHint": "Se disattivato, solo la finestra viene disegnata via software; il video continua a usare la GPU. Ha effetto al prossimo avvio di Clovercut.",
   "settings.gpuNextStart": "Clovercut disegnerà così dal prossimo avvio.",
   "settings.hideTheToken": "Nascondi il token",
   "settings.inUse": "In uso",

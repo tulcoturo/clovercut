@@ -560,6 +560,7 @@
   "settings.general": "Algemeen",
   "settings.gpu": "Tekenen op de GPU",
   "settings.gpuHint": "Uit: het venster en de voorvertoning tekenen in software; trager, maar buiten bereik van een grafisch stuurprogramma dat Clovercut afsluit. Het gaat vanzelf uit als Clovercut tijdens het opstarten sluit. Werkt vanaf de volgende keer dat Clovercut start.",
+  "settings.gpuMacHint": "Uitgeschakeld wordt alleen het venster met software getekend; video blijft de GPU gebruiken. Werkt vanaf de volgende start van Clovercut.",
   "settings.gpuNextStart": "Clovercut tekent zo vanaf de volgende keer dat het start.",
   "settings.hideTheToken": "Token verbergen",
   "settings.inUse": "In gebruik",

@@ -560,6 +560,7 @@
   "settings.general": "通用",
   "settings.gpu": "使用 GPU 绘制",
   "settings.gpuHint": "关闭时，窗口和预览改用软件绘制：较慢，但能避开会让 Clovercut 关闭的显卡驱动。如果 Clovercut 在启动时关闭，此项会自动关闭。下次启动 Clovercut 时生效。",
+  "settings.gpuMacHint": "关闭后，仅窗口使用软件绘制，视频渲染仍使用 GPU。下次启动 Clovercut 时生效。",
   "settings.gpuNextStart": "Clovercut 将从下次启动起以这种方式绘制。",
   "settings.hideTheToken": "隐藏令牌",
   "settings.inUse": "使用中",

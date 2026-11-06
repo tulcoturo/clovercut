@@ -560,6 +560,7 @@
   "settings.general": "ทั่วไป",
   "settings.gpu": "วาดด้วย GPU",
   "settings.gpuHint": "เมื่อปิด หน้าต่างและภาพตัวอย่างจะวาดด้วยซอฟต์แวร์ ช้ากว่า แต่พ้นทางไดรเวอร์กราฟิกที่ทำให้ Clovercut ปิดตัว ตัวเลือกนี้จะปิดเองหาก Clovercut ปิดตัวระหว่างเริ่มทำงาน มีผลเมื่อเริ่ม Clovercut ครั้งถัดไป",
+  "settings.gpuMacHint": "เมื่อปิด จะวาดเฉพาะหน้าต่างด้วยซอฟต์แวร์ ส่วนวิดีโอยังคงใช้ GPU มีผลเมื่อเริ่ม Clovercut ครั้งถัดไป",
   "settings.gpuNextStart": "Clovercut จะวาดแบบนี้ตั้งแต่การเริ่มครั้งถัดไป",
   "settings.hideTheToken": "ซ่อนโทเค็น",
   "settings.inUse": "ใช้อยู่",

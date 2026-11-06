@@ -560,6 +560,7 @@
   "settings.general": "Umum",
   "settings.gpu": "Menggambar dengan GPU",
   "settings.gpuHint": "Jika nonaktif, jendela dan pratinjau digambar secara perangkat lunak: lebih lambat, tetapi terhindar dari driver grafis yang menutup Clovercut. Opsi ini nonaktif dengan sendirinya jika Clovercut tertutup saat dimulai. Berlaku saat Clovercut dimulai berikutnya.",
+  "settings.gpuMacHint": "Saat dinonaktifkan, hanya jendela yang digambar melalui perangkat lunak; video tetap menggunakan GPU. Berlaku saat Clovercut dimulai berikutnya.",
   "settings.gpuNextStart": "Clovercut akan menggambar dengan cara ini mulai saat berikutnya dijalankan.",
   "settings.hideTheToken": "Sembunyikan token",
   "settings.inUse": "Digunakan",

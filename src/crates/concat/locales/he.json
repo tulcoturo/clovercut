@@ -560,6 +560,7 @@
   "settings.general": "כללי",
   "settings.gpu": "ציור ב-GPU",
   "settings.gpuHint": "כשכבוי, החלון והתצוגה המקדימה מצוירים בתוכנה: איטי יותר, אבל מחוץ לדרכו של מנהל התקן גרפי שסוגר את Clovercut. ההגדרה נכבית מעצמה אם Clovercut נסגר בזמן ההפעלה. נכנס לתוקף בהפעלה הבאה של Clovercut.",
+  "settings.gpuMacHint": "כשהאפשרות כבויה, רק החלון מצויר בתוכנה; עיבוד הווידאו ממשיך להשתמש במעבד הגרפי. השינוי ייכנס לתוקף בהפעלה הבאה של Clovercut.",
   "settings.gpuNextStart": "Clovercut יצייר כך החל מההפעלה הבאה.",
   "settings.hideTheToken": "הסתרת האסימון",
   "settings.inUse": "בשימוש",
