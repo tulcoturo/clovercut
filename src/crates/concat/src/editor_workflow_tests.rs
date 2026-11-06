@@ -84,8 +84,27 @@ fn import_edit_reopen_relink_export() {
     let dirs = concat_host::AppDirs::locate().unwrap();
     let mut prefs = crate::prefs::Preferences::load(&dirs);
     prefs.caption_language = Some("pt-BR".into());
+    prefs.layout = Some(crate::prefs::SavedLayout {
+        preset: crate::dock::LayoutPreset::Audio,
+        wide: Some(crate::workspace_layout::SavedDock::Pane("preview".into())),
+        compact: Some(crate::workspace_layout::SavedDock::Pane("media".into())),
+        ..Default::default()
+    });
     prefs.save(&dirs);
     let mut studio = Studio::new(Host::start(gpu).unwrap());
+    assert_eq!(
+        studio.current_layout_preset,
+        crate::dock::LayoutPreset::Audio
+    );
+    assert_eq!(
+        studio.dock.to_saved(),
+        crate::workspace_layout::SavedDock::Pane("preview".into())
+    );
+    studio.reset_current_layout();
+    assert_eq!(
+        studio.dock.to_saved(),
+        crate::dock::LayoutPreset::Audio.build_dock().to_saved()
+    );
     assert_eq!(
         studio.captions.language.as_deref(),
         Some("pt"),
@@ -110,6 +129,25 @@ fn import_edit_reopen_relink_export() {
         "inline selection does not open the sheet"
     );
     let app = App::new().unwrap();
+    studio.set_compact(true);
+    studio.save_layout(app.window());
+    let saved = crate::prefs::Preferences::load(&dirs).layout.unwrap();
+    assert_eq!(saved.preset, crate::dock::LayoutPreset::Audio);
+    assert_eq!(
+        saved.wide,
+        Some(crate::dock::LayoutPreset::Audio.build_dock().to_saved())
+    );
+    assert_eq!(
+        saved.compact,
+        Some(crate::workspace_layout::SavedDock::Pane("media".into()))
+    );
+    studio.handle(Msg::Settings(
+        crate::panes::settings::SettingsMsg::RememberLayoutChanged(false),
+    ));
+    assert!(crate::prefs::Preferences::load(&dirs).layout.is_none());
+    studio.set_compact(false);
+    studio.set_layout_preset(crate::dock::LayoutPreset::Default);
+
     let info = projects::create(root.to_str().unwrap(), "Journey", 160, 90, 10, 1).unwrap();
     studio.open_project(info.clone()).unwrap();
     let shell = Rc::new(Shell {

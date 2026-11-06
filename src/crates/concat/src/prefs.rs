@@ -20,6 +20,8 @@ const FILE: &str = "settings.json";
 /// https://github.com/jub0t/Concat/issues/320
 pub const UI_SCALES: [u32; 6] = [100, 110, 125, 150, 175, 200];
 
+pub use crate::workspace_layout::SavedLayout;
+
 /// Remembered preferences.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -153,6 +155,10 @@ pub struct Preferences {
     /// How the voiceover panel was last set up.
     #[serde(default)]
     pub voiceover: VoiceoverPrefs,
+    /// Remember panel arrangements and window size; absent means enabled.
+    pub remember_layout: Option<bool>,
+    /// Saved desktop arrangement while remembering is enabled.
+    pub layout: Option<SavedLayout>,
     /// Rebound shortcuts, by action id: the chord each was given, or ""
     /// for an action a rebind left with none. Absent is the shipped
     /// chord — the file holds what moved, not the whole table. Written
@@ -196,6 +202,11 @@ impl Default for VoiceoverPrefs {
 }
 
 impl Preferences {
+    /// Whether desktop layout is restored on the next launch.
+    pub fn remembers_layout(&self) -> bool {
+        self.remember_layout.unwrap_or(true)
+    }
+
     /// Whether the timeline shows its VU meters; see `vu_meters`.
     pub fn meters_shown(&self) -> bool {
         self.vu_meters.unwrap_or(true)
@@ -428,6 +439,40 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn layout_preferences_keep_legacy_defaults_and_named_presets() {
+        let old: Preferences = serde_json::from_str("{}").unwrap();
+        assert!(old.remembers_layout());
+        assert!(old.layout.is_none());
+        let mut prefs = old;
+        prefs.layout = Some(SavedLayout {
+            preset: crate::workspace_layout::LayoutPreset::Audio,
+            wide: Some(crate::workspace_layout::SavedDock::Pane("preview".into())),
+            width: Some(1250.0),
+            height: Some(800.0),
+            ..Default::default()
+        });
+        let json = serde_json::to_string(&prefs).unwrap();
+        let back: Preferences = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.layout, prefs.layout);
+        assert!(json.contains("audio"));
+        prefs.remember_layout = Some(false);
+        prefs.layout = None;
+        let back: Preferences =
+            serde_json::from_str(&serde_json::to_string(&prefs).unwrap()).unwrap();
+        assert!(!back.remembers_layout());
+        assert!(back.layout.is_none());
+    }
+
+    #[test]
+    fn invalid_layout_preserves_unrelated_preferences_during_recovery() {
+        let bytes = br##"{"dark":true,"captionLanguage":"pt","layout":{"preset":"futurePreset"}}"##;
+        let recovered = super::salvage(bytes);
+        assert_eq!(recovered.dark, Some(true));
+        assert_eq!(recovered.caption_language.as_deref(), Some("pt"));
+        assert!(recovered.layout.is_none());
+    }
 
     #[test]
     fn simultaneous_saves_leave_a_complete_private_file() {

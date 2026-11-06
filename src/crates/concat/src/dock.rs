@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 
 use crate::ui::{DockDivider, DockSide, PaneKind, SeatBox};
+pub use crate::workspace_layout::{LayoutPreset, SavedDock};
 
 pub const SEAT_MIN_W: f32 = 240.0;
 pub const SEAT_MIN_H: f32 = 140.0;
@@ -362,17 +363,6 @@ pub fn lay_out_with_minimums(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum LayoutPreset {
-    #[default]
-    Default = 0,
-    Audio = 1,
-    VerticalRight = 2,
-    VerticalLeft = 3,
-    InspectorPriority = 4,
-    MediaPriority = 5,
-}
-
 impl LayoutPreset {
     pub fn from_index(index: i32) -> Self {
         match index {
@@ -540,6 +530,82 @@ pub fn compact_dock() -> Dock {
 
 pub fn row_top(heights: &[f32], row: i32) -> f32 {
     heights.iter().take(row.max(0) as usize).sum()
+}
+
+/// Deeper than any arrangement a person builds by hand; a file claiming
+/// more is not one Concat wrote.
+const SAVED_DEPTH: usize = 24;
+
+fn pane_name(kind: PaneKind) -> &'static str {
+    match kind {
+        PaneKind::Media => "media",
+        PaneKind::Preview => "preview",
+        PaneKind::Inspector => "inspector",
+        PaneKind::Timeline => "timeline",
+        PaneKind::Keyframes => "keyframes",
+    }
+}
+
+fn pane_of(name: &str) -> Option<PaneKind> {
+    Some(match name {
+        "media" => PaneKind::Media,
+        "preview" => PaneKind::Preview,
+        "inspector" => PaneKind::Inspector,
+        "timeline" => PaneKind::Timeline,
+        "keyframes" => PaneKind::Keyframes,
+        _ => return None,
+    })
+}
+
+impl Dock {
+    pub fn to_saved(&self) -> SavedDock {
+        match self {
+            Dock::Leaf(kind) => SavedDock::Pane(pane_name(*kind).to_owned()),
+            Dock::Split {
+                columns,
+                ratio,
+                first,
+                second,
+            } => SavedDock::Split {
+                columns: *columns,
+                ratio: *ratio,
+                first: Box::new(first.to_saved()),
+                second: Box::new(second.to_saved()),
+            },
+        }
+    }
+
+    /// The dock a saved one describes, or None when any of it does not read:
+    /// a view this build does not know, a ratio that is not a number, a tree
+    /// deeper than a hand could make. A ratio is pulled back inside the
+    /// gutter's reach, so a seat cannot come back squeezed to nothing.
+    pub fn from_saved(saved: &SavedDock) -> Option<Dock> {
+        fn build(saved: &SavedDock, depth: usize) -> Option<Dock> {
+            if depth > SAVED_DEPTH {
+                return None;
+            }
+            Some(match saved {
+                SavedDock::Pane(name) => Dock::Leaf(pane_of(name)?),
+                SavedDock::Split {
+                    columns,
+                    ratio,
+                    first,
+                    second,
+                } => {
+                    if !ratio.is_finite() {
+                        return None;
+                    }
+                    Dock::Split {
+                        columns: *columns,
+                        ratio: ratio.clamp(0.05, 0.95),
+                        first: Box::new(build(first, depth + 1)?),
+                        second: Box::new(build(second, depth + 1)?),
+                    }
+                }
+            })
+        }
+        build(saved, 0)
+    }
 }
 
 /// The row a point down the stack falls in, clamped to the stack.
@@ -730,5 +796,49 @@ mod tests {
             assert!(out.seats.iter().any(|s| s.kind == PaneKind::Inspector));
             assert!(out.seats.iter().any(|s| s.kind == PaneKind::Timeline));
         }
+    }
+}
+
+#[cfg(test)]
+mod saved_tests {
+    use super::*;
+
+    #[test]
+    fn presets_and_compact_layout_round_trip_without_changing_reset_target() {
+        for index in 0..6 {
+            let preset = LayoutPreset::from_index(index);
+            let dock = preset.build_dock().to_saved();
+            let read: SavedDock =
+                serde_json::from_str(&serde_json::to_string(&dock).unwrap()).unwrap();
+            assert_eq!(Dock::from_saved(&read).unwrap().to_saved(), dock);
+            let named: LayoutPreset =
+                serde_json::from_str(&serde_json::to_string(&preset).unwrap()).unwrap();
+            assert_eq!(named, preset);
+        }
+        let dock = compact_dock().to_saved();
+        assert_eq!(Dock::from_saved(&dock).unwrap().to_saved(), dock);
+    }
+
+    #[test]
+    fn saved_layout_rejects_unknown_views_nonfinite_ratios_and_excessive_depth() {
+        assert!(Dock::from_saved(&SavedDock::Pane("future-view".into())).is_none());
+        let split = |ratio, first| SavedDock::Split {
+            columns: true,
+            ratio,
+            first: Box::new(first),
+            second: Box::new(SavedDock::Pane("timeline".into())),
+        };
+        assert!(Dock::from_saved(&split(f32::NAN, SavedDock::Pane("preview".into()))).is_none());
+        let mut deep = SavedDock::Pane("preview".into());
+        for _ in 0..26 {
+            deep = split(0.5, deep);
+        }
+        assert!(Dock::from_saved(&deep).is_none());
+        let Dock::Split { ratio, .. } =
+            Dock::from_saved(&split(0.0, SavedDock::Pane("media".into()))).unwrap()
+        else {
+            panic!("expected split")
+        };
+        assert_eq!(ratio, 0.05);
     }
 }
