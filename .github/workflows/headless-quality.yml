@@ -10,6 +10,9 @@ on:
         type: string
         default: ""
   push:
+    # PRs validate their merge tree below; avoid another run on the same
+    # feature-branch push. Keep post-merge checks and manual dispatch.
+    branches: [main]
     paths:
       - '.github/workflows/headless-quality.yml'
       - 'scripts/ci/check-min-os.sh'
