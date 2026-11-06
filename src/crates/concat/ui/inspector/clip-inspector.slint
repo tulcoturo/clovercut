@@ -12,7 +12,7 @@ import {
     SectionBody,
     SectionHeader,
 } from "../primitives/panel.slint";
-import { Button } from "../primitives/modal.slint";
+import { Button, Progress } from "../primitives/modal.slint";
 import { SegmentedControl } from "../primitives/segmented-control.slint";
 import { Select } from "../primitives/select.slint";
 import { SpeedGraph, SpeedRamp } from "speed-ramp.slint";
@@ -915,18 +915,26 @@ component StabilizeRow inherits Row {
 
 /// Enhance at work on the clip's media: the model on its way, then the
 /// frames, one by one, into the copy the clip will show.
-component EnhanceRow inherits Row {
+component EnhanceRow inherits VerticalLayout {
     in property <float> progress;
     in property <bool> fetching;
 
-    label: I18n.t("common.enhance");
+    padding-left: Theme.pad;
+    padding-right: Theme.pad;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    spacing: 6px;
     Text {
         text: root.fetching
-            ? I18n.t1("clipInspector.fetchingTheModel", "\{Math.round(root.progress * 100)}")
-            : I18n.t1("clipInspector.enhancing", "\{Math.round(root.progress * 100)}");
+            ? I18n.t1("clipInspector.fetchingTheModel", "\{Math.floor(bar.shown * 100)}")
+            : I18n.t1("clipInspector.enhancing", "\{Math.floor(bar.shown * 100)}");
         color: Theme.fg-muted;
         font-size: Theme.fs;
         vertical-alignment: center;
+    }
+    bar := Progress {
+        value: root.progress;
+        live: true;
     }
 }
 
