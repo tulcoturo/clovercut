@@ -228,10 +228,10 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Integrated home-guide affordance:** external-link arrow on the empty-home
   first-edit guide, with existing home UI tests and headless CI passing.
 
-- **Missing-media removal candidate (#25):** remove a source and its clips with
-  one Undo, cancel pending relink work and reject stale rows. Project Undo/Redo,
-  strict project Clippy, Slint source generation and all 25 locale inventories
-  pass. Full native controller qualification remains pending.
+- **Integrated missing-media removal (#25):** source/clip removal is one Undo,
+  cancels pending relink work and rejects stale rows. Full CI passed 1343 ordinary,
+  30 gRPC and 14 virtual-desktop tests, including restoration and fresh relink/export.
+  [Evidence](docs/audits/2026-11-05-remove-missing-media.md).
 
 - **Workspace persistence candidate:** retain selected preset alongside wide/compact
   docks, Reset semantics, preference recovery and bounded window geometry. Debounce
