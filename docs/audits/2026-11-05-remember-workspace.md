@@ -43,3 +43,15 @@ had not included their new workspace_layout dependency. The test root now
 includes that same pure module, retaining the existing dead-code allowance for
 included editor source. The isolated storage checker already included it and
 passed. All known source consumers of prefs.rs were searched and updated.
+
+## Completed native qualification
+
+[Full CI 42269155507](https://github.com/tulcoturo/clovercut/actions/runs/42269155507)
+passed on `567b17955ca91ddec6ae38177d463e2e1296e122`: strict workspace/gRPC
+Clippy, 1349 ordinary tests, documentation examples, 30 gRPC tests, 14 selected
+virtual-desktop journeys and audio connector regressions. This includes the
+host preference integration fix, native saved-dock tests and the extended
+editor journey (restore, preset Reset, compact save and disable).
+Reports are retained locally in `/home/turotulco/Work/clovercut-pr27-qualification`.
+Physical window-manager, maximize/restore and multi-display behavior remain
+outside this virtual desktop qualification.

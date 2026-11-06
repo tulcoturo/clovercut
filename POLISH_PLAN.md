@@ -233,11 +233,11 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   30 gRPC and 14 virtual-desktop tests, including restoration and fresh relink/export.
   [Evidence](docs/audits/2026-11-05-remove-missing-media.md).
 
-- **Workspace persistence candidate:** retain selected preset alongside wide/compact
+- **Integrated workspace persistence:** retain selected preset alongside wide/compact
   docks, Reset semantics, preference recovery and bounded window geometry. Debounce
   edits/resizes and flush normal close paths. 53 storage/preference tests, strict
-  isolated Clippy, Slint source generation and 25 locales pass; native controller
-  qualification remains pending. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
+  isolated Clippy, Slint source generation and 25 locales pass. Full native CI
+  passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
   Restart offers remain separate pending save/recording/export/project-lock handling.
 
 ## Completion evidence
