@@ -198,6 +198,25 @@ fn import_edit_reopen_relink_export() {
                         .unwrap();
                     assert_eq!(studio.project().missing_media().len(), 1);
                     assert!(studio.relink.open, "real missing source opens recovery");
+                    let missing_id = studio.project().missing_media()[0].id.clone();
+                    let before_remove = studio.project().clone();
+                    // A queued search owns the old missing-list snapshot.
+                    studio.handle(Msg::Relink(RelinkMsg::RelinkIn(moved_folder.clone())));
+                    studio.handle(Msg::Relink(RelinkMsg::Remove(missing_id.clone())));
+                    assert!(!studio.project().media.iter().any(|m| m.id == missing_id));
+                    assert!(studio.project().timelines.iter().all(|t|
+                        t.clips.iter().all(|c| c.media_id != missing_id)));
+                    assert!(!studio.relink.open);
+                    studio.undo();
+                    assert_eq!(studio.project(), &before_remove, "one undo restores source and clips");
+                    studio.redo();
+                    assert!(!studio.project().media.iter().any(|m| m.id == missing_id));
+                    studio.undo();
+                    assert_eq!(studio.project(), &before_remove);
+                    let missing = studio.project().missing_media();
+                    studio.handle(Msg::Relink(RelinkMsg::Show(missing)));
+                    studio.handle(Msg::Relink(RelinkMsg::Remove("obsolete-row".into())));
+                    assert_eq!(studio.project(), &before_remove, "obsolete rows cannot edit the project");
                     studio.handle(Msg::Relink(RelinkMsg::RelinkIn(moved_folder.clone())));
                     stage = 1;
                     entered = Instant::now();
