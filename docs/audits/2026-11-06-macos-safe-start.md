@@ -29,3 +29,13 @@ CPU-window/Metal-preview behavior and physical Monterey hardware are unqualified
 The implementation does not guarantee recovery from a Metal compositor failure:
 only the window is moved away from Metal. Keep issue-specific hardware validation
 and release/package qualification separate.
+
+## Compatibility with integrated playhead palette
+
+Merged main `6b77c29231fd1d0e88b061530a39bb851cb45571` into the candidate.
+Only the upstream documentation had a conflict; both adaptation records are
+retained. Code, UI and locale changes merged automatically. The actual combined
+storage/preference suite passed all 54 tests and strict isolated Clippy. Strict
+locale inventory passed all 25 locales (1118 messages) and nine locale-tool tests
+passed. Native CI 42283728156 still targets the original macOS candidate
+`951bdee7`, so it does not qualify this combined tree.

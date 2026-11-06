@@ -389,17 +389,27 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             }
         }
     }
-    // A picked playhead colour is remembered as its hex; none remembered,
-    // or one that will not parse, is the palette's own.
-    if let Some(colour) = studio
-        .prefs
-        .playhead
-        .as_deref()
-        .and_then(format::parse_colour)
+    // Keep legacy hex values (including the accepted unprefixed form),
+    // otherwise restore a palette name against the current theme list.
     {
         let theme = app.global::<Theme>();
-        theme.set_playhead_custom(colour);
-        theme.set_playhead_is_custom(true);
+        let names = theme.get_accent_names();
+        match studio
+            .prefs
+            .playhead
+            .as_deref()
+            .and_then(format::parse_colour)
+        {
+            Some(colour) => {
+                theme.set_playhead_custom(colour);
+                theme.set_playhead_choice(slint::Model::row_count(&names) as i32);
+            }
+            None => {
+                theme.set_playhead_choice(
+                    studio.prefs.playhead_index(slint::Model::iter(&names)) as i32
+                )
+            }
+        }
     }
     // The interface scale: the row on Settings > Appearance reads the index
     // off the Theme global, and the window was already made at the scale the
@@ -2271,40 +2281,36 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             });
         }
     });
-    // The playhead's colour is the same shape of thing as the custom accent:
-    // a colour on the Theme global, remembered as its hex, behind a flag
-    // that says it is on. A reset clears the flag and forgets the hex, so
-    // the palette's own comes back and the file no longer names one.
+    // Keep named choices theme-aware and custom values as explicit hex.
     app.on_settings_playhead_changed({
         move |colour| {
             Shell::with(|shell, app| {
                 let theme = app.global::<Theme>();
                 theme.set_playhead_custom(colour);
-                theme.set_playhead_is_custom(true);
+                theme
+                    .set_playhead_choice(slint::Model::row_count(&theme.get_accent_names()) as i32);
                 let mut studio = shell.studio.borrow_mut();
                 studio.prefs.playhead = Some(format::hex_of(colour));
                 studio.prefs.save(&studio.host.dirs);
             });
         }
     });
-    app.on_settings_playhead_reset({
-        move || {
-            Shell::with(|shell, app| {
-                app.global::<Theme>().set_playhead_is_custom(false);
-                let mut studio = shell.studio.borrow_mut();
-                studio.prefs.playhead = None;
-                studio.prefs.save(&studio.host.dirs);
-            });
-        }
+    app.on_settings_playhead_chosen(move |index| {
+        Shell::with(|shell, app| {
+            let theme = app.global::<Theme>();
+            let names = theme.get_accent_names();
+            let Some(name) = usize::try_from(index)
+                .ok()
+                .and_then(|row| slint::Model::row_data(&names, row))
+            else {
+                return;
+            };
+            theme.set_playhead_choice(index);
+            let mut studio = shell.studio.borrow_mut();
+            studio.prefs.playhead = (index > 0).then(|| prefs::Preferences::accent_id(&name));
+            studio.prefs.save(&studio.host.dirs);
+        });
     });
-    // The interface scale is the one appearance choice a property cannot
-    // express: it is the window's scale factor. The window that is up is
-    // rescaled in place to the display's own scale times the choice - the
-    // same physical extent laid out again in logical pixels, so the
-    // interface grows within the window rather than being clipped by it.
-    // Nothing is rebuilt; the window keeps its size on screen. The row
-    // reads its value off the Theme global, so that is set here too.
-    // https://github.com/jub0t/Concat/issues/320
     app.on_settings_scale_changed({
         move |index| {
             log::info!("settings: ui scale {index}");

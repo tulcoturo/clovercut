@@ -548,7 +548,6 @@
   "settings.couldNotShowLog": "לא ניתן להציג את היומן: {0}",
   "settings.customUrl": "כתובת URL מותאמת",
   "settings.dark": "כהה",
-  "settings.default": "ברירת מחדל",
   "settings.deletingClipPullsWhat": "כשמופעל, מחיקת קליפ מושכת את מה שאחריו באותו ערוץ אל הרווח, וקיצוץ קצה מזיז איתו את שאר הערוץ. כשכבוי, מחיקה משאירה רווח וקיצוץ מזיז רק את הקצה. Shift-Delete סוגר את הרווח בכל מקרה.",
   "settings.download": "הורדה",
   "settings.downloadingVersion": "מוריד את Clovercut {0}…",

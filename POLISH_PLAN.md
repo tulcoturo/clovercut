@@ -240,6 +240,13 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
   Restart offers remain separate pending save/recording/export/project-lock handling.
 
+- **Integrated playhead palette (#30):** six named theme-aware colours and a custom
+  picker preserve legacy hex preferences and default reset. Full native CI passed
+  1345 ordinary, 30 gRPC and 14 virtual-desktop tests on the original candidate;
+  the combination with qualified workspace persistence passed 54 local storage
+  tests, strict Clippy and full Slint generation. [Evidence](docs/audits/2026-11-06-playhead-palette.md).
+  Physical settings pointer/display qualification remains open.
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested

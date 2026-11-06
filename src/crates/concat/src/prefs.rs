@@ -49,8 +49,8 @@ pub struct Preferences {
     /// `None` uses Clovercut brand green. A name no longer on the list
     /// falls back to the first named palette color.
     pub accent: Option<String>,
-    /// The playhead's colour as "#rrggbb", when one was picked by hand in
-    /// Settings > Appearance. `None` is the palette's own, which is lime.
+    /// Named palette colour, or an explicit hex value picked by hand.
+    /// Absent or unknown names use the palette's default playhead colour.
     pub playhead: Option<String>,
     /// The interface scale, as a percent from [`UI_SCALES`]: the window and
     /// everything in it are drawn this much larger than the display's own
@@ -218,7 +218,20 @@ impl Preferences {
     /// choice that has gone away should fall back to the default rather
     /// than to whatever happens to sit at its old position.
     pub fn accent_index(&self, names: impl IntoIterator<Item = impl AsRef<str>>) -> usize {
-        let Some(wanted) = self.accent.as_deref().map(str::trim) else {
+        Self::named_colour_index(self.accent.as_deref(), names)
+    }
+
+    /// Index of the remembered playhead palette name; custom hex is handled
+    /// by the colour parser before selecting a named colour.
+    pub fn playhead_index(&self, names: impl IntoIterator<Item = impl AsRef<str>>) -> usize {
+        Self::named_colour_index(self.playhead.as_deref(), names)
+    }
+
+    fn named_colour_index(
+        wanted: Option<&str>,
+        names: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> usize {
+        let Some(wanted) = wanted.map(str::trim) else {
             return 0;
         };
         names
@@ -641,6 +654,27 @@ mod tests {
         assert_eq!(prefs.project_location(), None);
     }
     const NAMES: [&str; 3] = ["Lime", "Sky", "Violet"];
+
+    #[test]
+    fn playhead_names_match_and_custom_values_survive_preferences_round_trip() {
+        for (value, expected) in [("sky", 1), ("  VIOLET  ", 2), ("future", 0), ("", 0)] {
+            let prefs = Preferences {
+                playhead: Some(value.into()),
+                ..Default::default()
+            };
+            assert_eq!(prefs.playhead_index(NAMES), expected);
+        }
+        for value in ["sky", "#12ab34", "12AB34", "#f008"] {
+            let prefs = Preferences {
+                playhead: Some(value.into()),
+                ..Default::default()
+            };
+            let back: Preferences =
+                serde_json::from_str(&serde_json::to_string(&prefs).unwrap()).unwrap();
+            assert_eq!(back.playhead.as_deref(), Some(value));
+        }
+        assert_eq!(Preferences::default().playhead_index(NAMES), 0);
+    }
 
     /// Nothing remembered is the first accent, which is the default.
     #[test]

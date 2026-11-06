@@ -49,6 +49,12 @@ adapts the remaining raster-window behavior of `4ab430e6`, retaining Metal video
 composition and the existing macOS deployment minimum. Physical Mac startup is
 not yet qualified.
 
+The integrated [playhead palette](audits/2026-11-06-playhead-palette.md) adapts the
+remaining named-colour portion of `2fe7e68b`, preserving legacy custom hex values.
+Native CI passed 1345 ordinary, 30 gRPC and 14 virtual-desktop tests on the original
+palette commit; the combination with qualified workspace persistence also passed
+54 local storage/preference tests, strict Clippy and full Slint generation.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

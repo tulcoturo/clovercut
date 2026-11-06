@@ -548,7 +548,6 @@
   "settings.couldNotShowLog": "Zapisnik se ne može prikazati: {0}",
   "settings.customUrl": "Vlastiti URL",
   "settings.dark": "Tamno",
-  "settings.default": "Zadano",
   "settings.deletingClipPullsWhat": "Uključeno, brisanje klipa povlači ono što slijedi na istoj traci u prazninu, a skraćivanje ruba pomiče ostatak trake s njim. Isključeno, brisanje ostavlja prazninu, a skraćivanje pomiče samo rub. Shift-Delete zatvara prazninu u oba slučaja.",
   "settings.download": "Preuzmi",
   "settings.downloadingVersion": "Preuzimanje Clovercuta {0}…",

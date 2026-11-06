@@ -46,6 +46,7 @@ def main():
         for name in ("main.rs", "build.rs"):
             (scratch / name).write_bytes((fixtures / name).read_bytes())
         source = json.dumps(str(workspace / "crates/concat/ui/start.slint"))[1:-1]
+        theme = json.dumps(str(workspace / "crates/concat/ui/theme/theme.slint"))[1:-1]
         scrollbar = json.dumps(str(workspace / "crates/concat/ui/primitives/scrollbar.slint"))[1:-1]
         lanes = json.dumps(str(workspace / "crates/concat/ui/timeline/lanes.slint"))[1:-1]
         model = json.dumps(str(workspace / "crates/concat/ui/timeline/model.slint"))[1:-1]
@@ -53,7 +54,7 @@ def main():
         captions_panel = json.dumps(str(workspace / "crates/concat/ui/workspace/captions-panel.slint"))[1:-1]
         probe = (fixtures / "probe.slint").read_text()
         (scratch / "probe.slint").write_text(
-            probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar)
+            probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar).replace("__THEME__", theme)
                 .replace("__LANES__", lanes).replace("__TIMELINE_MODEL__", model)
                 .replace("__CAPTIONS_DIALOG__", captions_dialog).replace("__CAPTIONS_PANEL__", captions_panel)
         )
