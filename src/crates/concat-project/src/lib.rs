@@ -4696,6 +4696,7 @@ mod tests {
             })
             .expect("adds");
 
+        let before_remove = editor.project().clone();
         editor
             .apply(Command::RemoveMedia {
                 media_id: media_id.clone(),
@@ -4710,6 +4711,15 @@ mod tests {
                 .all(|timeline| timeline.clips.is_empty()),
             "the inactive timeline's clip is swept too, not left dangling"
         );
+
+        assert!(editor.undo(), "undo removes no other edit");
+        assert_eq!(
+            editor.project(),
+            &before_remove,
+            "one undo restores every timeline"
+        );
+        assert!(editor.redo(), "redo removes again");
+        assert!(editor.project().media.is_empty());
 
         // Removing what is already gone is a tolerated no-op.
         let outcome = editor

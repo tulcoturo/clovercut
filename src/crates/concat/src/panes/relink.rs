@@ -38,6 +38,8 @@ pub enum RelinkMsg {
         items: Vec<(String, String)>,
         index: HashMap<String, PathBuf>,
     },
+    /// Remove a listed missing source and its clips as one undoable edit.
+    Remove(String),
     Dismiss,
 }
 
@@ -79,8 +81,39 @@ impl RelinkPane {
                 items,
                 index,
             } => self.finish_relink(studio, token, items, index),
+            RelinkMsg::Remove(id) => self.remove(studio, &id),
             RelinkMsg::Dismiss => self.dismiss(),
         }
+    }
+
+    fn remove(&mut self, studio: &mut Studio, id: &str) {
+        if !self.open || studio.session.is_none() {
+            return;
+        }
+        let Some(name) = self
+            .items
+            .iter()
+            .find(|item| item.id == id)
+            .map(|item| item.name.clone())
+        else {
+            return;
+        };
+        // Cancel the old snapshot before applying an edit. Its queued reply
+        // must never relink this source or the remaining dialog items.
+        self.job = None;
+        studio.apply(Command::RemoveMedia {
+            media_id: id.to_owned(),
+        });
+        // Locked clips or another rejected edit must leave the row available.
+        if studio.project().media.iter().any(|item| item.id == id) {
+            return;
+        }
+        self.items.retain(|item| item.id != id);
+        self.dismissed.remove(id);
+        self.open = !self.items.is_empty();
+        studio.notify(&tf("relink.removed", &[&name]), false);
+        studio.request_media_art();
+        studio.request_preview();
     }
 
     /// Opens the dialog on a project's missing files, as opening a project
@@ -234,7 +267,16 @@ impl RelinkPane {
     }
 
     /// The dialog as Slint shows it.
-    pub fn data(&self) -> RelinkData {
+    pub fn data(&self, studio: &Studio) -> RelinkData {
+        let mut counts = HashMap::<&str, i32>::new();
+        if self.open {
+            for timeline in &studio.project().timelines {
+                for clip in &timeline.clips {
+                    let count = counts.entry(&clip.media_id).or_default();
+                    *count = count.saturating_add(1);
+                }
+            }
+        }
         RelinkData {
             open: self.open,
             searching: self.job.is_some(),
@@ -245,6 +287,7 @@ impl RelinkPane {
                         id: item.id.clone().into(),
                         name: item.name.clone().into(),
                         path: item.path.clone().into(),
+                        clips: counts.get(item.id.as_str()).copied().unwrap_or(0),
                     })
                     .collect::<Vec<_>>(),
             )),
