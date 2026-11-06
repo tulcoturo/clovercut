@@ -22,3 +22,8 @@ Native controller compilation and physical-display visual qualification remain
 separate gates; the fixture does not simulate settings swatch clicks.
 Full application Slint source generation passed under a 4 GiB ceiling, and strict
 locale inventory passed for all 25 locales (1115 messages on this branch).
+
+After merging the qualified workspace-persistence main, the combined storage
+suite passed 54 tests plus strict isolated Clippy; strict 25-locale inventory and
+full Slint source generation also passed. The current native run still targets
+the original palette implementation commit, not this combined merge.
