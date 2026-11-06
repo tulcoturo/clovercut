@@ -39,3 +39,7 @@ storage/preference suite passed all 54 tests and strict isolated Clippy. Strict
 locale inventory passed all 25 locales (1118 messages) and nine locale-tool tests
 passed. Native CI 42283728156 still targets the original macOS candidate
 `951bdee7`, so it does not qualify this combined tree.
+The combined home/Theme fixture also passed strict Clippy and execution: all six
+named playhead colours, custom/reset behavior in both themes, wheel scrolling,
+wide/narrow home controls and keyboard/accessibility checks. This fixture does
+not exercise macOS renderer selection or physical settings pointer interaction.
