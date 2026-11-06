@@ -37,6 +37,31 @@ fn find(app: &HomeProbe, label: &str) -> ElementHandle {
 }
 fn main() {
     i_slint_backend_testing::init_no_event_loop();
+    let themed = HomeProbe::new().unwrap();
+    let theme = themed.global::<Theme>();
+    for dark in [false, true] {
+        theme.set_dark(dark);
+        for index in 0..6 {
+            theme.set_accent_choice(index);
+            theme.set_playhead_choice(index);
+            assert!(!theme.get_playhead_is_custom());
+            let expected = if index == 0 {
+                theme.get_playhead_default()
+            } else {
+                theme.get_accent()
+            };
+            assert_eq!(theme.get_playhead(), expected);
+        }
+        let custom = slint::Color::from_rgb_u8(23, 45, 67);
+        theme.set_playhead_custom(custom);
+        theme.set_playhead_choice(6);
+        assert!(theme.get_playhead_is_custom());
+        assert_eq!(theme.get_playhead(), custom);
+        theme.set_playhead_choice(0);
+        assert_eq!(theme.get_playhead(), theme.get_playhead_default());
+    }
+    println!("theme UI: named playhead colours, custom colour and reset passed in both palettes");
+
     let wheel = HomeProbe::new().unwrap();
     wheel.set_wheel_test(true);
     wheel.window().set_size(slint::PhysicalSize::new(1100, 900));

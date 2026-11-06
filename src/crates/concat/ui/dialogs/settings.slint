@@ -691,8 +691,8 @@ export component SettingsDialog inherits Modal {
     callback accent-custom-changed(colour: color);
     /// The playhead's colour, picked by hand in place of the palette's own.
     callback playhead-changed(colour: color);
-    /// The palette's own playhead colour, back in place of a picked one.
-    callback playhead-reset();
+    /// A named palette colour; zero restores the default playhead.
+    callback playhead-chosen(index: int);
     /// The interface scale, as an index into the scales the row lists: 0
     /// follows the display's own.
     callback scale-changed(index: int);
@@ -1292,12 +1292,8 @@ export component SettingsDialog inherits Modal {
 
                 // The playhead: the one line over the lanes that has to be
                 // found at a glance, whatever the clips under it are wearing.
-                // The palette's own is lime. The second dot opens the same
-                // picker the accent does, and the picked colour replaces the
-                // palette's under both palettes until the first dot puts it
-                // back. Read off the Theme global for the same reason the
-                // accent is, and the hex is always shown: what the line is
-                // wearing is the whole point of the row.
+                // Named swatches follow the active palette; the custom picker
+                // keeps the chosen colour unchanged across light/dark themes.
                 DialogSection {
                     ruled: false;
                     title: I18n.t("settings.playhead");
@@ -1307,11 +1303,11 @@ export component SettingsDialog inherits Modal {
                         spacing: 6px;
                         alignment: start;
 
-                        AccentSwatch {
-                            colour: Theme.playhead-default;
-                            label: I18n.t("settings.default");
-                            chosen: !Theme.playhead-is-custom;
-                            clicked => { root.playhead-reset(); }
+                        for name[index] in Theme.accent-names: AccentSwatch {
+                            colour: index == 0 ? Theme.playhead-default : Theme.accent-of(index);
+                            label: root.accent-labels[index];
+                            chosen: Theme.playhead-choice == index;
+                            clicked => { root.playhead-chosen(index); }
                         }
 
                         Rectangle {
@@ -1348,7 +1344,8 @@ export component SettingsDialog inherits Modal {
                         }
 
                         Text {
-                            text: Theme.playhead-is-custom ? I18n.t("common.custom") : I18n.t("settings.default");
+                            text: Theme.playhead-is-custom ? I18n.t("common.custom")
+                                : root.accent-labels[Theme.playhead-choice];
                             color: Theme.fg-muted;
                             font-size: Theme.fs;
                             vertical-alignment: center;

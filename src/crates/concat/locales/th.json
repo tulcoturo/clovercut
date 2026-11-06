@@ -548,7 +548,6 @@
   "settings.couldNotShowLog": "แสดงบันทึกไม่ได้: {0}",
   "settings.customUrl": "URL ที่กำหนดเอง",
   "settings.dark": "มืด",
-  "settings.default": "ค่าเริ่มต้น",
   "settings.deletingClipPullsWhat": "เมื่อเปิด การลบคลิปจะดึงสิ่งที่ตามมาในแทร็กเดียวกันเข้ามาปิดช่องว่าง และการทริมขอบจะเลื่อนส่วนที่เหลือของแทร็กไปด้วย เมื่อปิด การลบจะเหลือช่องว่างไว้และการทริมจะขยับเฉพาะขอบ Shift-Delete ปิดช่องว่างได้ทั้งสองแบบ",
   "settings.download": "ดาวน์โหลด",
   "settings.downloadingVersion": "กำลังดาวน์โหลด Clovercut {0}…",
