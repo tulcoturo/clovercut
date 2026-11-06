@@ -22,3 +22,14 @@ removal while a search is pending, Undo/Redo restoration, stale-row rejection
 and a fresh successful relink followed by export. This controller journey still
 requires native CI; no local full GUI compile or simulated trash-button click
 is claimed.
+
+## Completed native qualification
+
+[Full CI 42099521813](https://github.com/tulcoturo/clovercut/actions/runs/42099521813)
+passed on `26944224f6e1f78a6dcba2c9fba8b3338d83eb42`: strict workspace/gRPC
+Clippy, 1343 ordinary tests, documentation examples, 30 gRPC tests, 14 selected
+virtual-desktop journeys and audio connector regressions. The native editor
+journey includes pending-search cancellation, removal, Undo/Redo, stale-row
+rejection and a new relink/export. Raw reports are retained locally under
+`/home/turotulco/Work/clovercut-pr25-qualification`. This is virtual desktop
+qualification, not a physical missing-media trash-button interaction.
