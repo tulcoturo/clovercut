@@ -46,6 +46,7 @@ def main():
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/dirs.rs")) + '] pub mod directories;\n'
             'pub use directories::AppDirs;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/library.rs")) + '] pub mod library;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat/src/workspace_layout.rs")) + '] pub mod workspace_layout;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat/src/prefs.rs")) + '] pub mod prefs;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat/src/project_browser.rs")) + '] pub mod project_browser;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/projects.rs")) + '] pub mod projects;\n'

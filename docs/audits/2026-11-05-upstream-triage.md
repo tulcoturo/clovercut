@@ -8,8 +8,8 @@ qualification of every feature.
 | --- | --- |
 | `4ab430e6`, `f0587664` | Shared device flags and memory thresholds adapted in the GPU candidate; macOS raster-window safe start remains separate. |
 | `e938cfdf` | Review export pipelining/YUV conversion separately against alpha, colour/HDR, cancellation and atomic export guarantees. |
-| `f500664b` | Reviewed against existing presets; preserve preset identity and Reset semantics. See workspace/restart review. |
-| `a21dd4f6` | Candidate missing-media removal: preserve Undo across every timeline and reject stale relink results. |
+| `f500664b` | Workspace integrated with named preset identity and Reset semantics; full native CI passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. See remember-workspace audit. |
+| `a21dd4f6` | Integrated in #25 with all-timeline Undo, pending-search cancellation and stale-result protection; full native CI passed. |
 | `b5e19da2` | Reviewed save-before-exit flow; launch failure, active recording/export and lock release need explicit handling. See workspace/restart review. |
 | `25cf5073` | CapCut importer requires separate format, path handling, fixture and unsupported-feature review. |
 | `d75331bc`, `2b29732e` | Progress-bar candidate adapts 2b29732e. Span-aware estimates already have a Clovercut equivalent with four tests. Do not import the 2K cap from d75331bc; preserve current 4096-pixel support. |
