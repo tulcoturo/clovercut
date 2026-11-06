@@ -36,3 +36,10 @@ unknown views, nonfinite ratios, depth rejection and bounded ratios. The existin
 editor journey now exercises startup restoration, preset Reset, saving while
 compact and disabling persistence. These native checks remain pending full CI;
 physical window placement/maximization across displays is not qualified locally.
+
+First native run 42105084742 failed at workspace Clippy: the host's existing
+editor_preferences integration test includes the real editor preferences but
+had not included their new workspace_layout dependency. The test root now
+includes that same pure module, retaining the existing dead-code allowance for
+included editor source. The isolated storage checker already included it and
+passed. All known source consumers of prefs.rs were searched and updated.
