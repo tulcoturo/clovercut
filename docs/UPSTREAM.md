@@ -44,6 +44,10 @@ adapts packet-end trimming from `536a416d`, preserving encoder selection and
 Opus/PCM handling. Full native CI passed on `b79af76f` with 1343 ordinary, 30 gRPC and 14
 virtual-desktop tests. Platform encoders are not yet adapted or qualified.
 
+A [playhead palette candidate](audits/2026-11-06-playhead-palette.md) adapts the
+remaining named-colour portion of `2fe7e68b`, preserving legacy custom hex values.
+Local preference and actual Theme checks pass; native qualification is pending.
+
 ### Earlier quick-split review
 
 Reviewed through `bfb39ca4` (28 October 2026). The new desktop quick-split button

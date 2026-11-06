@@ -548,7 +548,6 @@
   "settings.couldNotShowLog": "نمایش Log ممکن نشد: {0}",
   "settings.customUrl": "URL سفارشی",
   "settings.dark": "تیره",
-  "settings.default": "پیش‌فرض",
   "settings.deletingClipPullsWhat": "در حالت On، حذف یک کلیپ هر چیزی را که بعد از آن روی همان ترک است به داخل فاصله می‌کشد و برش یک لبه بقیه ترک را همراه خود جابه‌جا می‌کند. در حالت خاموش، حذف یک فاصله باقی می‌گذارد و برش فقط لبه را جابه‌جا می‌کند. Shift-Delete در هر دو حالت فاصله را می‌بندد.",
   "settings.download": "دانلود",
   "settings.downloadingVersion": "در حال بارگیری Clovercut {0}…",

@@ -548,7 +548,6 @@
   "settings.couldNotShowLog": "ログを表示できませんでした : {0}",
   "settings.customUrl": "カスタム URL",
   "settings.dark": "ダーク",
-  "settings.default": "デフォルト",
   "settings.deletingClipPullsWhat": "オンのとき、クリップを削除すると同じトラックの後続が隙間に引き寄せられ、端をトリミングするとトラックの残りも一緒に動きます。オフのとき、削除は隙間を残し、トリミングは端だけを動かします。Shift-Delete はどちらでも隙間を詰めます。",
   "settings.download": "ダウンロード",
   "settings.downloadingVersion": "Clovercut {0} をダウンロード中…",
