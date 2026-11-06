@@ -12,7 +12,7 @@ qualification of every feature.
 | `a21dd4f6` | Candidate missing-media removal: preserve Undo across every timeline and reject stale relink results. |
 | `b5e19da2` | Reviewed save-before-exit flow; launch failure, active recording/export and lock release need explicit handling. See workspace/restart review. |
 | `25cf5073` | CapCut importer requires separate format, path handling, fixture and unsupported-feature review. |
-| `d75331bc`, `2b29732e` | Compare enhancement controls/progress against existing cancellation and estimates. |
+| `d75331bc`, `2b29732e` | Progress-bar candidate adapts 2b29732e. Span-aware estimates already have a Clovercut equivalent with four tests. Do not import the 2K cap from d75331bc; preserve current 4096-pixel support. |
 | `773efd12` | Clovercut already exposes caption generation in the inline library; inspect for remaining useful differences. |
 | `0b1f125d`, `c009d037` | Editable shapes and MCP sizing form a larger coordinated feature; retain existing API/tool schema compatibility. |
 | `80ed9457`, `0b94e48f` | JSON Schema API export is useful for automation; adapt only after inventorying Clovercut's extended contract. |
