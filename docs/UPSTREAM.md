@@ -44,9 +44,16 @@ adapts packet-end trimming from `536a416d`, preserving encoder selection and
 Opus/PCM handling. Full native CI passed on `b79af76f` with 1343 ordinary, 30 gRPC and 14
 virtual-desktop tests. Platform encoders are not yet adapted or qualified.
 
-A [playhead palette candidate](audits/2026-11-06-playhead-palette.md) adapts the
+A separate [macOS safe-start candidate](audits/2026-11-06-macos-safe-start.md)
+adapts the remaining raster-window behavior of `4ab430e6`, retaining Metal video
+composition and the existing macOS deployment minimum. Physical Mac startup is
+not yet qualified.
+
+The integrated [playhead palette](audits/2026-11-06-playhead-palette.md) adapts the
 remaining named-colour portion of `2fe7e68b`, preserving legacy custom hex values.
-Local preference and actual Theme checks pass; native qualification is pending.
+Native CI passed 1345 ordinary, 30 gRPC and 14 virtual-desktop tests on the original
+palette commit; the combination with qualified workspace persistence also passed
+54 local storage/preference tests, strict Clippy and full Slint generation.
 
 ### Earlier quick-split review
 

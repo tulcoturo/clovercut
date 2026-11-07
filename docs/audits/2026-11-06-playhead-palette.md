@@ -27,3 +27,14 @@ After merging the qualified workspace-persistence main, the combined storage
 suite passed 54 tests plus strict isolated Clippy; strict 25-locale inventory and
 full Slint source generation also passed. The current native run still targets
 the original palette implementation commit, not this combined merge.
+
+## Completed native qualification — 6 November
+
+[CI 42277505050](https://github.com/tulcoturo/clovercut/actions/runs/42277505050)
+completed successfully on `4305da9bab0caceb083329f039daed923459d63e`: strict
+workspace/all-target and gRPC Clippy, 1345 ordinary tests, 30 gRPC tests and all
+14 selected virtual-desktop tests passed with no skipped cases in these reports.
+The downloaded JUnit reports were inspected independently. This run predates the
+workspace merge; the combined branch checks above remain the evidence for that
+combination. PR #30 was merged as `6b77c29231fd1d0e88b061530a39bb851cb45571`.
+Physical settings-swatch pointer/display qualification remains open.

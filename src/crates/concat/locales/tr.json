@@ -559,6 +559,7 @@
   "settings.general": "Genel",
   "settings.gpu": "GPU'da çiz",
   "settings.gpuHint": "Kapalıyken pencere ve önizleme yazılımla çizilir: daha yavaş, ama Clovercut'i kapatan bir grafik sürücüsünden uzak. Clovercut açılırken kapanırsa kendiliğinden kapanır. Clovercut'in bir sonraki açılışında geçerli olur.",
+  "settings.gpuMacHint": "Kapalıyken yalnızca pencere yazılımla çizilir; video işleme GPU kullanmaya devam eder. Clovercut bir sonraki başlatıldığında geçerli olur.",
   "settings.gpuNextStart": "Clovercut bir sonraki açılışından itibaren bu şekilde çizecek.",
   "settings.hideTheToken": "Belirteci gizle",
   "settings.inUse": "Kullanımda",
