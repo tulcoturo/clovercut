@@ -85,8 +85,10 @@ export struct SettingsData {
     layout-switchable: bool,
     /// the window and the compositor draw on the GPU, not in software
     gpu: bool,
-    /// there is a software rasteriser to draw on instead: Windows, Linux
+    /// window rasterization can be selected: Windows, Linux and macOS
     gpu-switchable: bool,
+    /// Software mode affects only the window on macOS.
+    gpu-window-only: bool,
     /// the magnetic timeline: deleting and trimming close the gap
     magnetic: bool,
     timeline-grid: bool,
@@ -1181,7 +1183,7 @@ export component SettingsDialog inherits Modal {
                 // there is a software rasteriser: WARP, lavapipe.
                 if root.data.gpu-switchable: DialogSection {
                     title: I18n.t("settings.gpu");
-                    hint: I18n.t("settings.gpuHint");
+                    hint: root.data.gpu-window-only ? I18n.t("settings.gpuMacHint") : I18n.t("settings.gpuHint");
                     switchable: true;
                     on: root.data.gpu;
                     open: false;

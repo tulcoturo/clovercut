@@ -559,6 +559,7 @@
   "settings.general": "Ogólne",
   "settings.gpu": "Rysuj na GPU",
   "settings.gpuHint": "Wyłączone: okno i podgląd są rysowane programowo – wolniej, ale z dala od sterownika grafiki, który zamyka Clovercut. Wyłącza się samo, jeśli Clovercut zamknie się podczas uruchamiania. Działa od następnego uruchomienia Clovercut.",
+  "settings.gpuMacHint": "Po wyłączeniu tylko okno jest rysowane programowo; obraz wideo nadal korzysta z GPU. Zmiana zadziała przy następnym uruchomieniu Clovercut.",
   "settings.gpuNextStart": "Clovercut będzie tak rysować od następnego uruchomienia.",
   "settings.hideTheToken": "Ukryj token",
   "settings.inUse": "W użyciu",

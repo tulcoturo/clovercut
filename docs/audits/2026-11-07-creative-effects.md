@@ -59,3 +59,23 @@ missing adapters fail rather than silently skip. Actual catalogue-card UI checks
 exercise hover, debounce, retarget/cancellation and disabled states separately
 from native compositor behavior. They do not establish mouse testing in the
 installed app, a new published release or physical macOS qualification.
+
+## Remote checks and current combined candidate
+
+On `4e9a01ab91ae5b83ecf03c38db73ee74aa51e2a7`, headless CI 42369310034
+and visual effect CI 42369310140 passed. Their actual catalogue-hover checks and
+53 float probes ran remotely; eight effect-chart outputs plus the original
+matched the local images pixel for pixel. The initial native dispatch failed at
+checkout because it used an abbreviated SHA; no compilation ran in that attempt.
+
+After PR #32 passed its exact full native CI and merged, its main was combined
+into this branch. Only POLISH_PLAN.md conflicted; both progress records are
+retained. A fresh exact combined-source native run is required before integrating
+the effects. Earlier individual results do not establish that combined native
+qualification or physical hardware behavior.
+
+The combined branch passed the nine-effect/53-probe GPU fixture and strict
+fixture Clippy again, actual effect/filter/transition hover checks and strict
+UI-fixture Clippy, 25 locale inventories with nine locale-tool tests, workspace
+formatting, and complete Slint source generation under a 4 GiB cap. These narrow
+combined checks complement, rather than replace, the pending native CI.

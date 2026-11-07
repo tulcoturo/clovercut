@@ -902,9 +902,12 @@ impl WgpuCompositor {
         // CONCAT_GPU=software - set by hand, or by a safe start after a
         // launch the GPU's driver killed - keeps the compositor off the GPU
         // too, so an export or a card does not meet that driver either.
-        let software_only = software_only
-            || std::env::var("CONCAT_GPU")
-                .is_ok_and(|value| value.trim().eq_ignore_ascii_case("software"));
+        // macOS safe start only rasterizes the window. Metal remains the
+        // compositor because Apple has no software adapter. Explicit software()
+        // still asks for software only and may return None there.
+        let safe = std::env::var("CONCAT_GPU")
+            .is_ok_and(|value| value.trim().eq_ignore_ascii_case("software"));
+        let software_only = software_only || (safe && !cfg!(target_os = "macos"));
         let own = if cfg!(target_vendor = "apple") {
             wgpu::Backends::METAL
         } else if cfg!(windows) {

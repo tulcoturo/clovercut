@@ -90,8 +90,8 @@ pub struct Preferences {
     /// may not take (an HDR one opened NVENC first), and the person who
     /// wants one for smoother playback turns it on in Settings.
     pub proxies: bool,
-    /// Drawing in software: the window and the compositor on the
-    /// platform's software rasteriser (WARP, lavapipe) instead of the GPU,
+    /// Drawing in software: window and compositor on WARP/lavapipe, or
+    /// the window alone on Skia's CPU rasterizer on macOS,
     /// as the person chose in Settings > General or with `concat
     /// --software`. Kept until they turn it back. Read at launch.
     ///
