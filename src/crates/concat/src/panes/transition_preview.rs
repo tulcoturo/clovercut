@@ -35,7 +35,12 @@ pub fn request(studio: &mut Studio, id: &str) {
         super::gl_transitions::download(studio, id, Some(generation), None);
         return;
     };
-    if package.transition().is_none() {
+    if !matches!(
+        package.kind(),
+        concat_effects::Kind::Effect
+            | concat_effects::Kind::Filter
+            | concat_effects::Kind::Transition
+    ) {
         return;
     }
     let Some(card) = Card::of(catalogue, package, &dir) else {
@@ -45,7 +50,7 @@ pub fn request(studio: &mut Studio, id: &str) {
         let (sender, receiver) = mpsc::channel::<(u64, Card)>();
         let compositor = studio.host.monitor.off_thread();
         let _ = std::thread::Builder::new()
-            .name("transition thumbnails".into())
+            .name("catalogue thumbnails".into())
             .spawn(move || {
                 let mut painter: Option<Painter> = None;
                 let mut compositor = compositor;
@@ -81,7 +86,7 @@ pub fn request(studio: &mut Studio, id: &str) {
                             match Painter::with_city(gpu, &still, city.as_deref(), 192, 108) {
                                 Ok(value) => painter = Some(value),
                                 Err(error) => {
-                                    log::warn!("transition preview: {error}");
+                                    log::warn!("catalogue preview: {error}");
                                     break;
                                 }
                             }
@@ -94,11 +99,11 @@ pub fn request(studio: &mut Studio, id: &str) {
                             match painter
                                 .as_mut()
                                 .unwrap()
-                                .transition_frame(&card, index as f32 / 23.0)
+                                .preview_frame(&card, index as f32 / 23.0)
                             {
                                 Ok(frame) => frames.push(frame),
                                 Err(error) => {
-                                    log::warn!("transition preview: {error}");
+                                    log::warn!("catalogue preview: {error}");
                                     break;
                                 }
                             }

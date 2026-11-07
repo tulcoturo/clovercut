@@ -7,6 +7,13 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+
+Reviewed through `443fb2a33648a86733c4360544cd8f291f5aeaae` on 7 November.
+The [release review and decisions](audits/2026-11-07-upstream-release-review.md)
+covers all 15 new commits, the earlier pending inventory, the Windows preview
+report, selected adaptations and release gates. Voice isolation and coordinated
+schema/import/export rewrites retain their explicit separate qualification needs.
+
 A 5 November fetch found 24 additional commits through `483c9d6a`.
 The [new inventory](audits/2026-11-05-upstream-triage.md) is an initial triage;
 [GPU initialization](audits/2026-11-05-gpu-initialization.md) passed full native
@@ -44,10 +51,10 @@ adapts packet-end trimming from `536a416d`, preserving encoder selection and
 Opus/PCM handling. Full native CI passed on `b79af76f` with 1343 ordinary, 30 gRPC and 14
 virtual-desktop tests. Platform encoders are not yet adapted or qualified.
 
-A separate [macOS safe-start candidate](audits/2026-11-06-macos-safe-start.md)
+The integrated [macOS safe-start adaptation](audits/2026-11-06-macos-safe-start.md)
 adapts the remaining raster-window behavior of `4ab430e6`, retaining Metal video
 composition and the existing macOS deployment minimum. Physical Mac startup is
-not yet qualified.
+not yet qualified. Native Linux CI passed on the exact candidate; see its audit.
 
 The integrated [playhead palette](audits/2026-11-06-playhead-palette.md) adapts the
 remaining named-colour portion of `2fe7e68b`, preserving legacy custom hex values.

@@ -863,11 +863,25 @@ impl Models {
 /// Republish a list into a live model without resetting it: rows that did
 /// not change are not written, and the length changes a row at a time.
 pub fn sync<T: Clone + PartialEq + 'static>(model: &VecModel<T>, next: Vec<T>) {
+    sync_with(model, next, |held, next| held == next);
+}
+
+/// [`sync`] with the rows compared by `same`: for a row that holds a model
+/// of its own, whose `==` is the model's identity. A row rebuilt with a
+/// fresh model was never equal to the one shown, so every publish wrote it
+/// again - and an open dropdown whose options were swapped under it closed,
+/// and a field being typed in was handed back its old value: the autosave
+/// a second and a half after an edit is a publish, which is how #622 met it.
+pub fn sync_with<T: Clone + 'static>(
+    model: &VecModel<T>,
+    next: Vec<T>,
+    same: impl Fn(&T, &T) -> bool,
+) {
     let mut next = next;
     let shared = model.row_count().min(next.len());
     let tail = next.split_off(shared);
     for (row, value) in next.into_iter().enumerate() {
-        if model.row_data(row).as_ref() != Some(&value) {
+        if !model.row_data(row).is_some_and(|held| same(&held, &value)) {
             model.set_row_data(row, value);
         }
     }
@@ -876,6 +890,58 @@ pub fn sync<T: Clone + PartialEq + 'static>(model: &VecModel<T>, next: Vec<T>) {
     }
     for value in tail {
         model.push(value);
+    }
+}
+
+/// Whether two models hold the same rows, in the same order.
+pub fn same_rows<T: PartialEq + 'static>(a: &ModelRc<T>, b: &ModelRc<T>) -> bool {
+    a.row_count() == b.row_count()
+        && (0..a.row_count()).all(|row| a.row_data(row) == b.row_data(row))
+}
+
+/// Two rows the same in everything, their models compared by their rows:
+/// `with_models` copies `b`'s models into a clone of `a`, so every other
+/// field - and any field added later - is held to `==` as it is.
+fn same_but_models<T: Clone + PartialEq>(
+    a: &T,
+    b: &T,
+    models_same: bool,
+    with_models: impl FnOnce(&mut T, &T),
+) -> bool {
+    models_same && {
+        let mut a = a.clone();
+        with_models(&mut a, b);
+        a == *b
+    }
+}
+
+/// `fn $name(a, b) -> bool` for a struct whose `$field`s are models: equal
+/// when those hold the same rows and everything else is `==`.
+macro_rules! same_with_models {
+    ($($name:ident: $ty:ty => $($field:ident),+;)+) => {$(
+        pub fn $name(a: &$ty, b: &$ty) -> bool {
+            same_but_models(a, b, true $(&& same_rows(&a.$field, &b.$field))+, |a, b| {
+                $(a.$field = b.$field.clone();)+
+            })
+        }
+    )+};
+}
+
+same_with_models! {
+    same_transition_choice: crate::ui::TransitionChoiceData => options, values;
+    same_export: crate::ui::ExportData => resolutions, rates, rate_details;
+    same_settings: crate::ui::SettingsData => shortcuts;
+    same_relink: crate::ui::RelinkData => items;
+    same_start: crate::ui::StartData => rate_options;
+    same_captions: crate::ui::CaptionsSheetData => sources;
+}
+
+/// Writes `next` through `set` unless it is `same` as what `held` shows: a
+/// struct carrying a model is rebuilt with a fresh one on every publish,
+/// and written regardless it reset the dialog reading it.
+pub fn set_changed<T>(held: T, next: T, same: fn(&T, &T) -> bool, set: impl FnOnce(T)) {
+    if !same(&held, &next) {
+        set(next);
     }
 }
 
@@ -3375,7 +3441,7 @@ impl Studio {
             || {
                 crate::host::Shell::with(|shell, app| {
                     shell.studio.borrow_mut().save(false);
-                    shell.studio.borrow().publish(&app, &shell.models);
+                    shell.studio.borrow().publish_status(&app);
                 });
             },
         );
@@ -3393,9 +3459,10 @@ impl Studio {
         // worker happens to pick it up.
         let ticket = projects::ticket();
         self.dirty = false;
-        spawn_in_project(
+        crate::host::spawn_in_project_publishing(
             move || projects::save_ordered(&path, &document, ticket),
             move |studio, _, _, result| studio.saved(result, announce),
+            |studio, app, _| studio.publish_status(app),
         );
     }
 
@@ -11153,6 +11220,23 @@ impl Studio {
 
     // ── publishing ──
 
+    /// Publish only saved state and notifications; autosave does not rebuild dialogs.
+    pub fn publish_status(&self, app: &App) {
+        app.set_project_status(
+            if self.dirty {
+                t("common.unsavedChanges")
+            } else {
+                t("common.saved")
+            }
+            .into(),
+        );
+        app.set_toast(ToastData {
+            token: self.toast.token,
+            message: self.toast.message.as_str().into(),
+            failed: self.toast.failed,
+        });
+    }
+
     pub fn publish(&self, app: &App, models: &Models) {
         // The tray's three menu labels and the tooltips' bare-letter
         // hints, spelled from the keymap so a rebind moves the words
@@ -11521,7 +11605,7 @@ impl Studio {
             editor.set_selected_transition(self.selected_transition_data());
             let (knobs, choices) = self.transition_knobs();
             sync(&models.transition_knobs, knobs);
-            sync(&models.transition_choices, choices);
+            sync_with(&models.transition_choices, choices, same_transition_choice);
             self.publish_backdrop(app);
             self.publish_speed_ramp(app, models);
             models.key_editor_rows.set_vec(self.key_editor_rows());
@@ -13639,19 +13723,7 @@ impl Studio {
 
         app.set_on_start(self.on_start);
         app.set_project_name(self.project_name.as_str().into());
-        app.set_project_status(
-            if self.dirty {
-                t("common.unsavedChanges")
-            } else {
-                t("common.saved")
-            }
-            .into(),
-        );
-        app.set_toast(ToastData {
-            token: self.toast.token,
-            message: self.toast.message.as_str().into(),
-            failed: self.toast.failed,
-        });
+        self.publish_status(app);
         editor.set_templates_busy(self.templates_busy);
         sync(
             &models.templates,
@@ -13672,7 +13744,9 @@ impl Studio {
                 })
                 .collect::<Vec<_>>(),
         );
-        app.set_start(self.start.data());
+        set_changed(app.get_start(), self.start.data(), same_start, |data| {
+            app.set_start(data)
+        });
         app.set_project_view(i32::from(self.prefs.project_list_view));
         app.set_recents_total(self.recents.len() as i32);
         let shown = crate::panes::start::shown(&self.recents, &self.start.query, self.start.sort);
@@ -13823,13 +13897,28 @@ impl Studio {
         sync(&models.menu, rows);
         editor.set_menu_token(self.menu_token);
 
-        app.set_export(self.export.data(self));
-        app.set_settings(self.settings.data(self));
+        set_changed(
+            app.get_export(),
+            self.export.data(self),
+            same_export,
+            |data| app.set_export(data),
+        );
+        set_changed(
+            app.get_settings(),
+            self.settings.data(self),
+            same_settings,
+            |data| app.set_settings(data),
+        );
         sync(&models.transcribers, self.settings.transcriber_rows());
         sync(&models.voices, self.settings.voice_rows());
         sync(&models.versions, self.settings.version_rows());
         sync(&models.version_details, self.settings.version_details());
-        app.set_relink(self.relink.data(self));
+        set_changed(
+            app.get_relink(),
+            self.relink.data(self),
+            same_relink,
+            |data| app.set_relink(data),
+        );
         app.set_confirm(self.confirm_data());
 
         // The speech sheets, and the lists they choose from.
@@ -13843,7 +13932,12 @@ impl Studio {
         );
         sync(&models.caption_languages, self.captions.language_rows(self));
         let captions_sheet = self.captions.data(self);
-        app.set_captions(captions_sheet.clone());
+        set_changed(
+            app.get_captions(),
+            captions_sheet.clone(),
+            same_captions,
+            |data| app.set_captions(data),
+        );
         let selected_group = self
             .sole_selection()
             .and_then(|id| self.clip(&id))
@@ -13908,7 +14002,12 @@ impl Studio {
         caption_library.set_duration(motion.duration as f32);
         caption_library.set_running(self.captions.running);
         caption_library.set_apply_all(self.caption_apply_all);
-        caption_library.set_audio_sources(captions_sheet.sources);
+        if !same_rows(
+            &caption_library.get_audio_sources(),
+            &captions_sheet.sources,
+        ) {
+            caption_library.set_audio_sources(captions_sheet.sources);
+        }
         caption_library.set_audio_source(captions_sheet.source);
         caption_library.set_models(models.caption_models.clone().into());
         caption_library.set_model(captions_sheet.model);
@@ -15193,6 +15292,48 @@ mod tests {
     /// A text box's caret counts bytes and a run counts characters: an
     /// accented letter is one character of two bytes, an offset inside a
     /// character counts it, and one out of the text is held to it.
+    /// A row rebuilt with fresh models of the same rows is the same row, so
+    /// a publish leaves it - and the dropdown reading it - alone (#622);
+    /// a changed option, or any other field, is a change.
+    #[test]
+    fn rows_holding_models_are_compared_by_what_the_models_hold() {
+        use slint::{Model, ModelRc, SharedString, VecModel};
+        let choice = |options: &[&str], current: i32| crate::ui::TransitionChoiceData {
+            options: ModelRc::new(VecModel::from(
+                options
+                    .iter()
+                    .map(|o| SharedString::from(*o))
+                    .collect::<Vec<_>>(),
+            )),
+            values: ModelRc::new(VecModel::from(vec![0.0f32, 1.0])),
+            current,
+            ..Default::default()
+        };
+        let shown = choice(&["Soft", "Hard"], 0);
+        assert!(super::same_transition_choice(
+            &shown,
+            &choice(&["Soft", "Hard"], 0)
+        ));
+        assert!(!super::same_transition_choice(
+            &shown,
+            &choice(&["Soft", "Harder"], 0)
+        ));
+        assert!(!super::same_transition_choice(
+            &shown,
+            &choice(&["Soft", "Hard"], 1)
+        ));
+
+        let model = VecModel::from(vec![shown.clone()]);
+        let held = model.row_data(0).expect("a row").options;
+        super::sync_with(
+            &model,
+            vec![choice(&["Soft", "Hard"], 0)],
+            super::same_transition_choice,
+        );
+        let after = model.row_data(0).expect("a row").options;
+        assert!(held == after, "an unchanged row kept its model");
+    }
+
     #[test]
     fn a_caret_byte_is_the_character_it_falls_at() {
         let text = "été ok";

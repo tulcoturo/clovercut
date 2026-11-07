@@ -24,7 +24,7 @@ recovery/preference tests) and strict isolated Clippy passed. Full Slint source
 generation passed under a 4 GiB ceiling; strict inventory passed all 25 locales
 and nine locale-tool tests passed.
 
-These are Linux/software checks. Native full CI remains pending; macOS compiler,
+These initial checks ran on Linux; completed native Linux CI is recorded below. The macOS compiler,
 CPU-window/Metal-preview behavior and physical Monterey hardware are unqualified.
 The implementation does not guarantee recovery from a Metal compositor failure:
 only the window is moved away from Metal. Keep issue-specific hardware validation
@@ -43,3 +43,13 @@ The combined home/Theme fixture also passed strict Clippy and execution: all six
 named playhead colours, custom/reset behavior in both themes, wheel scrolling,
 wide/narrow home controls and keyboard/accessibility checks. This fixture does
 not exercise macOS renderer selection or physical settings pointer interaction.
+
+## Completed native qualification — 7 November
+
+[CI 42366705181](https://github.com/tulcoturo/clovercut/actions/runs/42366705181)
+passed on exact combined candidate `44be1e3b7172dda4df9b8817db933860275ba7df`.
+Downloaded JUnit reports independently confirmed 1351 ordinary, 30 gRPC and
+14 selected virtual-desktop tests, no failures or skips. Strict workspace and
+gRPC Clippy and documentation examples passed. PR #32 was merged as
+`5f56d91a0eb4e8bb53598c4d7bf8566dcfe93d84`. These are Linux CI results; physical
+macOS compiler/window/Metal behavior and release packaging remain unqualified.

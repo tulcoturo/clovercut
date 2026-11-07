@@ -353,6 +353,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     studio.watch_packages();
     panes::gl_transitions::start(&mut studio);
     let dark = studio.prefs.dark.unwrap_or(true);
+    app.global::<Theme>().set_ok_first(cfg!(windows));
     app.global::<Theme>().set_dark(dark);
     // The accent is remembered by name and the names live on the Theme
     // global, so the index is looked up there rather than kept in Rust too.

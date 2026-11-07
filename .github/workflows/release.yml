@@ -63,6 +63,19 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ needs.check.outputs.commit }}
+      desktop_qa: true
+  headless:
+    name: Desktop UI and document checks
+    needs: check
+    uses: ./.github/workflows/headless-quality.yml
+    with:
+      ref: ${{ needs.check.outputs.commit }}
+  effects:
+    name: Visual effects and Windows software adapter
+    needs: check
+    uses: ./.github/workflows/effects.yml
+    with:
+      ref: ${{ needs.check.outputs.commit }}
   packaging:
     name: Linux package regressions
     needs: check
@@ -80,6 +93,8 @@ jobs:
     needs:
     - check
     - engine
+    - effects
+    - headless
     - packaging
     - build
     runs-on: ubuntu-24.04

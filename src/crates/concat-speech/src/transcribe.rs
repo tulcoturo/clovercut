@@ -221,7 +221,7 @@ pub fn cpu_backend() -> Result<String, String> {
                 }
             }
             Err(format!(
-                "whisper's CPU kernels (ggml-cpu-*) are missing from {} - reinstall Concat",
+                "whisper's CPU kernels (ggml-cpu-*) are missing from {} - reinstall Clovercut",
                 folders[0].display()
             ))
         })
@@ -570,6 +570,8 @@ impl Transcriber {
         let threads = std::thread::available_parallelism()
             .map(|count| count.get().saturating_sub(2).clamp(1, 8))
             .unwrap_or(4);
+        // Dynamic ggml CPU backends must exist before Silero VAD opens (#667).
+        cpu_backend()?;
         let speech = speech_spans(dirs, &samples, threads);
         if cancel.load(Ordering::Relaxed) {
             return Err("transcription cancelled".to_owned());

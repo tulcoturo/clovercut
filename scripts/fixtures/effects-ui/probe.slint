@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { CatalogueCard, CatalogueItemData } from "__MEDIA_PANE__";
+export { TransitionPreview } from "__TRANSITION_PREVIEW__";
+export { Glyph } from "__PRIMITIVES__";
+export component EffectsProbe inherits Window {
+    width: 320px;
+    height: 240px;
+    in property <CatalogueItemData> item;
+    in-out property <int> applied;
+    CatalogueCard {
+        x: 20px;
+        y: 20px;
+        width: 160px;
+        height: 190px;
+        item: root.item;
+        glyph: root.item.glyph;
+        applied => { root.applied += 1; }
+    }
+}

@@ -4,7 +4,7 @@
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph } from "../icons.slint";
-import { Button, Modal } from "../primitives/modal.slint";
+import { ActionPair, Modal } from "../primitives/modal.slint";
 
 /// One question before something is thrown away: what it is, what goes
 /// with it, and the word on the button that does it. Rust fills it and
@@ -65,20 +65,11 @@ export component ConfirmDialog inherits Modal {
                 wrap: word-wrap;
             }
 
-            HorizontalLayout {
-                alignment: end;
-                spacing: 8px;
-
-                Button {
-                    label: I18n.t("common.cancel");
-                    clicked => { root.dismissed(); }
-                }
-
-                Button {
-                    danger: true;
-                    label: root.data.action;
-                    clicked => { root.confirmed(); }
-                }
+            ActionPair {
+                danger: true;
+                action-label: root.data.action;
+                cancel => { root.dismissed(); }
+                act => { root.confirmed(); }
             }
         }
     }

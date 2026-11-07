@@ -1,0 +1,54 @@
+format = 2
+
+[effect]
+id = "concat.kaleidoscope"
+name = "Kaleidoscope"
+kind = "effect"
+category = "Stylize"
+shelves = ["Featured"]
+order = 84
+intensity = "amount"
+description = "Mirrored radial segments with aspect-correct geometry and an animated rotation control."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 100
+default = 100
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "segments"
+label = "Segments"
+min = 2
+max = 16
+default = 6
+step = 1
+unit = ""
+animate = true
+
+[[param]]
+key = "rotation"
+label = "Rotation"
+min = -180
+max = 180
+default = 0
+step = 1
+unit = "\u00b0"
+animate = true
+
+[[param]]
+key = "zoom"
+label = "Zoom"
+min = 50
+max = 200
+default = 100
+step = 1
+unit = "%"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"

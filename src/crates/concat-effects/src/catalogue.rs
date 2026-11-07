@@ -97,7 +97,8 @@ pub struct Fixture {
 
 /// One pinned colour from `fixtures.toml`'s `[[probe]]`s: a picture of one
 /// colour through the package's shader at these parameters comes out as
-/// this colour - or, for a transition, a cut from a picture of one colour
+/// this colour on the canonical 8x8 probe target (the CLI and renderer tests
+/// use its middle pixel) - or, for a transition, a cut from a picture of one colour
 /// to a picture of another, at one point of it. Every colour is in the
 /// compositor's working space - linear light, 1.0 the white of an SDR
 /// picture - and the check is made on a GPU, where the shader runs:

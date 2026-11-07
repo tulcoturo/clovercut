@@ -1,0 +1,54 @@
+format = 2
+
+[effect]
+id = "concat.tilt-shift"
+name = "Tilt Shift"
+kind = "effect"
+category = "Blur"
+shelves = ["Featured"]
+order = 85
+intensity = "amount"
+description = "A sharp focus band with a gradual lens blur above and below, adjustable in position, width and angle."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 100
+default = 55
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "position"
+label = "Position"
+min = 0
+max = 100
+default = 50
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "width"
+label = "Focus width"
+min = 0
+max = 100
+default = 30
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "rotation"
+label = "Rotation"
+min = -90
+max = 90
+default = 0
+step = 1
+unit = "\u00b0"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"

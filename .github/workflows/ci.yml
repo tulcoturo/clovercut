@@ -46,6 +46,10 @@ on:
         description: The ref to test, when it is not the one this runs on
         type: string
         default: ""
+      desktop_qa:
+        description: Also run selected desktop journeys for a release
+        type: boolean
+        default: false
 
 # Manual checks and release checks keep independent source refs.
 concurrency:

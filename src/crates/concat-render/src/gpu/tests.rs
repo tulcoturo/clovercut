@@ -2603,3 +2603,78 @@ fn remove_black_preserves_glow_and_transparent_composition() {
         assert!(!gpu.lost());
     }
 }
+
+/// Trial all builtin shader pipelines, including software adapters.
+#[test]
+fn every_shader_package_builds_on_this_adapter() {
+    // wgpu's own words - an uncaught error, a lost device's reason - go to
+    // the log; without a logger the failure said only "Validation Error".
+    struct Stderr;
+    impl log::Log for Stderr {
+        fn enabled(&self, metadata: &log::Metadata) -> bool {
+            metadata.level() <= log::Level::Warn
+        }
+        fn log(&self, record: &log::Record) {
+            if self.enabled(record.metadata()) {
+                eprintln!("{} {}: {}", record.level(), record.target(), record.args());
+            }
+        }
+        fn flush(&self) {}
+    }
+    let _ = log::set_logger(&Stderr).map(|()| log::set_max_level(log::LevelFilter::Warn));
+
+    let Some(mut gpu) = gpu() else { return };
+    let canary = package("test.canary", INVERT, "", &[], 1.0);
+    let catalogue = concat_effects::Catalogue::builtin();
+    let mut refused = Vec::new();
+    for package in catalogue.packages() {
+        let Some(shader) = package.shader() else {
+            continue;
+        };
+        let values = package.resolve(&Default::default());
+        let pass = shader.pass(
+            &values,
+            &package.manifest.params,
+            1.0,
+            package.lut().cloned(),
+            None,
+        );
+        if let Err(error) = gpu.trial(&pass, std::time::Duration::from_secs(60)) {
+            refused.push(format!("{}: {error}", package.id()));
+        }
+        // A pass that leaves the device unusable fails every one after it,
+        // each with an error that is not its own: name the one it was, and
+        // go on with a fresh device so the rest are judged for themselves.
+        if let Err(error) = gpu.trial(&canary, std::time::Duration::from_secs(60)) {
+            refused.push(format!(
+                "{}: the device was unusable after it ({error})",
+                package.id()
+            ));
+            let Some(fresh) = WgpuCompositor::new() else {
+                break;
+            };
+            gpu = fresh;
+        }
+    }
+    assert!(
+        refused.is_empty(),
+        "refused on {:?}:\n{}",
+        gpu.adapter_info().backend,
+        refused.join("\n")
+    );
+}
+
+/// A device-lost callback reaches texture-only rendering and sibling workers.
+#[test]
+fn a_shared_device_lost_flag_stops_texture_previews() {
+    let Some(gpu) = gpu() else { return };
+    let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let mut gpu = gpu.watching(flag.clone());
+    let mut sibling = gpu.sibling();
+    assert!(!gpu.is_dead());
+    flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    assert!(gpu.is_dead());
+    assert!(sibling.is_dead());
+    assert!(gpu.render_texture(&FramePlan::empty(4, 4)).is_none());
+    assert!(sibling.render_texture(&FramePlan::empty(4, 4)).is_none());
+}

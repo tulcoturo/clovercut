@@ -247,6 +247,18 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   tests, strict Clippy and full Slint generation. [Evidence](docs/audits/2026-11-06-playhead-palette.md).
   Physical settings pointer/display qualification remains open.
 
+- **Integrated macOS window safe start (#32):** CPU window rendering with Metal
+  video composition. Exact candidate CI passed 1351 ordinary, 30 gRPC and 14
+  desktop cases. Physical macOS remains unqualified. [Evidence](docs/audits/2026-11-06-macos-safe-start.md).
+
+## Creative effects — 7 November
+
+- **Implemented, qualification in progress:** nine new visual effects bring the
+  library to 33 effects, including VHS Tape and Old Film. Actual shader rendering
+  passes scene-linear probes, spatial response, zero Amount, parameter bounds,
+  alpha, clip-local timing and stack ordering. Effects and filters use the
+  existing cancellable hover-thumbnail worker. [Implementation and evidence](docs/audits/2026-11-07-creative-effects.md).
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested
