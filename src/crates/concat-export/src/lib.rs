@@ -2150,13 +2150,18 @@ fn render_picture(
             decoders.retain(|clip, _| live.contains(clip));
 
             if progress_due(index, said.elapsed()) {
-                reporter.emit(index, total_frames, stage);
+                reporter.emit(index + 1, total_frames, stage);
                 said = std::time::Instant::now();
             }
         }
 
         match encoder.finish() {
-            Ok(()) => return Ok(()),
+            Ok(()) => {
+                // Periodic updates can end before the last frame, especially
+                // for silent/title-only cuts with no later mux progress.
+                reporter.emit(total_frames, total_frames, stage);
+                return Ok(());
+            }
             Err(error) => {
                 drop(encoder);
                 again_in_software(&error, &mut options, total_frames, total_frames)?;
@@ -3847,7 +3852,10 @@ mod tests {
         };
         assert!(!nested.exists());
         let cancel = AtomicBool::new(false);
-        let mut progress = |_: i64, _: i64, _: &'static str| {};
+        let mut updates = Vec::new();
+        let mut progress = |frame: i64, total: i64, stage: &'static str| {
+            updates.push((frame, total, stage));
+        };
         let reporter = Reporter {
             progress: &mut progress,
             cancel: &cancel,
@@ -3858,6 +3866,19 @@ mod tests {
         assert!(nested.is_dir(), "the export makes its folder: {result:?}");
         if result.is_ok() {
             assert!(nested.join("out.mp4").is_file());
+            assert!(
+                updates
+                    .iter()
+                    .any(|&(frame, total, _)| frame == 1 && total == 6),
+                "progress counts completed frames rather than zero-based indices"
+            );
+            let &(frame, total, stage) = updates.last().expect("completion progress");
+            assert_eq!(
+                (frame, total),
+                (6, 6),
+                "even a short silent export reports every completed frame"
+            );
+            assert!(matches!(stage, "rendering" | RENDERING_IN_SOFTWARE));
         }
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_file(&source);

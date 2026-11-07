@@ -50,15 +50,21 @@ python3 scripts/check_home_ui.py
 ```
 
 This imports the actual `ui/start.slint` into a small window fixture and uses
-Slint's testing backend. It checks accessible clear, focus restoration, Escape,
+Slint's testing backend and software renderer, with the bundled Hanken fonts.
+Compact/scaled New Project cases paint before inspecting shape/size geometry,
+scroll to Create, click it, and verify that a busy form refuses another creation.
+The recent-project hover case also compares painted button regions through
+repeated pointer moves and clicks Reveal/Remove without opening the project.
+Set `CLOVERCUT_UI_SNAPSHOT_DIR` to retain PPM frames for visual inspection.
+It also checks accessible clear, focus restoration, Escape,
 Tab followed by Enter/Space, and refusal of accessible activation on disabled
 project cards. Strict Clippy runs before the probe. The temporary crate uses the
 locked Slint versions and leaves the workspace lockfile unchanged; `--offline`
 uses cached dependencies. No native window, GPU/audio or application profile is
 opened. Linux needs Fontconfig/FreeType development libraries for text metrics;
 CI installs them on its disposable runner. This runs in headless CI on UI changes, alongside storage/preferences
-checks. It does not qualify physical screen readers, desktop shortcut routing,
-rendered appearance or the complete editing journey.
+checks. It does not qualify physical screen readers, native file-picker modality,
+driver-specific GPU appearance, desktop shortcut routing or the complete editing journey.
 
 ## Ordinary validation
 

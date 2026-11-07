@@ -283,8 +283,9 @@ pub struct ExportSpec {
     /// Frame rate denominator; the timeline's when absent.
     #[serde(default)]
     pub rate_den: Option<i64>,
-    /// "h264", "hevc" or "av1". H.264 when absent - HEVC for an HDR file,
-    /// which H.264 does not carry.
+    /// "h264", "hevc", "av1", "prores-4444" (MOV with alpha), or
+    /// "vp9-alpha" (WebM with alpha). H.264 when absent - HEVC for an HDR
+    /// file, which H.264 does not carry.
     #[serde(default)]
     pub codec: Option<String>,
     /// Ten bits a channel. Eight when absent.
@@ -445,6 +446,10 @@ pub struct JobStatus {
     /// The written file's picture size, once done.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
+    /// Size in bytes when the completed output was observed. Absent before
+    /// completion, or if the published file's metadata could not be read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<u64>,
     /// Why it failed, or that it was cancelled.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<ApiError>,
@@ -464,6 +469,7 @@ impl JobStatus {
             fraction: 0.0,
             width: None,
             height: None,
+            bytes: None,
             error: None,
         }
     }
@@ -689,7 +695,8 @@ pub enum Event {
         frame: i64,
         /// Frames in total.
         total: i64,
-        /// "video", "audio" or "mux".
+        /// The exporter's processing stage, e.g. "rendering", "mixing
+        /// audio", "muxing" or "rendering in software".
         stage: String,
     },
     /// The export wrote its file. The job is over.

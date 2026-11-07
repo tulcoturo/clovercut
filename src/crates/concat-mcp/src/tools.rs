@@ -447,14 +447,14 @@ pub fn catalogue() -> Vec<Tool> {
         method(
             "export_start",
             "Start an export",
-            "Starts rendering an open project's active timeline to `output` (an .mp4 path), as the window's Export does. Returns at once with a `job` id; follow it with `export_wait` or `export_status`. Optional: crf (quality, lower is better, 20 by default), preset (x264 speed, \"medium\"), width/height, rateNum/rateDen, codec (\"h264\", \"hevc\" or \"av1\"), tenBit, colorRange, hdr. One export runs at a time; another is refused as busy.",
+            "Starts rendering an open project's active timeline to `output` (.mp4 for H.264/HEVC/AV1, .mov for ProRes 4444, .webm for VP9 alpha), as the window's Export does. Returns at once with a `job` id; follow it with `export_wait` or `export_status`. Optional: crf (quality, lower is better, 20 by default), preset (x264 speed, \"medium\"), width/height, rateNum/rateDen, codec (\"h264\", \"hevc\", \"av1\", \"prores-4444\" or \"vp9-alpha\"), tenBit, colorRange, hdr. One export runs at a time; another is refused as busy.",
             "export.run",
             Raw,
         ),
         method(
             "export_status",
             "Export status",
-            "How an export job stands, at once: `state` (\"running\", \"done\", \"cancelled\" or \"failed\"), `stage` (\"cutout\", \"stabilize\", \"rendering\", \"mixing audio\" or \"muxing\"), frames done of total, `fraction` of the stage (0-1), and once done the file and its size, or the error.",
+            "How an export job stands, at once: `state` (\"running\", \"done\", \"cancelled\" or \"failed\"), `stage` (\"cutout\", \"stabilize\", \"rendering\", \"rendering in software\", \"mixing audio\" or \"muxing\"), frames done of total, `fraction` of the stage (0-1), and once done the file and its `bytes` size when available, or the error. A completed job reports frame == total; stage retains the last processing stage.",
             "export.status",
             Raw,
         )
