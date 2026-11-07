@@ -264,6 +264,18 @@ fn main() {
             1
         );
     }
+    let reveal = find(&hover, "start.showInFolder");
+    let forget = find(&hover, "start.removeFromList");
+    hover.set_busy(true);
+    for action in [reveal, forget] {
+        assert_eq!(action.accessible_enabled(), Some(false));
+        action.invoke_accessible_default_action();
+    }
+    assert_eq!(
+        (hover.get_opens(), hover.get_reveals(), hover.get_forgets()),
+        (0, 1, 1),
+        "persistent action controls must respect the home's busy guard"
+    );
     hover.hide().unwrap();
     println!("home UI: painted poster actions remain present on hover and accept clicks");
     let themed = HomeProbe::new().unwrap();

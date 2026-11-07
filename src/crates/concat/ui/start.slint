@@ -879,6 +879,7 @@ component DropTile inherits Rectangle {
 component PosterAction inherits Rectangle {
     in property <Glyph> glyph;
     in property <string> label;
+    in property <bool> enabled: true;
     out property <bool> hovered: touch.has-hover;
 
     callback clicked();
@@ -889,7 +890,10 @@ component PosterAction inherits Rectangle {
     background: touch.has-hover ? Theme.on-scrim.with-alpha(0.24) : Theme.scrim;
     accessible-role: button;
     accessible-label: root.label;
-    accessible-action-default => { root.clicked(); }
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) { root.clicked(); }
+    }
 
     animate background { duration: 100ms; }
 
@@ -903,6 +907,7 @@ component PosterAction inherits Rectangle {
     }
 
     touch := TouchArea {
+        enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
@@ -1013,7 +1018,7 @@ component PosterCard inherits Pressable {
         HorizontalLayout {
             // Keep the controls instantiated: entering one transfers hover
             // from the card to that button, and must not destroy its target.
-            visible: root.actions || reveal.hovered || forget.hovered;
+            visible: root.enabled && (root.actions || reveal.hovered || forget.hovered);
             x: parent.width - self.preferred-width - 8px;
             y: 8px;
             height: 28px;
@@ -1021,6 +1026,7 @@ component PosterCard inherits Pressable {
             spacing: 6px;
 
             reveal := PosterAction {
+                enabled: root.enabled;
                 visible: root.can-reveal && !root.project.missing;
                 glyph: Glyph.folder;
                 label: I18n.t("start.showInFolder");
@@ -1028,6 +1034,7 @@ component PosterCard inherits Pressable {
             }
 
             forget := PosterAction {
+                enabled: root.enabled;
                 glyph: Glyph.close;
                 label: I18n.t("start.removeFromList");
                 clicked => { root.forgotten(); }
