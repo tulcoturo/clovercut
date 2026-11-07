@@ -11,7 +11,7 @@ generated-media ownership, exact export clocks and cancellable atomic publicatio
 | Commit | Decision and Clovercut adaptation |
 | --- | --- |
 | `1ffd4f41` | Load dynamic ggml CPU kernels before Silero VAD, preserving selected audio stream, cancellation and speech-reel timing. A missing CPU kernel reports a Clovercut reinstall error rather than reaching ggml's abort. |
-| `42dd9fc7`, `d65518b5` | Trial all built-in shaders, including software adapters. A canary names a package that leaves its device unusable, with driver errors logged. Add Windows WARP to the dedicated effect checks and make those checks a release gate. |
+| `42dd9fc7`, `d65518b5` | Trial all built-in shaders, including software adapters. A canary names a package that leaves its device unusable, with driver errors logged. Add Windows WARP to the dedicated all-builtin pipeline and nine-effect behavior checks and make those checks a release gate. |
 | `be75d58d` | Unsigned magnitudes prevent checked rational arithmetic from panicking on i128::MIN; preserve all existing rational timing contracts. |
 | `ab8607dd` | Add 13 bundled-font language presets and bundled-glyph coverage checks. Keep Clovercut's existing vertical text and caption behavior. |
 | `2b8690d1` | Platform-native affirmative/cancel order for confirmations and New Voice. Preserve destructive styling, translated labels and Clovercut's can-save checks. |

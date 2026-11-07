@@ -94,6 +94,40 @@ fn main() {
     let catalogue = Catalogue::builtin();
     let mut gpu = WgpuCompositor::new().expect("a real GPU or software adapter is required");
     println!("Adapter: {:?}", gpu.adapter_info());
+    // Build every builtin pipeline on this adapter, including WARP/FXC. A
+    // canary after each package attributes a device loss to its actual cause.
+    let canary = catalogue
+        .get("concat.exposure")
+        .expect("exposure canary")
+        .trial_pass()
+        .expect("canary shader");
+    let mut trials = 0;
+    for package in catalogue.packages() {
+        if let Some(pass) = package.trial_pass() {
+            gpu.trial(&pass, std::time::Duration::from_secs(60))
+                .unwrap_or_else(|error| panic!("{}: pipeline trial: {error}", package.id()));
+            gpu.trial(&canary, std::time::Duration::from_secs(60))
+                .unwrap_or_else(|error| {
+                    panic!("{}: device unusable after shader: {error}", package.id())
+                });
+            trials += 1;
+        } else if package.transition().is_some() {
+            let cut = catalogue
+                .transition_pass(package.id(), &BTreeMap::new(), 0.4)
+                .expect("transition");
+            gpu.probe_transition(&cut, [0.2, 0.3, 0.1, 1.0], [0.5, 0.1, 0.7, 1.0], 8, 0.0)
+                .unwrap_or_else(|| panic!("{}: transition pipeline refused", package.id()));
+            gpu.trial(&canary, std::time::Duration::from_secs(60))
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "{}: device unusable after transition: {error}",
+                        package.id()
+                    )
+                });
+            trials += 1;
+        }
+    }
+    println!("{trials} builtin visual pipelines and device-health canaries passed");
     let output = std::env::var_os("CLOVERCUT_EFFECTS_QA_OUTPUT").map(std::path::PathBuf::from);
     if let Some(output) = &output {
         std::fs::create_dir_all(output).expect("output folder");
