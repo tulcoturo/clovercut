@@ -103,9 +103,13 @@ checks. The Windows report's adapter is retained with the downloaded evidence;
 this qualifies its software-renderer pipeline, not the discussion reporter's FPS.
 
 The release's Windows ARM64 job failed before compiling the app: BtbN's old
-24 October FFmpeg SDK URL returned 404 after retries. Replace only ffmpeg-winarm64
-with the official dated 7 November SDK, still FFmpeg 8.1.3/GPL/shared. The digest
-`e6654a726f7c43c149bd3c958ac052aba80434e59a79e282b0339fbb83bc087c` matches the official
-GitHub asset digest and an independent local download. ZIP SDK headers and every
-DLL's ARM64 PE machine type were checked. Retain checksum enforcement; do not
-substitute an unchecked latest URL or disable required ARM64 packages.
+24 October FFmpeg SDK URL returned 404 after retries. An official 7 November
+8.1.3 SDK was first checked, but the provider's documented retention keeps only
+14 daily builds. The final pin therefore uses the **31 October monthly build**,
+retained for two years: FFmpeg 8.1.3-27-g8dca1586f4, GPL/shared, Windows ARM64.
+Its digest `3cc1f1a1b5830a3020ccacd4b2469954714ab4195de96cf03b35ae814ce039ac`
+matches the official GitHub asset digest and an independent local download.
+SDK headers and all seven DLLs' MZ/PE signatures and ARM64 machine types were
+checked. Retain checksum enforcement, a fixed dated URL and required ARM64
+packages; do not substitute unchecked latest downloads. Source: the official
+[BtbN retention policy](https://github.com/BtbN/FFmpeg-Builds#release-retention-policy).
