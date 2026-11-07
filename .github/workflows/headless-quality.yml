@@ -9,6 +9,11 @@ on:
         description: Exact source ref (empty uses the selected branch)
         type: string
         default: ""
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ''
   push:
     # PRs validate their merge tree below; avoid another run on the same
     # feature-branch push. Keep post-merge checks and manual dispatch.
@@ -24,6 +29,9 @@ on:
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
       - 'scripts/fixtures/effects-ui/**'
+      - 'scripts/fixtures/publish-ui/**'
+      - 'scripts/fixtures/scroll-ui/**'
+      - 'src/crates/concat/src/studio.rs'
       - 'src/crates/concat-speech/src/languages.rs'
       - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
@@ -65,6 +73,9 @@ on:
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
       - 'scripts/fixtures/effects-ui/**'
+      - 'scripts/fixtures/publish-ui/**'
+      - 'scripts/fixtures/scroll-ui/**'
+      - 'src/crates/concat/src/studio.rs'
       - 'src/crates/concat-speech/src/languages.rs'
       - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
@@ -182,6 +193,10 @@ jobs:
         run: python3 scripts/check_home_ui.py --suite captions
       - name: Effect and filter thumbnail hover controls without native window
         run: python3 scripts/check_home_ui.py --suite effects
+      - name: Unchanged model publication preserves dropdowns and dialogs
+        run: python3 scripts/check_home_ui.py --suite publish
+      - name: Timeline edge bounds and scrollbar wheel without native window
+        run: python3 scripts/check_home_ui.py --suite scroll
       - name: Editing and document regressions
         working-directory: src
         run: cargo test --locked -p concat-core -p concat-project

@@ -17,7 +17,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
@@ -45,6 +45,11 @@ def main():
         (scratch / "Cargo.lock").write_bytes(lock)
         for name in ("main.rs", "build.rs"):
             (scratch / name).write_bytes((fixtures / name).read_bytes())
+        if args.suite == "publish":
+            studio = (workspace / "crates/concat/src/studio.rs").read_text()
+            first = studio.index("pub fn sync<T:")
+            last = studio.index("/// The window's state.", first)
+            (scratch / "publish_helpers.rs").write_text(studio[first:last])
         source = json.dumps(str(workspace / "crates/concat/ui/start.slint"))[1:-1]
         theme = json.dumps(str(workspace / "crates/concat/ui/theme/theme.slint"))[1:-1]
         scrollbar = json.dumps(str(workspace / "crates/concat/ui/primitives/scrollbar.slint"))[1:-1]
@@ -56,6 +61,16 @@ def main():
         transition_preview = json.dumps(str(workspace / "crates/concat/ui/workspace/transition-preview.slint"))[1:-1]
         primitives = json.dumps(str(workspace / "crates/concat/ui/primitives/primitives.slint"))[1:-1]
         probe = (fixtures / "probe.slint").read_text()
+        for marker, relative in {
+                "__INSPECTOR__": "inspector/clip-inspector.slint",
+                "__EXPORT__": "dialogs/export.slint",
+                "__SETTINGS__": "dialogs/settings.slint",
+                "__RELINK__": "dialogs/relink.slint",
+                "__START__": "start.slint",
+                "__CAPTIONS__": "dialogs/captions.slint",
+        }.items():
+            probe = probe.replace(marker, json.dumps(str(workspace / "crates/concat/ui" / relative))[1:-1])
+
         (scratch / "probe.slint").write_text(
             probe.replace("__MEDIA_PANE__", media_pane).replace("__TRANSITION_PREVIEW__", transition_preview).replace("__PRIMITIVES__", primitives).replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar).replace("__THEME__", theme)
                 .replace("__LANES__", lanes).replace("__TIMELINE_MODEL__", model)

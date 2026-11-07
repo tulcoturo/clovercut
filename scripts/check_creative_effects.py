@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2026 Clovercut contributors
 """Render real creative-effect shaders without native media/UI dependencies.
 
-Requires a GPU or a Vulkan software adapter. Optional input is 320x180 raw RGBA;
+Requires a GPU or a Vulkan software adapter. Optional input is 480x270 raw RGBA;
 otherwise the fixture draws a synthetic chart. PPM previews are optional.
 """
 import argparse

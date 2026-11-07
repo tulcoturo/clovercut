@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { Lanes } from "__LANES__";
+import { ThinHScrollbar } from "__SCROLLBAR__";
+export component ScrollProbe inherits Window {
+    width: 500px;
+    height: 220px;
+    in property <int> origin: 5400;
+    in-out property <float> left;
+    in property <float> duration: 6000;
+    in-out property <length> bar-offset;
+    Lanes {
+        x: 0px; y: 0px;
+        width: 500px; height: 150px;
+        time-origin: root.origin;
+        scroll-left: root.left;
+        duration-seconds: root.duration;
+        seconds-per-pixel: 0.1;
+        scrolled(seconds) => { root.left = seconds; }
+    }
+    ThinHScrollbar {
+        x: 0px; y: 180px;
+        width: 500px;
+        viewport: 500px;
+        content: 1500px;
+        offset: root.bar-offset;
+        scrolled(offset) => { root.bar-offset = offset; }
+    }
+}

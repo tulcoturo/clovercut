@@ -23,8 +23,8 @@ const IDS: &[&str] = &[
     "neon-edges",
     "old-film",
 ];
-const W: u32 = 320;
-const H: u32 = 180;
+const W: u32 = 480;
+const H: u32 = 270;
 
 fn picture() -> Frame {
     let mut frame = Frame::transparent(W, H);
@@ -113,7 +113,7 @@ fn main() {
         for probe in &package.probes {
             let pass = package.probe_pass(probe).expect("probe pass");
             let colour = gpu
-                .probe(&[pass], probe.input, 16, 0.0)
+                .probe(&[pass], probe.input, 8, 0.0)
                 .expect("float readback");
             probe
                 .check(colour)

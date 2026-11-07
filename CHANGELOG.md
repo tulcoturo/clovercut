@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+Nine creative effects and animated effect/filter thumbnails; preview recovery,
+autosave/dropdown stability, timeline scroll fixes and captions CPU initialization.
+Workspace persistence, playhead colours, missing-media Undo, language presets and
+macOS window safe start. See [release notes](docs/releases/0.2.3.md).
+
 All notable changes to **Clovercut** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
