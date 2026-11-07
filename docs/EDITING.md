@@ -180,3 +180,24 @@ project change prevents its results from being applied. A delayed result cannot
 replace media whose path has since changed or which has already been restored.
 Interactive qualification of this workflow remains separate from the filesystem
 and request-ownership checks.
+
+## Creative visual effects
+
+The Effects library adds nine shader packages: **Camera Shake**, **Digital
+Glitch**, **VHS Tape**, **CRT Scanlines**, **Old Film**, **Kaleidoscope**, **Tilt
+Shift**, **Light Leak** and **Neon Edges**. They appear under Featured and their
+normal categories. Select a clip, add an effect, and use its inspector controls
+or keyframes to adjust it. An Amount of zero bypasses each new treatment.
+
+VHS Tape adds moving tracking distortion and colour bleed. Old Film combines
+warm faded monochrome with animated grain, dust, fine scratches and projector
+flicker. Motion follows elapsed clip time, so moving a clip on the timeline
+keeps the same treatment at the same point in that clip.
+
+Hover an effect, filter or transition card briefly to animate its thumbnail.
+Picture effects show a smooth before/after strength loop while their shader time
+advances; transitions show their cut progress. This uses the package's actual
+shader and reference image without changing the clip or saved effect settings.
+Leaving or dragging cancels the preview. One worker and a four-card cache bound
+background work; software-adapter sessions retain the still thumbnail. The nine
+new effects include bundled still artwork for that fallback.

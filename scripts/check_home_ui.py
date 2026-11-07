@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Exercise actual home, timeline or caption controls with Slint's testing backend.
+"""Exercise actual home, timeline, caption or catalogue controls with Slint's testing backend.
 
 No native window, GPU, audio, personal profile or copied UI implementation.
 This complements full desktop CI; it does not qualify physical accessibility.
@@ -17,7 +17,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline", "captions"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
@@ -52,9 +52,12 @@ def main():
         model = json.dumps(str(workspace / "crates/concat/ui/timeline/model.slint"))[1:-1]
         captions_dialog = json.dumps(str(workspace / "crates/concat/ui/dialogs/captions.slint"))[1:-1]
         captions_panel = json.dumps(str(workspace / "crates/concat/ui/workspace/captions-panel.slint"))[1:-1]
+        media_pane = json.dumps(str(workspace / "crates/concat/ui/workspace/media-pane.slint"))[1:-1]
+        transition_preview = json.dumps(str(workspace / "crates/concat/ui/workspace/transition-preview.slint"))[1:-1]
+        primitives = json.dumps(str(workspace / "crates/concat/ui/primitives/primitives.slint"))[1:-1]
         probe = (fixtures / "probe.slint").read_text()
         (scratch / "probe.slint").write_text(
-            probe.replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar).replace("__THEME__", theme)
+            probe.replace("__MEDIA_PANE__", media_pane).replace("__TRANSITION_PREVIEW__", transition_preview).replace("__PRIMITIVES__", primitives).replace("__START_SCREEN__", source).replace("__SCROLLBAR__", scrollbar).replace("__THEME__", theme)
                 .replace("__LANES__", lanes).replace("__TIMELINE_MODEL__", model)
                 .replace("__CAPTIONS_DIALOG__", captions_dialog).replace("__CAPTIONS_PANEL__", captions_panel)
         )

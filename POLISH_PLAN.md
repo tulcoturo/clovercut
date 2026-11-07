@@ -240,6 +240,14 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
   Restart offers remain separate pending save/recording/export/project-lock handling.
 
+## Creative effects — 7 November
+
+- **Implemented, qualification in progress:** nine new visual effects bring the
+  library to 33 effects, including VHS Tape and Old Film. Actual shader rendering
+  passes scene-linear probes, spatial response, zero Amount, parameter bounds,
+  alpha, clip-local timing and stack ordering. Effects and filters use the
+  existing cancellable hover-thumbnail worker. [Implementation and evidence](docs/audits/2026-11-07-creative-effects.md).
+
 ## Completion evidence
 
 Integrate coherent changes after applicable checks pass. Record exact tested

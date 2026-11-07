@@ -23,6 +23,7 @@ on:
       - 'scripts/fixtures/home-ui/**'
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
+      - 'scripts/fixtures/effects-ui/**'
       - 'src/crates/concat-speech/src/languages.rs'
       - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
@@ -63,6 +64,7 @@ on:
       - 'scripts/fixtures/home-ui/**'
       - 'scripts/fixtures/timeline-ui/**'
       - 'scripts/fixtures/captions-ui/**'
+      - 'scripts/fixtures/effects-ui/**'
       - 'src/crates/concat-speech/src/languages.rs'
       - 'src/crates/concat-speech/src/speech_reel.rs'
       - 'src/crates/concat/ui/**'
@@ -178,6 +180,8 @@ jobs:
         run: python3 scripts/check_home_ui.py --suite timeline
       - name: Caption language controls without native window
         run: python3 scripts/check_home_ui.py --suite captions
+      - name: Effect and filter thumbnail hover controls without native window
+        run: python3 scripts/check_home_ui.py --suite effects
       - name: Editing and document regressions
         working-directory: src
         run: cargo test --locked -p concat-core -p concat-project

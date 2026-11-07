@@ -348,6 +348,29 @@ impl Painter {
         self.frame(&animated)
     }
 
+    /// One looping catalogue preview. Transitions advance their cut; picture
+    /// effects advance clip-local time and smoothly demonstrate before/after
+    /// strength. Only this cloned preview changes: saved parameters stay intact.
+    pub fn preview_frame(&mut self, card: &Card, phase: f32) -> Result<Frame, String> {
+        if !phase.is_finite() {
+            return Err("preview phase is not finite".into());
+        }
+        let phase = phase.clamp(0.0, 1.0);
+        if matches!(&card.drawing, Drawing::Cut(_)) {
+            return self.transition_frame(card, phase);
+        }
+        let mut animated = card.clone();
+        animated.moment = f64::from(phase) * 1.5;
+        let strength = 0.5 - 0.5 * (phase * std::f32::consts::TAU).cos();
+        match &mut animated.drawing {
+            Drawing::Picture { pass, .. } | Drawing::Title(pass) => {
+                pass.intensity *= strength;
+            }
+            Drawing::Cut(_) => unreachable!("transition returned above"),
+        }
+        self.frame(&animated)
+    }
+
     /// `card` drawn, as an opaque frame the still's size.
     pub fn frame(&mut self, card: &Card) -> Result<Frame, String> {
         let (width, height) = (self.still.width(), self.still.height());
@@ -637,6 +660,55 @@ mod tests {
         assert!(matches(&end, &painter.city));
         assert_ne!(start, middle);
         assert_ne!(middle, end);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn picture_thumbnail_previews_show_before_after_and_real_clip_time() {
+        let Some(gpu) = WgpuCompositor::new() else {
+            assert!(
+                std::env::var_os("CONCAT_REQUIRE_GPU").is_none(),
+                "required adapter missing"
+            );
+            return;
+        };
+        if gpu.on_software_adapter() && std::env::var_os("CONCAT_REQUIRE_GPU").is_none() {
+            return;
+        }
+        let dir = scratch("effect-animation");
+        let still = still_in(&dir).unwrap();
+        let city = city_still_in(&dir).unwrap();
+        let mut painter = Painter::with_city(gpu, &still, Some(&city), 96, 54).unwrap();
+        let catalogue = Catalogue::builtin();
+        let card = Card::of(catalogue, catalogue.get("concat.scanlines").unwrap(), &dir).unwrap();
+        let original = painter.frame(&card).unwrap();
+        let before = painter.preview_frame(&card, 0.0).unwrap();
+        let full = painter.preview_frame(&card, 0.5).unwrap();
+        let end = painter.preview_frame(&card, 1.0).unwrap();
+        assert_eq!(before, end, "static before/after loop meets without a jump");
+        assert_ne!(before, full, "static effects demonstrate their treatment");
+        assert_eq!(
+            full, original,
+            "midpoint shows the actual default treatment"
+        );
+        assert_eq!(
+            original,
+            painter.frame(&card).unwrap(),
+            "preview must not mutate the card"
+        );
+        assert!(painter.preview_frame(&card, f32::NAN).is_err());
+        let tape = Card::of(catalogue, catalogue.get("concat.vhs-tape").unwrap(), &dir).unwrap();
+        assert_ne!(
+            painter.preview_frame(&tape, 0.25).unwrap(),
+            painter.preview_frame(&tape, 0.75).unwrap(),
+            "equal-strength tape previews advance shader time"
+        );
+        let transition =
+            Card::of(catalogue, catalogue.get("concat.dissolve").unwrap(), &dir).unwrap();
+        assert_eq!(
+            painter.preview_frame(&transition, 0.4).unwrap(),
+            painter.transition_frame(&transition, 0.4).unwrap()
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 

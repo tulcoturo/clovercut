@@ -1,0 +1,28 @@
+[[probe]]
+name = "default, flare lifts opaque black"
+at = "default"
+input = [0, 0, 0, 1]
+expect = [0.02041221202103267, 0.006237064784204428, 0.0013608141347355113, 1]
+
+[[probe]]
+name = "min, black stays black"
+at = "min"
+input = [0, 0, 0, 1]
+expect = [0, 0, 0, 1]
+
+[[probe]]
+name = "max, flare lifts opaque black"
+at = "max"
+input = [0, 0, 0, 1]
+expect = [0.26857255028864047, 0.08206383481041793, 0.017904836685909364, 1]
+
+[[probe]]
+name = "zero amount preserves extended light and alpha"
+params = { amount = 0 }
+input = [4, 1, 0.05, 0.5]
+expect = [4, 1, 0.05, 0.5]
+
+[[probe]]
+name = "transparent black stays transparent"
+input = [0, 0, 0, 0]
+expect = [0, 0, 0, 0]

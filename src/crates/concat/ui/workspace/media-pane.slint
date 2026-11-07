@@ -882,7 +882,7 @@ component MediaGrid inherits Rectangle {
 // One entry of the transitions or effects catalogue. Display data only: the
 // id is what Rust is handed when a card is applied, and ids are stable
 // forever because project files store them.
-struct CatalogueItemData {
+export struct CatalogueItemData {
     id: string,
     label: string,
     /// False keeps the card browsable with a "Soon" badge, the honest version
@@ -900,7 +900,7 @@ struct CatalogueItemData {
 
 // A catalogue card: preview tile, label under it, and the apply affordance —
 // a plus on hover when it works, a "Soon" badge when it does not.
-component CatalogueCard inherits Rectangle {
+export component CatalogueCard inherits Rectangle {
     in property <CatalogueItemData> item;
     in property <Glyph> glyph: root.item.glyph;
     /// A card that shows before it adds: a click is `auditioned`, and only
@@ -929,7 +929,18 @@ component CatalogueCard inherits Rectangle {
     property <bool> preview-pending;
     property <bool> preview-requested;
     property <int> preview-frame: 0;
-    property <bool> preview-hover: root.glyph == Glyph.transition && card.has-hover && !drag.dragging;
+    property <bool> preview-hover: root.item.enabled &&
+        (root.glyph == Glyph.transition || root.glyph == Glyph.sparkle || root.glyph == Glyph.filter)
+        && card.has-hover && !drag.dragging;
+    property <string> preview-id: root.item.id;
+    changed preview-id => {
+        if (root.preview-requested) {
+            root.preview-requested = false;
+            TransitionPreview.request("");
+        }
+        root.preview-frame = 0;
+        root.preview-pending = root.preview-hover;
+    }
     changed preview-hover => {
         root.preview-pending = root.preview-hover;
         root.preview-frame = 0;
@@ -1035,7 +1046,8 @@ component CatalogueCard inherits Rectangle {
                     image-fit: cover;
                 }
 
-                if (root.glyph == Glyph.sparkle || root.item.glyph == Glyph.sparkle) && card.has-hover: Rectangle {
+                if (root.glyph == Glyph.sparkle || root.item.glyph == Glyph.sparkle) && card.has-hover
+                    && !(root.preview-hover && TransitionPreview.id == root.item.id && TransitionPreview.frames.length > 0): Rectangle {
                     x: -parent.width + (2 * parent.width * root.shimmer);
                     width: parent.width;
                     height: parent.height;

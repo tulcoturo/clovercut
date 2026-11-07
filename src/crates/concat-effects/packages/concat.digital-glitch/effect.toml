@@ -1,0 +1,47 @@
+format = 2
+
+[effect]
+id = "concat.digital-glitch"
+name = "Digital Glitch"
+kind = "effect"
+category = "Distort"
+shelves = ["Featured"]
+order = 81
+intensity = "amount"
+description = "Animated horizontal block tears and RGB separation, with adjustable speed and block size."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 100
+default = 45
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "speed"
+label = "Speed"
+min = 1
+max = 30
+default = 8
+step = 1
+unit = "fps"
+animate = true
+
+[[param]]
+key = "blocks"
+label = "Blocks"
+min = 4
+max = 80
+default = 24
+step = 1
+unit = ""
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

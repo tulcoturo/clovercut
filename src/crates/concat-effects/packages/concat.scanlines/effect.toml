@@ -1,0 +1,44 @@
+format = 2
+
+[effect]
+id = "concat.scanlines"
+name = "CRT Scanlines"
+kind = "effect"
+category = "Retro"
+shelves = ["Featured"]
+order = 83
+intensity = "amount"
+description = "Resolution-aware CRT scanlines with adjustable spacing and softness."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 100
+default = 40
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "spacing"
+label = "Spacing"
+min = 2
+max = 16
+default = 4
+step = 1
+unit = "px"
+animate = true
+
+[[param]]
+key = "softness"
+label = "Softness"
+min = 0
+max = 100
+default = 65
+step = 1
+unit = "%"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"

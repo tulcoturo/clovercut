@@ -1,0 +1,44 @@
+format = 2
+
+[effect]
+id = "concat.neon-edges"
+name = "Neon Edges"
+kind = "effect"
+category = "Stylize"
+shelves = ["Featured"]
+order = 87
+intensity = "amount"
+description = "Sobel contours in a cyan and magenta glow, with adjustable line width and original-picture detail."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 100
+default = 75
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "width"
+label = "Line width"
+min = 1
+max = 6
+default = 2
+step = 0.5
+unit = "px"
+animate = true
+
+[[param]]
+key = "background"
+label = "Background detail"
+min = 0
+max = 100
+default = 25
+step = 1
+unit = "%"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
