@@ -13,6 +13,8 @@
 - [Test suites and qualification](TESTING.md): ordinary checks, ignored cases and honest result reporting.
 - [Release notes](releases/): published version history and upcoming release notes.
 
+- [Windows preview performance](PREVIEW_PERFORMANCE.md): adapter, proxy and log diagnostics for low-end playback reports.
+
 The [source overview](../src/README.md) describes architecture and crate boundaries.
 Superseded polish reports, machine-specific build logs and old audit screenshots
 are retained in Git history rather than maintained alongside current guides.
