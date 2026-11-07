@@ -22,8 +22,12 @@ use it; Full deliberately uses the original. Proxies remain opt-in.
 
 After reproducing and stopping playback, the log can include a `playback:` line
 with frames shown, repeated/skipped frames and the worst frame-request wait.
-The `at ... fps` value is the timeline's requested rate, **not a measured achieved
-frame rate**. Device-lost messages and the adapter line are also useful. Include
+In 0.2.3, `at ... fps` is the timeline's requested rate, **not a measured achieved
+frame rate**. Newer builds label this `target` and separately log `delivery` and
+`unique delivery` FPS from elapsed wall time between arrivals. Repeated timeline
+frames count toward delivery but not unique delivery. These measure images
+reaching the monitor code, not frames presented by the display; the first frame's
+startup wait remains represented by `worst wait`. A single arrival has no rate. Device-lost messages and the adapter line are also useful. Include
 whether the problem is continuous playback, dragging the playhead, or both.
 
 The 0.2.3 work adds approximate scrubbing/exact rest refinement, lower publication

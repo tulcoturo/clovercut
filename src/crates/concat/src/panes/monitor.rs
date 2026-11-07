@@ -156,11 +156,20 @@ struct Cadence {
     /// The longest a request waited for its frame.
     worst: std::time::Duration,
     last: Option<i64>,
+    /// Delivery timestamps, not presentation timestamps from the video.
+    first_delivery: Option<std::time::Instant>,
+    last_delivery: Option<std::time::Instant>,
 }
 
 impl Cadence {
     /// Counts a frame of the timeline frame `index` that took `wait`.
     fn count(&mut self, index: i64, wait: std::time::Duration) {
+        self.count_at(index, wait, std::time::Instant::now());
+    }
+
+    fn count_at(&mut self, index: i64, wait: std::time::Duration, now: std::time::Instant) {
+        self.first_delivery.get_or_insert(now);
+        self.last_delivery = Some(now);
         self.shown += 1;
         self.worst = self.worst.max(wait);
         match self.last {
@@ -173,11 +182,32 @@ impl Cadence {
         self.last = Some(index);
     }
 
+    /// Rates over delivery intervals. The first arrival has no preceding
+    /// interval; repeated frames count as deliveries but not picture changes.
+    /// These measure monitor delivery, not compositor/display presentation.
+    fn rates(&self) -> Option<(f64, f64)> {
+        let elapsed = self
+            .last_delivery?
+            .checked_duration_since(self.first_delivery?)?
+            .as_secs_f64();
+        if self.shown < 2 || elapsed <= 0.0 {
+            return None;
+        }
+        Some((
+            f64::from(self.shown - 1) / elapsed,
+            f64::from(self.shown.saturating_sub(self.repeated).saturating_sub(1)) / elapsed,
+        ))
+    }
+
     /// Logs what was counted and starts over.
     fn report(&mut self, fps: f64) {
         if self.shown > 0 {
+            let delivery = self.rates().map_or_else(
+                || "delivery fps unavailable (fewer than two timed arrivals)".to_owned(),
+                |(all, unique)| format!("delivery {all:.3} fps, unique delivery {unique:.3} fps"),
+            );
             log::info!(
-                "playback: {} frames shown at {fps:.3} fps, {} repeated, {} skipped, \
+                "playback: {} frames shown, target {fps:.3} fps, {delivery}, {} repeated, {} skipped, \
                  worst wait {} ms",
                 self.shown,
                 self.repeated,
@@ -262,6 +292,7 @@ impl MonitorPane {
                 self.refining = false;
                 self.inexact = false;
                 self.moved = None;
+                self.cadence = Cadence::default();
                 self.failed = false;
                 self.image = slint::Image::default();
             }
@@ -551,6 +582,36 @@ mod tests {
         assert_eq!(cadence.worst, ms(40));
         cadence.report(30.0);
         assert_eq!(cadence, Cadence::default(), "a report starts over");
+    }
+
+    #[test]
+    fn delivery_rates_use_wall_time_and_exclude_repeated_pictures() {
+        let start = std::time::Instant::now();
+        let ms = std::time::Duration::from_millis;
+        let mut cadence = Cadence::default();
+        // A 30 fps timeline delivers ten times a second, with one repeat.
+        for (index, elapsed) in [(0, 0), (3, 100), (3, 200), (9, 300)] {
+            cadence.count_at(index, ms(8), start + ms(elapsed));
+        }
+        let (delivery, unique) = cadence.rates().unwrap();
+        assert!((delivery - 10.0).abs() < 1e-9);
+        assert!((unique - 20.0 / 3.0).abs() < 1e-9);
+        assert_eq!(cadence.repeated, 1);
+        assert_eq!(cadence.skipped, 7);
+        cadence.report(30.0);
+        assert_eq!(cadence, Cadence::default());
+        assert_eq!(cadence.rates(), None);
+    }
+
+    #[test]
+    fn short_or_zero_interval_delivery_has_no_invented_rate() {
+        let now = std::time::Instant::now();
+        let mut cadence = Cadence::default();
+        assert_eq!(cadence.rates(), None);
+        cadence.count_at(0, std::time::Duration::ZERO, now);
+        assert_eq!(cadence.rates(), None);
+        cadence.count_at(1, std::time::Duration::ZERO, now);
+        assert_eq!(cadence.rates(), None);
     }
 
     #[test]
