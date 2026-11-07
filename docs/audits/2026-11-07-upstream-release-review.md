@@ -94,3 +94,18 @@ identity checks; origin-aware timeline/scrollbar interaction; actual hover check
 full Slint source generation; strict 25-locale inventory and nine locale-tool
 tests; native-size JPEG metadata; and the corrected canonical 53 GPU probes.
 Full native workspace and multi-platform package results remain release gates.
+
+## Hosted candidate findings
+
+The e6205568 dedicated effect workflow passed on Ubuntu and Windows, including
+all 125 built-in visual pipelines and health canaries and all nine-effect/53-probe
+checks. The Windows report's adapter is retained with the downloaded evidence;
+this qualifies its software-renderer pipeline, not the discussion reporter's FPS.
+
+The release's Windows ARM64 job failed before compiling the app: BtbN's old
+24 October FFmpeg SDK URL returned 404 after retries. Replace only ffmpeg-winarm64
+with the official dated 7 November SDK, still FFmpeg 8.1.3/GPL/shared. The digest
+`e6654a726f7c43c149bd3c958ac052aba80434e59a79e282b0339fbb83bc087c` matches the official
+GitHub asset digest and an independent local download. ZIP SDK headers and every
+DLL's ARM64 PE machine type were checked. Retain checksum enforcement; do not
+substitute an unchecked latest URL or disable required ARM64 packages.
