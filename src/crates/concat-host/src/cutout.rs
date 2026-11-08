@@ -161,8 +161,16 @@ impl Cutouts {
     pub fn requests(project: &Project, project_dir: &Path) -> Vec<(String, AnalyseRequest)> {
         let mut wanted: Vec<(String, AnalyseRequest)> = Vec::new();
         for clip in &project.active().clips {
-            let Some(cutout) = clip.cutout.as_ref() else {
-                continue;
+            let automatic = concat_project::model::Cutout::person();
+            let cutout = match clip.cutout.as_ref() {
+                Some(cutout) => cutout,
+                None if clip.video_effects.iter().any(|effect| {
+                    effect.enabled && concat_core::subject::needs_subject(&effect.id)
+                }) =>
+                {
+                    &automatic
+                }
+                None => continue,
             };
             if !clip.kind.is_visual() {
                 continue;
@@ -480,6 +488,58 @@ fn runs(instants: &[u64], step: u64) -> Vec<Vec<u64>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subject_effects_request_person_masks_without_enabling_background_removal() {
+        use concat_project::model::{AppliedFilter, Clip, ClipKind, Cutout, MediaItem};
+        let mut project = Project::new();
+        project.media.push(MediaItem {
+            id: "m1".into(),
+            path: "/fixture.mov".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(
+            Clip {
+                id: "c1".into(),
+                media_id: "m1".into(),
+                kind: ClipKind::Video,
+                duration: 2.0,
+                video_effects: vec![AppliedFilter::new("concat.subject-neon")],
+                ..Default::default()
+            }
+            .into(),
+        );
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(request.len(), 1);
+        assert_eq!(request[0].1.subject, Subject::Person);
+        assert!(project.active().clips[0].cutout.is_none());
+        let clip = project.active_mut().clip_mut("c1").unwrap();
+        clip.video_effects[0].enabled = false;
+        assert!(Cutouts::requests(&project, Path::new("/project")).is_empty());
+        let clip = project.active_mut().clip_mut("c1").unwrap();
+        clip.video_effects[0].enabled = true;
+        clip.cutout = Some(Cutout {
+            subject: Subject::Object,
+            ..Default::default()
+        });
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(
+            request[0].1.subject,
+            Subject::Object,
+            "existing brush/cutout subject wins"
+        );
+        let mut second = project.active().clips[0].as_ref().clone();
+        second.id = "c2".into();
+        second.source_start = 4.0;
+        project.active_mut().clips.push(second.into());
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(request.len(), 1);
+        assert_eq!(
+            request[0].1.ranges.len(),
+            2,
+            "clips sharing a source share one analysis"
+        );
+    }
 
     #[test]
     fn instants_group_into_runs_a_step_apart() {

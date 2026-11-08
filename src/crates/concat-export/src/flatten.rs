@@ -176,7 +176,17 @@ pub fn flatten_timeline_in(
                 // Pictures only: a mask on a clip that is all sound would
                 // keep part of nothing.
                 mask: clip.mask.filter(|_| kind != ClipKind::Audio),
-                mask_dir: match (&clip.cutout, project_dir) {
+                mask_dir: match (
+                    clip.cutout.clone().or_else(|| {
+                        clip.video_effects
+                            .iter()
+                            .any(|effect| {
+                                effect.enabled && concat_core::subject::needs_subject(&effect.id)
+                            })
+                            .then(concat_project::model::Cutout::person)
+                    }),
+                    project_dir,
+                ) {
                     (Some(cutout), Some(dir)) => {
                         concat_vision::mask_dir(dir, &media.path, cutout.subject)
                             .to_string_lossy()

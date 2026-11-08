@@ -1523,6 +1523,7 @@ fn shelves(
             group: group as i32,
             description: description.into(),
             favourite: starred,
+            source_only: concat_core::subject::needs_subject(&meta.id),
             art,
         });
     }
@@ -2140,6 +2141,7 @@ fn chain_rows(chain: &[AppliedFilter]) -> (Vec<AppliedEntryData>, Vec<AppliedPar
                 .unwrap_or_else(|| label_of(&entry.id))
                 .into(),
             on: entry.enabled,
+            subject: concat_core::subject::needs_subject(&entry.id),
             known: package.is_some(),
         });
         let Some(package) = package else { continue };
@@ -5268,6 +5270,13 @@ impl Studio {
             return;
         };
         if video
+            && concat_core::subject::needs_subject(id)
+            && !matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Image)
+        {
+            self.notify(&t("studio.selectVideoImageClip"), true);
+            return;
+        }
+        if video
             && !(graded(clip.kind)
                 || matches!(clip.kind, model::ClipKind::Text | model::ClipKind::Shape))
         {
@@ -5628,6 +5637,12 @@ impl Studio {
                 return false;
             };
             if from >= chain.len() || to >= chain.len() || from == to {
+                return false;
+            }
+            if !audio
+                && concat_core::subject::needs_subject(&chain[from].id)
+                    != concat_core::subject::needs_subject(&chain[to].id)
+            {
                 return false;
             }
             chain.swap(from, to);
@@ -8310,9 +8325,6 @@ impl Studio {
     /// that are not there, unless one is running. Called after every
     /// change; the finished job calls it again for whatever is next.
     pub fn ensure_cutouts(&mut self) {
-        if !self.cutout_jobs.is_empty() || self.host.cutouts.is_busy() {
-            return;
-        }
         let Some(session) = self.session.as_ref() else {
             return;
         };
@@ -8322,6 +8334,21 @@ impl Studio {
             .into_iter()
             .map(|(media_id, request)| (Self::analysis_key(&media_id, request.subject), request))
             .collect();
+        if !self.cutout_jobs.is_empty() {
+            if !self
+                .cutout_jobs
+                .keys()
+                .any(|id| wanted.iter().any(|(wanted, _)| wanted == id))
+            {
+                // A bypassed/removed effect must not leave inference consuming
+                // the machine. Wait for its callback before queueing a successor.
+                self.host.cutouts.cancel();
+            }
+            return;
+        }
+        if self.host.cutouts.is_busy() {
+            return;
+        }
         // One the app died analysing last time is skipped, and said once:
         // starting it again by itself closed the app on every open.
         let mut next = None;
@@ -8381,7 +8408,7 @@ impl Studio {
                         studio.request_preview();
                         studio.ensure_cutouts();
                     }
-                    Err(error) if error.contains("cancelled") => {}
+                    Err(error) if error.contains("cancelled") => studio.ensure_cutouts(),
                     Err(error) => studio.notify(&tf("studio.removeBackground", &[&error]), true),
                 }
             },
@@ -13134,9 +13161,18 @@ impl Studio {
             .map_or_else(|| colour_of(&text.color), colour_of);
         let stroke = colour_of(&text.stroke_color);
         let plate = colour_of(&text.background);
-        let analysis = clip.cutout.as_ref().and_then(|cutout| {
+        let subject_effects = clip
+            .video_effects
+            .iter()
+            .any(|effect| effect.enabled && concat_core::subject::needs_subject(&effect.id));
+        let analysed_subject = clip
+            .cutout
+            .as_ref()
+            .map(|cutout| cutout.subject)
+            .or_else(|| subject_effects.then_some(model::Subject::Person));
+        let analysis = analysed_subject.and_then(|subject| {
             self.cutout_jobs
-                .get(&Self::analysis_key(&clip.media_id, cutout.subject))
+                .get(&Self::analysis_key(&clip.media_id, subject))
                 .copied()
         });
         let mut enhance = self.enhance_readout(clip);
@@ -13274,6 +13310,7 @@ impl Studio {
                     model::Subject::Object => 2,
                 })
                 .unwrap_or(0),
+            subject_effects,
             cutout_progress: analysis.map(|(_, fraction)| fraction).unwrap_or(-1.0),
             cutout_fetching: analysis.is_some_and(|(fetching, _)| fetching),
             cutout_empty: self.cutout_empty(clip),
@@ -13408,7 +13445,14 @@ impl Studio {
     /// `clip`, so the picture is showing as shot. Only an automatic cutout
     /// says so: a custom one is whatever was painted.
     fn cutout_empty(&self, clip: &Clip) -> bool {
-        let Some(cutout) = clip.cutout.as_ref() else {
+        let automatic = model::Cutout::person();
+        let cutout = clip.cutout.as_ref().or_else(|| {
+            clip.video_effects
+                .iter()
+                .any(|effect| effect.enabled && concat_core::subject::needs_subject(&effect.id))
+                .then_some(&automatic)
+        });
+        let Some(cutout) = cutout else {
             return false;
         };
         if cutout.mode != model::CutoutMode::Auto {
@@ -13697,6 +13741,7 @@ impl Studio {
                             group: group as i32,
                             description: description.into(),
                             favourite,
+                            source_only: false,
                             art: Default::default(),
                         });
                     }

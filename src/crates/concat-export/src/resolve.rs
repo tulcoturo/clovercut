@@ -23,6 +23,7 @@ pub(crate) const HIGHLIGHT: [u8; 3] = [0xcb, 0xf5, 0x3f];
 pub(crate) struct CutoutJob {
     pub(crate) store: MaskStore,
     pub(crate) cutout: Cutout,
+    pub(crate) cuts_background: bool,
     pub(crate) mapping: Mapping,
     /// The source's width over its height, for round brushes.
     pub(crate) aspect: f32,
@@ -36,7 +37,12 @@ impl CutoutJob {
     /// chain, and not when the frame plan draws them (see
     /// [`planned_geometry`]); the mask is mapped onto the frame as it is.
     pub(crate) fn of(clip: &ExportClip, treated: bool) -> Option<CutoutJob> {
-        let cutout = clip.cutout.clone()?;
+        let cutout = clip.cutout.clone().or_else(|| {
+            clip.effects
+                .iter()
+                .any(|effect| effect.enabled && concat_core::subject::needs_subject(&effect.id))
+                .then(Cutout::person)
+        })?;
         if clip.mask_dir.is_empty() {
             return None;
         }
@@ -47,6 +53,7 @@ impl CutoutJob {
         Some(CutoutJob {
             store: MaskStore::open(Path::new(&clip.mask_dir)),
             cutout,
+            cuts_background: clip.cutout.is_some(),
             mapping: Mapping {
                 crop: clip
                     .crop
@@ -64,6 +71,9 @@ impl CutoutJob {
     /// `None` leaves the picture whole: an instant not analysed yet is
     /// shown as shot rather than not at all.
     pub(crate) fn cut(&self, frame: &Frame, source_time: Rational) -> Option<Frame> {
+        if !self.cuts_background {
+            return None;
+        }
         let mask = self
             .store
             .resolved(source_time.as_f64(), &self.cutout, self.aspect)?;
@@ -72,9 +82,45 @@ impl CutoutJob {
         Some(out)
     }
 
+    /// A small cached coverage map, without cutting or reducing the source colour depth.
+    pub(crate) fn subject_mask(
+        &self,
+        source_time: Rational,
+    ) -> Option<Arc<concat_core::subject::SubjectMask>> {
+        let mask = self
+            .store
+            .resolved(source_time.as_f64(), &self.cutout, self.aspect)?;
+        let factor = mask
+            .width()
+            .max(mask.height())
+            .div_ceil(concat_core::subject::MAX_SIDE)
+            .max(1);
+        let small = mask.shrunk(factor);
+        let mask = concat_core::subject::SubjectMask::new(
+            small.width(),
+            small.height(),
+            small.bytes().to_vec(),
+        )?;
+        let origin = self.mapping.source_of(0.0, 0.0);
+        let right = self.mapping.source_of(1.0, 0.0);
+        let down = self.mapping.source_of(0.0, 1.0);
+        mask.remapped([
+            right.0 - origin.0,
+            down.0 - origin.0,
+            origin.0,
+            right.1 - origin.1,
+            down.1 - origin.1,
+            origin.1,
+        ])
+        .map(Arc::new)
+    }
+
     /// The frame whole, with what the cutout keeps tinted over it: the
     /// painting view. `None` as for `cut`.
     pub(crate) fn highlight(&self, frame: &Frame, source_time: Rational) -> Option<Frame> {
+        if !self.cuts_background {
+            return None;
+        }
         let mask = self
             .store
             .resolved(source_time.as_f64(), &self.cutout, self.aspect)?;
@@ -613,4 +659,25 @@ pub(crate) fn quantise(seconds: f64, rate: FrameRate) -> Rational {
 /// keeps the raw local placement; video retains its original global grid.
 pub(crate) fn quantise_at(seconds: f64, rate: FrameRate, origin: f64) -> Rational {
     quantise(seconds + origin, rate) - quantise(origin, rate)
+}
+
+#[cfg(test)]
+mod subject_tests {
+    use super::*;
+
+    #[test]
+    fn subject_only_job_never_cuts_or_highlights_the_original_picture() {
+        let clip = ExportClip {
+            effects: vec![AppliedFilter::new("concat.subject-neon")],
+            mask_dir: "/nonexistent-subject-test-mask-store".into(),
+            ..ExportClip::blank(ClipKind::Video, 0.0, 1.0, 0)
+        };
+        let job = CutoutJob::of(&clip, false).unwrap();
+        assert!(!job.cuts_background);
+        assert_eq!(job.cutout.subject, concat_project::model::Subject::Person);
+        let frame = Frame::from_rgba(1, 1, vec![25, 50, 100, 255]).unwrap();
+        assert!(job.cut(&frame, Rational::ZERO).is_none());
+        assert!(job.highlight(&frame, Rational::ZERO).is_none());
+        assert!(job.subject_mask(Rational::ZERO).is_none());
+    }
 }

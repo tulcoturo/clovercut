@@ -28,6 +28,7 @@ use std::sync::Arc;
 
 use concat_core::frame::Frame;
 use concat_core::shader::{RevealMap, ShaderPass, TransitionPass};
+use concat_core::subject::{SubjectMask, needs_subject};
 use concat_core::time::Rational;
 use concat_effects::{At, Catalogue, Package};
 use concat_media::{DecodeOptions, Decoder, FrameSource};
@@ -44,8 +45,10 @@ pub const HEIGHT: u32 = 270;
 /// giving rich golden light, color gradations, clouds, and contrast for filters and adjustments.
 pub const STILL_SUNSET: &[u8] = include_bytes!("../assets/card-sunset.jpg");
 
-/// The picture abrupt effect and transition cards are drawn from: a modern city skyline
-/// with high-frequency geometry, skyscrapers, and crisp architectural edges.
+/// Transparent person reference for subject-aware effect thumbnails.
+pub const STILL_SUBJECT: &[u8] = include_bytes!("../assets/card-subject.png");
+
+/// The city reference, with high-frequency geometry and crisp architectural edges.
 pub const STILL_CITY: &[u8] = include_bytes!("../assets/card-city.jpg");
 
 /// Default still for backwards compatibility.
@@ -238,6 +241,9 @@ fn fingerprint(drawing: &Drawing, moment: f64) -> u64 {
             theme,
         } => {
             feed(b"picture");
+            if needs_subject(&drawn.package) {
+                feed(STILL_SUBJECT);
+            }
             feed(match theme {
                 CardTheme::Calm => b"calm",
                 CardTheme::Abrupt => b"abrupt",
@@ -270,6 +276,7 @@ pub struct Painter {
     city: Arc<Frame>,
     checker: Arc<Frame>,
     title: Option<(Arc<Frame>, Arc<RevealMap>)>,
+    subject: Option<(Arc<Frame>, Arc<SubjectMask>)>,
 }
 
 impl Painter {
@@ -321,6 +328,7 @@ impl Painter {
             city: Arc::new(city),
             checker: Arc::new(checker),
             title: None,
+            subject: None,
         })
     }
 
@@ -381,18 +389,25 @@ impl Painter {
                 screen,
                 theme,
             } => {
-                let base = match theme {
-                    CardTheme::Abrupt => &self.city,
-                    CardTheme::Calm => &self.still,
-                };
-                let subject = match screen {
-                    Some(colour) => Arc::new(screened(base, *colour)),
-                    None => Arc::clone(base),
+                let mut pass = pass.clone();
+                let subject = if needs_subject(&pass.package) {
+                    let (reference, mask) = self.subject(width, height)?;
+                    pass.subject_mask = Some(mask);
+                    reference
+                } else {
+                    let base = match theme {
+                        CardTheme::Abrupt => &self.city,
+                        CardTheme::Calm => &self.still,
+                    };
+                    match screen {
+                        Some(colour) => Arc::new(screened(base, *colour)),
+                        None => Arc::clone(base),
+                    }
                 };
                 let ground = PlannedLayer::picture(detached_clip(), Arc::clone(&self.checker));
                 let mut picture = PlannedLayer::picture(detached_clip(), subject);
                 picture.track = 1;
-                picture.effects = vec![pass.clone()];
+                picture.effects = vec![pass];
                 self.compositor.render(&FramePlan {
                     time: moment,
                     layers: vec![ground, picture],
@@ -434,8 +449,67 @@ impl Painter {
         Ok(frame)
     }
 
-    /// The title a text effect's card treats, set once: white words with a
-    /// shadow, centred, over nothing, and the order its words reveal in.
+    /// A known-alpha person composited over the city. Thumbnail rendering
+    /// needs no model download/inference and uses the real subject shader.
+    fn subject(
+        &mut self,
+        width: u32,
+        height: u32,
+    ) -> Result<(Arc<Frame>, Arc<SubjectMask>), String> {
+        if let Some((frame, mask)) = &self.subject {
+            return Ok((Arc::clone(frame), Arc::clone(mask)));
+        }
+        let mut decoder = png::Decoder::new(std::io::Cursor::new(STILL_SUBJECT));
+        decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+        let mut reader = decoder.read_info().map_err(|error| error.to_string())?;
+        let mut pixels = vec![0; reader.output_buffer_size()];
+        let info = reader
+            .next_frame(&mut pixels)
+            .map_err(|error| error.to_string())?;
+        if info.color_type != png::ColorType::Rgba {
+            return Err("subject reference needs alpha".into());
+        }
+        pixels.truncate(info.buffer_size());
+        let image =
+            Frame::from_rgba(info.width, info.height, pixels).ok_or("invalid subject reference")?;
+        let cutout = Arc::new(self.compositor.render(&FramePlan {
+            canvas: [0; 4],
+            layers: vec![PlannedLayer::picture(detached_clip(), Arc::new(image))],
+            ..FramePlan::empty(width, height)
+        }));
+        let scale = (concat_core::subject::MAX_SIDE as f32 / width.max(height) as f32).min(1.0);
+        let (mw, mh) = (
+            ((width as f32 * scale).round() as u32).max(1),
+            ((height as f32 * scale).round() as u32).max(1),
+        );
+        let mut gray = Vec::with_capacity(mw as usize * mh as usize);
+        for y in 0..mh {
+            for x in 0..mw {
+                gray.push(
+                    cutout
+                        .pixel(
+                            (u64::from(x) * u64::from(width) / u64::from(mw)) as u32,
+                            (u64::from(y) * u64::from(height) / u64::from(mh)) as u32,
+                        )
+                        .map_or(0, |pixel| pixel[3]),
+                );
+            }
+        }
+        let mask = Arc::new(SubjectMask::new(mw, mh, gray).ok_or("invalid reference matte")?);
+        let mut person = PlannedLayer::picture(detached_clip(), cutout);
+        person.track = 1;
+        let frame = Arc::new(self.compositor.render(&FramePlan {
+            layers: vec![
+                PlannedLayer::picture(detached_clip(), Arc::clone(&self.city)),
+                person,
+            ],
+            ..FramePlan::empty(width, height)
+        }));
+        self.subject = Some((Arc::clone(&frame), Arc::clone(&mask)));
+        Ok((frame, mask))
+    }
+
+    /// White title words and their reveal order, prepared once.
     fn title(&mut self, width: u32, height: u32) -> Result<(Arc<Frame>, Arc<RevealMap>), String> {
         if let Some((frame, reveal)) = &self.title {
             return Ok((Arc::clone(frame), Arc::clone(reveal)));
@@ -709,6 +783,57 @@ mod tests {
             painter.preview_frame(&transition, 0.4).unwrap(),
             painter.transition_frame(&transition, 0.4).unwrap()
         );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn subject_thumbnails_use_a_real_person_matte_and_animate() {
+        let Some(gpu) = WgpuCompositor::new() else {
+            assert!(
+                std::env::var_os("CONCAT_REQUIRE_GPU").is_none(),
+                "required adapter missing"
+            );
+            return;
+        };
+        if gpu.on_software_adapter() && std::env::var_os("CONCAT_REQUIRE_GPU").is_none() {
+            return;
+        }
+        let dir = scratch("subject-animation");
+        let still = still_in(&dir).unwrap();
+        let city = city_still_in(&dir).unwrap();
+        let mut painter = Painter::with_city(gpu, &still, Some(&city), 480, 270).unwrap();
+        let catalogue = Catalogue::builtin();
+        let (reference, mask) = painter.subject(480, 270).unwrap();
+        assert!(mask.gray.iter().any(|v| *v == 0));
+        assert!(mask.gray.iter().any(|v| *v > 240));
+        let model = concat_vision::Segmenter::selfie().unwrap();
+        model.begin();
+        let inferred = model.mask(&reference).unwrap();
+        assert!(
+            inferred.bytes().iter().any(|v| *v > 128),
+            "the reference must contain a detectable person"
+        );
+        for id in ["concat.subject-neon", "concat.subject-electric"] {
+            let card = Card::of(catalogue, catalogue.get(id).unwrap(), &dir).unwrap();
+            let before = painter.preview_frame(&card, 0.0).unwrap();
+            let first = painter.preview_frame(&card, 0.25).unwrap();
+            let later = painter.preview_frame(&card, 0.75).unwrap();
+            assert_ne!(before, first, "{id} shows the effect");
+            assert_ne!(first, later, "{id} advances real shader time");
+            if let Some(output) = std::env::var_os("CLOVERCUT_SUBJECT_PROBES").or_else(|| {
+                std::env::var_os("GITHUB_WORKSPACE")
+                    .map(|path| PathBuf::from(path).join("subject-probes").into_os_string())
+            }) {
+                let output = PathBuf::from(output);
+                std::fs::create_dir_all(&output).unwrap();
+                let mut ppm =
+                    format!("P6\n{} {}\n255\n", first.width(), first.height()).into_bytes();
+                for pixel in first.pixels().chunks_exact(4) {
+                    ppm.extend_from_slice(&pixel[..3]);
+                }
+                std::fs::write(output.join(format!("{id}-thumbnail.ppm")), ppm).unwrap();
+            }
+        }
         std::fs::remove_dir_all(dir).unwrap();
     }
 

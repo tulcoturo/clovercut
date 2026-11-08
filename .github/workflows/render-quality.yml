@@ -1,0 +1,81 @@
+name: GPU render checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact source ref (empty uses the selected branch)
+        type: string
+        default: ''
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/render-quality.yml'
+      - 'src/crates/concat-core/src/subject.rs'
+      - 'src/crates/concat-core/src/shader.rs'
+      - 'src/crates/concat-effects/**'
+      - 'src/crates/concat-render/**'
+  pull_request:
+    paths:
+      - '.github/workflows/render-quality.yml'
+      - 'src/crates/concat-core/src/subject.rs'
+      - 'src/crates/concat-core/src/shader.rs'
+      - 'src/crates/concat-effects/**'
+      - 'src/crates/concat-render/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-${{ github.event_name }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_PROFILE_DEV_CODEGEN_UNITS: '16'
+      CARGO_PROFILE_TEST_CODEGEN_UNITS: '16'
+      CONCAT_REQUIRE_GPU: '1'
+      CLOVERCUT_SUBJECT_PROBES: '${{ github.workspace }}/subject-probes'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Pinned toolchain
+        id: toolchain
+        run: echo "channel=$(sed -n 's/^channel = \"\(.*\)\"/\1/p' src/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: src
+          cache-on-failure: true
+      - name: Software Vulkan adapter
+        run: |
+          sudo apt-get update -o Acquire::Retries=3
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers
+          mkdir -p "$RUNNER_TEMP/render-runtime"
+          chmod 700 "$RUNNER_TEMP/render-runtime"
+          echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/render-runtime" >> "$GITHUB_ENV"
+      - name: Strict renderer and package checks
+        working-directory: src
+        run: cargo clippy --locked -p concat-core -p concat-effects -p concat-project -p concat-render --all-targets -- -D warnings
+      - name: GPU subject masks and effects
+        working-directory: src
+        run: cargo test --locked -p concat-render subject_ -- --nocapture --test-threads=1
+      - name: Subject render probes
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: subject-render-probes
+          path: subject-probes
+          retention-days: 7
+          if-no-files-found: warn

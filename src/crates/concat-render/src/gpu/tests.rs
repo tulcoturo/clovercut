@@ -2678,3 +2678,158 @@ fn a_shared_device_lost_flag_stops_texture_previews() {
     assert!(gpu.render_texture(&FramePlan::empty(4, 4)).is_none());
     assert!(sibling.render_texture(&FramePlan::empty(4, 4)).is_none());
 }
+
+/// The new mask binding follows source geometry, including mirrored/cropped
+/// and stabilized pictures. The CPU oracle draws the equivalent grayscale source.
+#[test]
+fn subject_mask_sampling_tracks_crop_flip_and_warp() {
+    use concat_core::subject::SubjectMask;
+    let Some(mut gpu) = gpu() else { return };
+    let (w, h) = (96, 64);
+    let mut gray = Vec::new();
+    let mut reference = Frame::black(w, h);
+    for y in 0..h {
+        for x in 0..w {
+            let value = if (20..45).contains(&x) && (12..52).contains(&y) {
+                255
+            } else {
+                0
+            };
+            gray.push(value);
+            reference.set_pixel(x, y, [value, value, value, 255]);
+        }
+    }
+    let mask = Arc::new(SubjectMask::new(w, h, gray).unwrap());
+    for (crop, flip, warp) in [
+        (Crop::NONE, false, Warp::NONE),
+        (Crop::NONE, true, Warp::NONE),
+        (Crop::of([0.1, 0.05, 0.2, 0.1]), true, Warp::NONE),
+        (
+            Crop::of([0.05, 0.05, 0.05, 0.05]),
+            false,
+            Warp {
+                a: 0.96,
+                b: 0.08,
+                tx: 0.03,
+                ty: -0.02,
+            },
+        ),
+    ] {
+        let mut expected = layer(reference.clone());
+        expected.crop = crop;
+        expected.flip_h = flip;
+        expected.warp = warp;
+        let wanted = CpuCompositor.render(&plan(w, h, vec![expected]));
+        let mut pass = package(
+            "concat.subject-neon",
+            "fn effect(uv: vec2<f32>) -> vec4<f32> { return vec4<f32>(vec3<f32>(subject_at(uv)), 1.0); }",
+            "",
+            &[],
+            1.0,
+        );
+        pass.subject_mask = Some(Arc::clone(&mask));
+        let mut actual = layer(solid(w, h, [0, 0, 0, 255]));
+        actual.crop = crop;
+        actual.flip_h = flip;
+        actual.warp = warp;
+        actual.effects = vec![pass];
+        let got = gpu.render(&plan(w, h, vec![actual]));
+        assert!(
+            ssim(&wanted, &got) > 0.985,
+            "subject map differs under crop/flip"
+        );
+    }
+}
+
+/// Actual packaged effects must stay near the person, follow a moved mask,
+/// animate, and become a no-op when the analysed matte is not available.
+#[test]
+fn subject_effects_follow_the_matte_and_preserve_the_background() {
+    use concat_core::subject::SubjectMask;
+    let Some(mut gpu) = gpu() else { return };
+    let (w, h) = (96, 64);
+    let mask_at = |left: u32| {
+        let mut pixels = vec![0; (w * h) as usize];
+        for y in 12..52 {
+            for x in left..left + 20 {
+                pixels[(y * w + x) as usize] = 255;
+            }
+        }
+        Arc::new(SubjectMask::new(w, h, pixels).unwrap())
+    };
+    let base = solid(w, h, [20, 30, 40, 255]);
+    let unchanged = gpu.render(&plan(w, h, vec![layer(base.clone())]));
+    for id in ["concat.subject-neon", "concat.subject-electric"] {
+        let package = concat_effects::Catalogue::builtin().get(id).unwrap();
+        let mut values = package.params_at(concat_effects::At::Default);
+        values.insert("width".into(), 3.0);
+        let mut pass = package.pass(&values, None).unwrap();
+        let mut picture = layer(base.clone());
+        picture.effects = vec![pass.clone()];
+        let no_mask = gpu.render(&plan(w, h, vec![picture.clone()]));
+        assert_eq!(
+            unchanged.pixels(),
+            no_mask.pixels(),
+            "{id} must not invent a subject"
+        );
+        pass.subject_mask = Some(mask_at(20));
+        picture.effects = vec![pass.clone()];
+        let mut scene = plan(w, h, vec![picture.clone()]);
+        scene.time = concat_core::time::Rational::new(1, 4);
+        let before = gpu.render(&scene);
+        save_subject_probe(id, &before);
+        assert_eq!(
+            before.pixel(2, 2),
+            unchanged.pixel(2, 2),
+            "the distant background stays whole"
+        );
+        assert_eq!(
+            before.pixel(30, 32),
+            unchanged.pixel(30, 32),
+            "the subject interior stays whole"
+        );
+        assert_ne!(
+            before.pixel(18, 32),
+            unchanged.pixel(18, 32),
+            "{id} must illuminate the subject edge"
+        );
+        scene.time = concat_core::time::Rational::new(3, 4);
+        let later = gpu.render(&scene);
+        assert_ne!(before.pixels(), later.pixels(), "{id} must animate");
+        pass.subject_mask = Some(mask_at(60));
+        picture.effects = vec![pass.clone()];
+        let moved = gpu.render(&plan(w, h, vec![picture.clone()]));
+        assert_eq!(
+            moved.pixel(18, 32),
+            unchanged.pixel(18, 32),
+            "the old subject position is cleared"
+        );
+        assert_ne!(
+            moved.pixel(58, 32),
+            unchanged.pixel(58, 32),
+            "the aura follows the new position"
+        );
+        picture.source = Some(Arc::new(solid(w, h, [0, 0, 0, 0])));
+        let mut transparent = plan(w, h, vec![picture]);
+        transparent.canvas = [0; 4];
+        let glow = gpu.render(&transparent);
+        assert_eq!(glow.pixel(2, 2).unwrap()[3], 0);
+        assert!(
+            glow.pixel(58, 32).unwrap()[3] > 0,
+            "glow survives transparent composition"
+        );
+    }
+}
+
+fn save_subject_probe(name: &str, frame: &Frame) {
+    let Some(dir) = std::env::var_os("CLOVERCUT_SUBJECT_PROBES") else {
+        return;
+    };
+    let dir = std::path::PathBuf::from(dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut bytes = format!("P6\n{} {}\n255\n", frame.width(), frame.height()).into_bytes();
+    for pixel in frame.pixels().chunks_exact(4) {
+        bytes.extend_from_slice(&pixel[..3]);
+    }
+    std::fs::write(dir.join(format!("{name}.ppm")), bytes).unwrap();
+}

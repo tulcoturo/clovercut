@@ -1995,7 +1995,9 @@ fn render_picture(
                                 ranges.get(&layer.clip).copied(),
                                 // Deep where the frame goes to the GPU as it is: a
                                 // cutout cuts eight bits.
-                                !cutouts.contains_key(&layer.clip),
+                                !cutouts
+                                    .get(&layer.clip)
+                                    .is_some_and(|job| job.cuts_background),
                             )
                             .map_err(|error| error.to_string())?
                     };
@@ -2007,7 +2009,15 @@ fn render_picture(
                         layer,
                         frame,
                         tracks.get(&layer.clip).copied().unwrap_or(0),
-                        passes_at(&chains, &reveal_maps, &timeline, layer.clip, time),
+                        passes_at(
+                            &chains,
+                            &reveal_maps,
+                            &timeline,
+                            layer.clip,
+                            time,
+                            &cutouts,
+                            layer.source_time,
+                        ),
                         geometry.get(&layer.clip),
                         shapes_at(&shapes, layer, time, rate),
                         stabilized.get(&layer.clip),
@@ -2046,7 +2056,11 @@ fn render_picture(
                             .scaled_to(decode_width, decode_height)
                             .at_rate(decode_rate)
                             .in_range(ranges.get(&layer.clip).copied())
-                            .deep(!cutouts.contains_key(&layer.clip));
+                            .deep(
+                                !cutouts
+                                    .get(&layer.clip)
+                                    .is_some_and(|job| job.cuts_background),
+                            );
 
                         // A still is a one-frame stream. Without looping it would
                         // contribute a single frame and then disappear.
@@ -2078,7 +2092,15 @@ fn render_picture(
                         layer,
                         std::sync::Arc::new(frame),
                         tracks.get(&layer.clip).copied().unwrap_or(0),
-                        passes_at(&chains, &reveal_maps, &timeline, layer.clip, time),
+                        passes_at(
+                            &chains,
+                            &reveal_maps,
+                            &timeline,
+                            layer.clip,
+                            time,
+                            &cutouts,
+                            layer.source_time,
+                        ),
                         geometry.get(&layer.clip),
                         shapes_at(&shapes, layer, time, rate),
                         stabilized.get(&layer.clip),
@@ -2096,7 +2118,10 @@ fn render_picture(
                 layers: with_backdrops(
                     layers,
                     &backdrops,
-                    |clip| !stills.contains(&clip) && !cutouts.contains_key(&clip),
+                    |clip| {
+                        !stills.contains(&clip)
+                            && !cutouts.get(&clip).is_some_and(|job| job.cuts_background)
+                    },
                     &sought,
                     (request.width, request.height),
                 ),
@@ -2237,6 +2262,8 @@ fn passes_at(
     timeline: &Timeline,
     clip: ClipId,
     time: Rational,
+    cutouts: &HashMap<ClipId, resolve::CutoutJob>,
+    source_time: Rational,
 ) -> Vec<ShaderPass> {
     let Some(effects) = chains.get(&clip) else {
         return Vec::new();
@@ -2244,7 +2271,22 @@ fn passes_at(
     let at = timeline
         .clip(clip)
         .map_or(0.0, |engine_clip| engine_clip.fraction_at(time));
-    Catalogue::builtin().shader_passes_at(effects, at, reveal_maps.get(&clip).cloned())
+    let mut passes =
+        Catalogue::builtin().shader_passes_at(effects, at, reveal_maps.get(&clip).cloned());
+    if passes
+        .iter()
+        .any(|pass| concat_core::subject::needs_subject(&pass.package))
+    {
+        let mask = cutouts
+            .get(&clip)
+            .and_then(|job| job.subject_mask(source_time));
+        for pass in &mut passes {
+            if concat_core::subject::needs_subject(&pass.package) {
+                pass.subject_mask = mask.clone();
+            }
+        }
+    }
+    passes
 }
 
 /// Only the shader clock moves. Planning, source decoding, animated effect
@@ -2606,7 +2648,13 @@ fn frame_request(
         // frame is drawn at the level it was decoded at - deep, for an HDR
         // clip, unless a cutout has to cut it in eight bits.
         .at_any_size(true)
-        .deep_when_untreated(!plan.built.cutouts.contains_key(&layer.clip))
+        .deep_when_untreated(
+            !plan
+                .built
+                .cutouts
+                .get(&layer.clip)
+                .is_some_and(|job| job.cuts_background),
+        )
 }
 
 /// [`preview_sources`] for one instant of a plan already built. With
@@ -2700,7 +2748,15 @@ pub fn preview_sources_of(
                     layer,
                     frame,
                     tracks.get(&layer.clip).copied().unwrap_or(0),
-                    passes_at(chains, reveal_maps, timeline, layer.clip, time),
+                    passes_at(
+                        chains,
+                        reveal_maps,
+                        timeline,
+                        layer.clip,
+                        time,
+                        cutouts,
+                        layer.source_time,
+                    ),
                     geometry.get(&layer.clip),
                     shapes_at(shapes, layer, time, rate),
                     stabilized.get(&layer.clip),
@@ -2731,7 +2787,10 @@ pub fn preview_sources_of(
         layers: with_backdrops(
             layers,
             backdrops,
-            |clip| !stills.contains(&clip) && !cutouts.contains_key(&clip),
+            |clip| {
+                !stills.contains(&clip)
+                    && !cutouts.get(&clip).is_some_and(|job| job.cuts_background)
+            },
             pool,
             (plan.width, plan.height),
         ),

@@ -93,6 +93,23 @@ fn reveal_order(uv: vec2<f32>) -> f32 {
 }
 "#;
 
+// Opt-in host inputs for subject effects: existing package sources/cache keys
+// and third-party helper names remain unchanged.
+const SUBJECT_HEAD: &str = r#"
+@group(3) @binding(2) var subject_texture: texture_2d<f32>;
+struct SubjectMapping { u: vec4<f32>, v: vec4<f32> }
+@group(3) @binding(3) var<uniform> subject_mapping: SubjectMapping;
+
+/// Analysed subject coverage, or zero until analysis has produced a mask.
+fn subject_at(uv: vec2<f32>) -> f32 {
+    let p = vec3<f32>(uv, 1.0);
+    let mapped = vec2<f32>(dot(subject_mapping.u.xyz, p), dot(subject_mapping.v.xyz, p));
+    if (any(mapped < vec2<f32>(0.0)) || any(mapped > vec2<f32>(1.0))) { return 0.0; }
+    return textureSampleLevel(subject_texture, reveal_sampler, mapped, 0.0).r;
+}
+
+"#;
+
 /// An effect's `sample` under the scene-linear contract.
 ///
 /// Every `sample` here, and a transition's `from_at` and `to_at`, reads
@@ -991,6 +1008,7 @@ impl Shader {
             intensity,
             lut,
             reveal_map,
+            subject_mask: None,
             stages: self.stages.iter().map(|rule| rule.stage(values)).collect(),
         }
     }
@@ -1044,6 +1062,8 @@ fn provided(entry: Entry, pictures: usize, group: u32, binding: u32) -> Option<B
         (_, 2, 1) => Some(Bound::Sampler),
         (Entry::Effect, 3, 0) => Some(Bound::Picture),
         (Entry::Effect, 3, 1) => Some(Bound::Sampler),
+        (Entry::Effect, 3, 2) => Some(Bound::Picture),
+        (Entry::Effect, 3, 3) => Some(Bound::Uniform),
         _ => None,
     }
 }
@@ -1518,7 +1538,10 @@ fn stitch(
                 .to_owned(),
         );
     }
-    let host = Contract::of(manifest).host(entry) + &passes_host(passes);
+    let mut host = Contract::of(manifest).host(entry) + &passes_host(passes);
+    if matches!(entry, Entry::Effect) && concat_core::subject::needs_subject(&manifest.effect.id) {
+        host.push_str(SUBJECT_HEAD);
+    }
     let mut source = String::with_capacity(host.len() + body.len() + 64);
     if !declares_params {
         // A package with no knobs still has to bind something.
