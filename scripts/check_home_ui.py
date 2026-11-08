@@ -19,7 +19,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll", "text"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll", "text", "media"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"

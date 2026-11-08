@@ -77,6 +77,19 @@ The relink cases activate both the header close button and the outside scrim,
 checking that each reaches the existing dismissal callback. These checks do
 not qualify native file pickers, physical input latency or recording hardware.
 
+## Media-bin selection
+
+Run `python3 scripts/check_home_ui.py --offline --suite media` for the actual
+media grid's keyboard focus after card/background clicks, separate Shift and
+Ctrl/Command flags, two dock seats, rebound chord delivery, empty shelves and
+text/timeline focus isolation, sorting-control focus and library-page changes. The standalone `media_selection.rs` tests cover
+stable-ID anchors, shrinking/reversed/additive ranges, stale/hidden cards and
+Select All over the visible shelf. Both run in headless CI.
+
+The full controller journey additionally checks the real keymap dispatch,
+modal/capture guards, timeline selection isolation and undoable media deletion.
+These simulated checks do not qualify physical Windows/Mac input behavior.
+
 ## Ordinary validation
 
 | Suite | Command | Requirements |

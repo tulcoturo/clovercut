@@ -199,6 +199,9 @@ fn import_edit_reopen_relink_export() {
                             ripple: false,
                         })
                         .unwrap();
+                    drop(studio);
+                    check_media_selection(&shell, &run_app);
+                    studio = shell.studio.borrow_mut();
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -445,4 +448,114 @@ fn inspect_export(path: &Path) {
             .chunks_exact(3)
             .any(|pixel| pixel[0].abs_diff(pixel[1]) > 40)
     );
+}
+
+// Exercise the actual keyboard dispatch with live controller state. The UI
+// fixture separately verifies delivery/focus; these assertions cover the shared
+// keymap, project guards and undoable removal without touching timeline clips.
+fn check_media_selection(shell: &Rc<Shell>, app: &App) {
+    let (extra, timeline_selection, before, bindings) = {
+        let mut state = shell.studio.borrow_mut();
+        let mut item = state.project().media[0].clone();
+        item.id.clear();
+        let second_path = Path::new(&item.path).with_file_name("selection-source.mkv");
+        std::fs::copy(&item.path, &second_path).unwrap();
+        item.path = second_path.to_string_lossy().into_owned();
+        item.name = "Second source".into();
+        let extra = state.apply(Command::AddMedia { item }).unwrap();
+        state.selection = vec![state.timeline().clips[0].id.clone()];
+        state.media.selected.clear();
+        state.publish(app, &shell.models);
+        (
+            extra,
+            state.selection.clone(),
+            state.project().clone(),
+            state.prefs.keybinds.clone(),
+        )
+    };
+    assert!(crate::media_key_chord(
+        "a".into(),
+        false,
+        false,
+        true,
+        false
+    ));
+    {
+        let mut state = shell.studio.borrow_mut();
+        assert_eq!(state.media.selected.len(), 2);
+        assert_eq!(
+            state.project(),
+            &before,
+            "select all does not edit the project"
+        );
+        assert_eq!(
+            state.selection, timeline_selection,
+            "media selection leaves timeline selection alone"
+        );
+        let _ = crate::keymap::bind(&mut state.prefs, "select-all", "ctrl+j");
+        state.media.selected.clear();
+    }
+    assert!(!crate::media_key_chord(
+        "a".into(),
+        false,
+        false,
+        true,
+        false
+    ));
+    assert!(crate::media_key_chord(
+        "j".into(),
+        false,
+        false,
+        true,
+        false
+    ));
+    assert_eq!(shell.studio.borrow().media.selected.len(), 2);
+    shell.studio.borrow_mut().settings.open = true;
+    assert!(!crate::media_key_chord(
+        "j".into(),
+        false,
+        false,
+        true,
+        false
+    ));
+    shell.studio.borrow_mut().settings.open = false;
+    shell.studio.borrow_mut().settings.capturing = Some("select-all".into());
+    assert!(!crate::media_key_chord(
+        "j".into(),
+        false,
+        false,
+        true,
+        false
+    ));
+    {
+        let mut state = shell.studio.borrow_mut();
+        state.settings.capturing = None;
+        state.media.selected = std::collections::HashSet::from([extra.clone()]);
+    }
+    assert!(crate::media_key_chord(
+        slint::platform::Key::Delete.into(),
+        false,
+        false,
+        false,
+        false
+    ));
+    {
+        let mut state = shell.studio.borrow_mut();
+        assert!(state.project().media_by_id(&extra).is_none());
+        assert_eq!(
+            state.timeline().clips.len(),
+            1,
+            "Delete in the bin preserves the other file's clip"
+        );
+        assert_eq!(state.selection, timeline_selection);
+        state.undo();
+        assert!(
+            state.project().media_by_id(&extra).is_some(),
+            "media deletion is undoable"
+        );
+        state.redo();
+        assert!(state.project().media_by_id(&extra).is_none());
+        state.prefs.keybinds = bindings;
+        state.media.selected.clear();
+    }
 }

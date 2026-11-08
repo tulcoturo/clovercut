@@ -46,6 +46,7 @@ mod i18n;
 #[cfg(target_os = "ios")]
 mod ios;
 mod keymap;
+mod media_selection;
 mod meters;
 mod platform;
 mod workspace_layout;
@@ -988,9 +989,18 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_media_sort_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Media(MediaMsg::SortChanged(index)));
     }));
-    editor.on_media_select(on_window!(|state, row: i32, additive: bool| {
-        state.handle(Msg::Media(MediaMsg::Select { row, additive }));
-    }));
+    editor.on_media_select(on_window!(
+        |state, row: i32, additive: bool, range: bool| {
+            state.handle(Msg::Media(MediaMsg::Select {
+                row,
+                additive,
+                range,
+            }));
+        }
+    ));
+    // A grid owns these chords only while it actually has keyboard focus.
+    // Resolve the shared keymap so custom bindings and macOS Command work too.
+    editor.on_media_key_chord(media_key_chord);
     editor.on_media_band_selected(on_window!(
         |state,
          columns: i32,
@@ -3106,6 +3116,36 @@ fn typing(app: &App) -> bool {
         .borrow()
         .upgrade()
         .is_some_and(|item| item.downcast::<TextInput>().is_some())
+}
+
+// Called only by the focused media grid, before the window's fallback keymap.
+fn media_key_chord(text: SharedString, shift: bool, alt: bool, control: bool, meta: bool) -> bool {
+    let Some(chord) = keymap::chord(text.as_str(), shift, alt, control, meta) else {
+        return false;
+    };
+    let mut handled = false;
+    Shell::with(|shell, app| {
+        let msg = {
+            let state = shell.studio.borrow();
+            if state.session.is_none()
+                || state.settings.capturing.is_some()
+                || state.sheet_open()
+                || typing(&app)
+            {
+                return;
+            }
+            match keymap::resolve(&state.prefs, &chord) {
+                Some("select-all") => MediaMsg::SelectAll,
+                Some("delete") => MediaMsg::RemoveSelected,
+                _ => return,
+            }
+        };
+        shell.studio.borrow_mut().handle(Msg::Media(msg));
+        shell.studio.borrow_mut().refresh_art();
+        shell.studio.borrow().publish(&app, &shell.models);
+        handled = true;
+    });
+    handled
 }
 
 /// Adds a pane of `kind` beside the largest seat: to its right when that

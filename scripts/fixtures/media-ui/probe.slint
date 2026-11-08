@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { MediaGrid, MediaItemData, MediaPane } from "__MEDIA_PANE__";
+export component MediaProbe inherits Window {
+    width: 800px;
+    height: 600px;
+    forward-focus: keys;
+    in-out property <[MediaItemData]> items;
+    in-out property <bool> pane;
+    in-out property <int> picked-row;
+    in-out property <int> clicks;
+    in-out property <bool> additive;
+    in-out property <bool> range;
+    in-out property <int> timeline-keys;
+    in-out property <int> window-keys;
+    out property <int> text-anchor: input.anchor-position-byte-offset;
+    out property <int> text-cursor: input.cursor-position-byte-offset;
+    callback bin-key(which: int, text: string, shift: bool, alt: bool, control: bool, meta: bool) -> bool;
+    keys := FocusScope {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+        key-pressed(event) => {
+            if (event.text == "a" || event.text == "j" || event.text == Key.Delete) {
+                root.window-keys += 1;
+            }
+            return accept;
+        }
+        if !root.pane: first := MediaGrid {
+            x: 20px; y: 20px; width: 300px;
+            page-floor: 260px;
+            items: root.items;
+            clicked(id, additive, range) => {
+                root.picked-row = id; root.clicks += 1;
+                root.additive = additive; root.range = range;
+                // Match Editor.blur before the grid takes focus back.
+                keys.focus();
+            }
+            pressed => { keys.focus(); }
+            key-chord(text, shift, alt, control, meta) => {
+                return root.bin-key(1, text, shift, alt, control, meta);
+            }
+        }
+        if !root.pane: second := MediaGrid {
+            x: 400px; y: 20px; width: 300px;
+            page-floor: 260px;
+            items: root.items;
+            clicked(id, additive, range) => { keys.focus(); }
+            pressed => { keys.focus(); }
+            key-chord(text, shift, alt, control, meta) => {
+                return root.bin-key(2, text, shift, alt, control, meta);
+            }
+        }
+        if root.pane: MediaPane {
+            x: 0; y: 0; width: parent.width; height: parent.height;
+            items: root.items;
+            count-all: root.items.length;
+            floor-pressed => { keys.focus(); }
+            select(id, additive, range) => { keys.focus(); }
+            key-chord(text, shift, alt, control, meta) => {
+                return root.bin-key(3, text, shift, alt, control, meta);
+            }
+        }
+        input := TextInput {
+            visible: !root.pane;
+            x: 20px; y: 350px; width: 280px; height: 80px;
+            text: "ação 中文 🙂 text";
+            single-line: false;
+            accessible-label: "search-or-title";
+        }
+        timeline := FocusScope {
+            visible: !root.pane;
+            x: 400px; y: 350px; width: 280px; height: 160px;
+            TouchArea { clicked => { timeline.focus(); } }
+            key-pressed(event) => { root.timeline-keys += 1; return accept; }
+        }
+    }
+}
