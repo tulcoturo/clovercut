@@ -2833,3 +2833,69 @@ fn save_subject_probe(name: &str, frame: &Frame) {
     }
     std::fs::write(dir.join(format!("{name}.ppm")), bytes).unwrap();
 }
+
+/// Facial accessories use source geometry and disappear when detection is absent.
+#[test]
+fn face_accessories_follow_landmarks_and_leave_distant_background_whole() {
+    use concat_core::face::{Face, FaceFrame};
+    let Some(mut gpu) = gpu() else {
+        return;
+    };
+    let (w, h) = (160, 100);
+    let base = solid(w, h, [120, 100, 80, 255]);
+    let original = gpu.render(&plan(w, h, vec![layer(base.clone())]));
+    let faces = |shift: f32| {
+        Arc::new(
+            FaceFrame::new(
+                vec![Face {
+                    bounds: [0.25 + shift, 0.2, 0.5, 0.6],
+                    points: [
+                        [0.35 + shift, 0.4],
+                        [0.65 + shift, 0.4],
+                        [0.5 + shift, 0.55],
+                        [0.4 + shift, 0.67],
+                        [0.6 + shift, 0.67],
+                    ],
+                    confidence: 0.95,
+                }],
+                w as f32 / h as f32,
+            )
+            .unwrap(),
+        )
+    };
+    for id in ["concat.face-sunglasses", "concat.face-dog"] {
+        let package = concat_effects::Catalogue::builtin().get(id).unwrap();
+        let mut pass = package
+            .pass(&package.params_at(concat_effects::At::Default), None)
+            .unwrap();
+        let mut picture = layer(base.clone());
+        picture.effects = vec![pass.clone()];
+        assert_eq!(
+            gpu.render(&plan(w, h, vec![picture.clone()])).pixels(),
+            original.pixels(),
+            "missing face must be a no-op"
+        );
+        pass.face_frame = Some(faces(0.0));
+        picture.effects = vec![pass.clone()];
+        let first = gpu.render(&plan(w, h, vec![picture.clone()]));
+        assert_ne!(
+            first.pixels(),
+            original.pixels(),
+            "{id} must decorate the detected face"
+        );
+        assert_eq!(first.pixel(2, 98), original.pixel(2, 98));
+        save_subject_probe(id, &first);
+        pass.face_frame = Some(faces(0.3));
+        picture.effects = vec![pass];
+        let moved = gpu.render(&plan(w, h, vec![picture]));
+        assert_ne!(
+            first.pixels(),
+            moved.pixels(),
+            "accessory follows face movement"
+        );
+        if id == "concat.face-sunglasses" {
+            assert_ne!(first.pixel(56, 40), original.pixel(56, 40));
+            assert_eq!(moved.pixel(56, 40), original.pixel(56, 40));
+        }
+    }
+}

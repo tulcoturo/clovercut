@@ -41,7 +41,7 @@ use concat_core::timeline::Blend;
 use crate::compositor::Compositor;
 use crate::plan::{FramePlan, Geometry, PlannedLayer, PlannedTreatment, Shading};
 
-type MatteKey = (u64, u64, [u32; 6]);
+type MatteKey = (u64, u64, [u32; 6], u64, [u32; 6]);
 
 /// Bytes per row must be a multiple of this for a texture-to-buffer copy.
 const ROW_ALIGN: usize = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as usize;
@@ -1181,6 +1181,16 @@ impl WgpuCompositor {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         // Group 0 of a transition: two pictures, each a texture and a
@@ -1725,7 +1735,10 @@ impl WgpuCompositor {
         let seconds = plan.seconds();
         let clip_start = layer.clip_start.as_f64() as f32;
         let effects = if layer.needs_preparing(&geometry)
-            && layer.effects.iter().any(|pass| pass.subject_mask.is_some())
+            && layer
+                .effects
+                .iter()
+                .any(|pass| pass.subject_mask.is_some() || pass.face_frame.is_some())
         {
             let origin = geometry.uv_of(0.0, 0.0, layer.flip_h, layer.flip_v);
             let right = geometry.uv_of(1.0, 0.0, layer.flip_h, layer.flip_v);
@@ -1744,6 +1757,11 @@ impl WgpuCompositor {
                     .iter()
                     .cloned()
                     .map(|mut pass| {
+                        pass.face_frame = pass
+                            .face_frame
+                            .as_ref()
+                            .and_then(|face| face.remapped(mapping))
+                            .map(std::sync::Arc::new);
                         pass.subject_mask = pass
                             .subject_mask
                             .as_ref()
@@ -3362,12 +3380,26 @@ impl WgpuCompositor {
         &mut self,
         reveal: Option<&RevealMap>,
         subject: Option<&SubjectMask>,
+        face: Option<&concat_core::face::FaceFrame>,
     ) -> MatteKey {
         static IDENTITY: std::sync::OnceLock<RevealMap> = std::sync::OnceLock::new();
         static EMPTY: std::sync::OnceLock<SubjectMask> = std::sync::OnceLock::new();
         let reveal = reveal.unwrap_or_else(|| IDENTITY.get_or_init(RevealMap::identity));
         let subject = subject.unwrap_or_else(|| EMPTY.get_or_init(SubjectMask::empty));
-        let key = (reveal.id, subject.id, subject.mapping.map(f32::to_bits));
+        static NO_FACE: std::sync::OnceLock<concat_core::face::FaceFrame> =
+            std::sync::OnceLock::new();
+        let face = face.unwrap_or_else(|| {
+            NO_FACE.get_or_init(|| {
+                concat_core::face::FaceFrame::new(vec![], 1.0).expect("empty face input")
+            })
+        });
+        let key = (
+            reveal.id,
+            subject.id,
+            subject.mapping.map(f32::to_bits),
+            face.id,
+            face.mapping.map(f32::to_bits),
+        );
         self.reveals_drawn.insert(key, self.composites);
         if self.reveals.contains_key(&key) {
             return key;
@@ -3432,6 +3464,14 @@ impl WgpuCompositor {
             mapped_at_creation: false,
         });
         self.queue.write_buffer(&mapping, 0, &bytes);
+        let face_bytes = face.uniform();
+        let face_uniform = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("face landmarks"),
+            size: face_bytes.len() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&face_uniform, 0, &face_bytes);
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("concat pass maps"),
             layout: &self.reveal_layout,
@@ -3451,6 +3491,10 @@ impl WgpuCompositor {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: mapping.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: face_uniform.as_entire_binding(),
                 },
             ],
         });
@@ -3499,8 +3543,11 @@ impl WgpuCompositor {
             };
             self.shader(pass);
             let lut_id = self.lut_group(pass.lut.as_deref());
-            let reveal_id =
-                self.reveal_group(pass.reveal_map.as_deref(), pass.subject_mask.as_deref());
+            let reveal_id = self.reveal_group(
+                pass.reveal_map.as_deref(),
+                pass.subject_mask.as_deref(),
+                pass.face_frame.as_deref(),
+            );
             // A pass the driver refused leaves the picture as it was.
             if !self.shaders.contains_key(&pass.key) {
                 continue;

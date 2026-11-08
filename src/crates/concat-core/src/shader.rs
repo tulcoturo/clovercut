@@ -62,8 +62,9 @@ pub struct ShaderPass {
     /// so the call is harmless for a pass over anything that is not a
     /// title. See [`RevealMap`].
     pub reveal_map: Option<Arc<RevealMap>>,
-    /// The analysed subject in source coordinates, without cutting the background.
-    /// None supplies an empty matte; the unanalysed picture stays unchanged.
+    /// Cached facial landmarks for accessory effects.
+    pub face_frame: Option<std::sync::Arc<crate::face::FaceFrame>>,
+    /// Source-space coverage without removing the background; None supplies an empty matte.
     pub subject_mask: Option<Arc<crate::subject::SubjectMask>>,
     /// The passes drawn before the last, in order, each into a picture of
     /// its own that every pass after it may read: empty for a package drawn

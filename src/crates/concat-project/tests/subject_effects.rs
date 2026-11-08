@@ -104,7 +104,7 @@ fn subject_effect_cannot_be_created_as_a_timeline_layer() {
             track_id: None,
             start: 0.0,
             duration: Some(3.0),
-            effect_id: "concat.subject-electric".into(),
+            effect_id: "concat.face-dog".into(),
             name: "Electric".into(),
         },
     );

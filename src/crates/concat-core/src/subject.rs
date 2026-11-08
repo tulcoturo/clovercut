@@ -9,6 +9,11 @@ pub fn needs_subject(id: &str) -> bool {
     matches!(id, "concat.subject-neon" | "concat.subject-electric")
 }
 
+/// Effects tied to source geometry run before ordinary picture distortions.
+pub fn source_effect(id: &str) -> bool {
+    needs_subject(id) || crate::face::needs_face(id)
+}
+
 /// Maximum mask extent uploaded for subject effects, independent of delivery resolution.
 pub const MAX_SIDE: u32 = 512;
 

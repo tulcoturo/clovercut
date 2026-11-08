@@ -37,7 +37,7 @@ pub(super) fn apply(
                 && patch.video_effects.as_ref().is_some_and(|effects| {
                     effects
                         .iter()
-                        .any(|effect| concat_core::subject::needs_subject(&effect.id))
+                        .any(|effect| concat_core::subject::source_effect(&effect.id))
                 })
             {
                 return Err(CommandError::SubjectNeedsMedia);

@@ -24,6 +24,8 @@ pub(crate) struct CutoutJob {
     pub(crate) store: MaskStore,
     pub(crate) cutout: Cutout,
     pub(crate) cuts_background: bool,
+    face_store: Option<concat_vision::face_store::Store>,
+    face_still: bool,
     pub(crate) mapping: Mapping,
     /// The source's width over its height, for round brushes.
     pub(crate) aspect: f32,
@@ -40,10 +42,10 @@ impl CutoutJob {
         let cutout = clip.cutout.clone().or_else(|| {
             clip.effects
                 .iter()
-                .any(|effect| effect.enabled && concat_core::subject::needs_subject(&effect.id))
+                .any(|effect| effect.enabled && concat_core::subject::source_effect(&effect.id))
                 .then(Cutout::person)
         })?;
-        if clip.mask_dir.is_empty() {
+        if clip.mask_dir.is_empty() && clip.face_dir.is_empty() {
             return None;
         }
         let aspect = match (clip.media_width, clip.media_height) {
@@ -54,6 +56,9 @@ impl CutoutJob {
             store: MaskStore::open(Path::new(&clip.mask_dir)),
             cutout,
             cuts_background: clip.cutout.is_some(),
+            face_store: (!clip.face_dir.is_empty())
+                .then(|| concat_vision::face_store::Store::open(Path::new(&clip.face_dir))),
+            face_still: clip.kind == ClipKind::Image,
             mapping: Mapping {
                 crop: clip
                     .crop
@@ -80,6 +85,28 @@ impl CutoutJob {
         let mut out = frame.clone();
         concat_vision::cut(&mut out, &mask, &self.mapping);
         Some(out)
+    }
+
+    /// Source-time landmarks with the same decoder crop/flip mapping as the picture.
+    pub(crate) fn face_frame(&self, time: Rational) -> Option<Arc<concat_core::face::FaceFrame>> {
+        let faces = self.face_store.as_ref()?.at(time.as_f64(), self.face_still);
+        if faces.is_empty() {
+            return None;
+        }
+        let frame = concat_core::face::FaceFrame::new(faces, self.aspect)?;
+        let origin = self.mapping.source_of(0.0, 0.0);
+        let right = self.mapping.source_of(1.0, 0.0);
+        let down = self.mapping.source_of(0.0, 1.0);
+        frame
+            .remapped([
+                right.0 - origin.0,
+                down.0 - origin.0,
+                origin.0,
+                right.1 - origin.1,
+                down.1 - origin.1,
+                origin.1,
+            ])
+            .map(Arc::new)
     }
 
     /// A small cached coverage map, without cutting or reducing the source colour depth.

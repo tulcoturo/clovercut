@@ -71,6 +71,9 @@ jobs:
       - name: GPU subject masks and effects
         working-directory: src
         run: cargo test --locked -p concat-render subject_ -- --nocapture --test-threads=1
+      - name: GPU facial accessories
+        working-directory: src
+        run: cargo test --locked -p concat-render face_ -- --nocapture --test-threads=1
       - name: Subject render probes
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

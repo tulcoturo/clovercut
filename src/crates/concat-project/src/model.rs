@@ -345,7 +345,7 @@ pub struct ParamKey {
 /// Subject decoration is baked before colour/distortion effects so those
 /// treatments move the person and its aura together. Each stage keeps its order.
 pub fn order_subject_effects(effects: &mut [AppliedFilter]) {
-    effects.sort_by_key(|effect| !concat_core::subject::needs_subject(&effect.id));
+    effects.sort_by_key(|effect| !concat_core::subject::source_effect(&effect.id));
 }
 
 impl AppliedFilter {

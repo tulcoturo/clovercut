@@ -220,7 +220,7 @@ pub(super) fn apply(
             name,
             sound,
         } => {
-            if concat_core::subject::needs_subject(&effect_id) {
+            if concat_core::subject::source_effect(&effect_id) {
                 return Err(CommandError::SubjectNeedsMedia);
             }
             let duration = duration

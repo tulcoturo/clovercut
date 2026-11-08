@@ -241,7 +241,7 @@ fn fingerprint(drawing: &Drawing, moment: f64) -> u64 {
             theme,
         } => {
             feed(b"picture");
-            if needs_subject(&drawn.package) {
+            if concat_core::subject::source_effect(&drawn.package) {
                 feed(STILL_SUBJECT);
             }
             feed(match theme {
@@ -277,6 +277,7 @@ pub struct Painter {
     checker: Arc<Frame>,
     title: Option<(Arc<Frame>, Arc<RevealMap>)>,
     subject: Option<(Arc<Frame>, Arc<SubjectMask>)>,
+    face: Option<(Arc<Frame>, Arc<concat_core::face::FaceFrame>)>,
 }
 
 impl Painter {
@@ -329,6 +330,7 @@ impl Painter {
             checker: Arc::new(checker),
             title: None,
             subject: None,
+            face: None,
         })
     }
 
@@ -390,7 +392,11 @@ impl Painter {
                 theme,
             } => {
                 let mut pass = pass.clone();
-                let subject = if needs_subject(&pass.package) {
+                let subject = if concat_core::face::needs_face(&pass.package) {
+                    let (reference, faces) = self.face_reference(width, height)?;
+                    pass.face_frame = Some(faces);
+                    reference
+                } else if needs_subject(&pass.package) {
                     let (reference, mask) = self.subject(width, height)?;
                     pass.subject_mask = Some(mask);
                     reference
@@ -447,6 +453,47 @@ impl Painter {
             return Err("the GPU device was lost".to_owned());
         }
         Ok(frame)
+    }
+
+    /// Annotated reference landmarks, never used for footage. No inference on hover.
+    fn face_reference(
+        &mut self,
+        width: u32,
+        height: u32,
+    ) -> Result<(Arc<Frame>, Arc<concat_core::face::FaceFrame>), String> {
+        if let Some((frame, faces)) = &self.face {
+            return Ok((Arc::clone(frame), Arc::clone(faces)));
+        }
+        let (reference, _) = self.subject(width, height)?;
+        let mut picture = PlannedLayer::picture(detached_clip(), reference);
+        picture.crop = concat_render::Crop::of([0.35, 0.0, 0.35, 0.7]);
+        let frame = Arc::new(self.compositor.render(&FramePlan {
+            layers: vec![picture],
+            ..FramePlan::empty(width, height)
+        }));
+        let point = |x: f32, y: f32| [(x / 1672.0 - 0.35) / 0.3, y / 941.0 / 0.3];
+        let face = concat_core::face::Face {
+            bounds: [
+                point(765.0, 65.0)[0],
+                point(765.0, 65.0)[1],
+                125.0 / 1672.0 / 0.3,
+                145.0 / 941.0 / 0.3,
+            ],
+            points: [
+                point(805.0, 120.0),
+                point(850.0, 120.0),
+                point(830.0, 146.0),
+                point(810.0, 165.0),
+                point(850.0, 165.0),
+            ],
+            confidence: 1.0,
+        };
+        let faces = Arc::new(
+            concat_core::face::FaceFrame::new(vec![face], width as f32 / height as f32)
+                .ok_or("invalid face reference")?,
+        );
+        self.face = Some((Arc::clone(&frame), Arc::clone(&faces)));
+        Ok((frame, faces))
     }
 
     /// A known-alpha person composited over the city. Thumbnail rendering
@@ -859,6 +906,67 @@ mod tests {
                     ("inferred", &detected),
                     ("original", &before),
                 ] {
+                    let mut ppm =
+                        format!("P6\n{} {}\n255\n", frame.width(), frame.height()).into_bytes();
+                    for pixel in frame.pixels().chunks_exact(4) {
+                        ppm.extend_from_slice(&pixel[..3]);
+                    }
+                    std::fs::write(output.join(format!("{id}-{name}.ppm")), ppm).unwrap();
+                }
+            }
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn face_cards_and_bundled_detector_agree_on_a_real_face() {
+        let Some(gpu) = WgpuCompositor::new() else {
+            assert!(
+                std::env::var_os("CONCAT_REQUIRE_GPU").is_none(),
+                "required adapter missing"
+            );
+            return;
+        };
+        if gpu.on_software_adapter() && std::env::var_os("CONCAT_REQUIRE_GPU").is_none() {
+            return;
+        }
+        let dir = scratch("face-accessories");
+        let still = still_in(&dir).unwrap();
+        let city = city_still_in(&dir).unwrap();
+        let mut painter = Painter::with_city(gpu, &still, Some(&city), 480, 270).unwrap();
+        let (reference, annotated) = painter.face_reference(480, 270).unwrap();
+        let detected = concat_vision::face::Detector::load()
+            .unwrap()
+            .detect(&reference)
+            .unwrap();
+        assert!(
+            !detected.is_empty(),
+            "bundled detector must find the reference face"
+        );
+        let nose = annotated.faces[0].points[2];
+        assert!(
+            detected.iter().any(|face| (face.points[2][0] - nose[0])
+                .hypot(face.points[2][1] - nose[1])
+                < 0.12),
+            "landmarks must identify the actual face"
+        );
+        let inferred =
+            Arc::new(concat_core::face::FaceFrame::new(detected, 480.0 / 270.0).unwrap());
+        painter.face = Some((Arc::clone(&reference), inferred));
+        let catalogue = Catalogue::builtin();
+        for id in ["concat.face-sunglasses", "concat.face-dog"] {
+            let card = Card::of(catalogue, catalogue.get(id).unwrap(), &dir).unwrap();
+            let before = painter.preview_frame(&card, 0.0).unwrap();
+            let full = painter.preview_frame(&card, 0.5).unwrap();
+            assert_ne!(
+                before, full,
+                "accessories render with genuine model landmarks"
+            );
+            if let Some(output) = std::env::var_os("GITHUB_WORKSPACE")
+                .map(|path| PathBuf::from(path).join("subject-probes"))
+            {
+                std::fs::create_dir_all(&output).unwrap();
+                for (name, frame) in [("original", &before), ("inferred", &full)] {
                     let mut ppm =
                         format!("P6\n{} {}\n255\n", frame.width(), frame.height()).into_bytes();
                     for pixel in frame.pixels().chunks_exact(4) {

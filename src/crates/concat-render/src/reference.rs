@@ -763,6 +763,7 @@ mod tests {
             lut: None,
             reveal_map: None,
             subject_mask: None,
+            face_frame: None,
             stages: Vec::new(),
         };
         let mut frame_plan = plan(8, 8, vec![red, blue]);

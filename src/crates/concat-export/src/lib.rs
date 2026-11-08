@@ -267,6 +267,9 @@ pub struct ExportClip {
     /// - or empty when the flattener had no project folder to name it by.
     #[serde(default)]
     pub mask_dir: String,
+    /// Source facial detections, independently of background removal.
+    #[serde(default)]
+    pub face_dir: String,
     /// The camera's shake taken out, as the document holds it. Rendered
     /// only with `motion_dir`: a clip whose movement is not measured yet
     /// shows as shot.
@@ -390,6 +393,7 @@ impl ExportClip {
             cutout: None,
             mask: None,
             mask_dir: String::new(),
+            face_dir: String::new(),
             stabilize: None,
             motion_dir: String::new(),
             highlighted: false,
@@ -2283,6 +2287,19 @@ fn passes_at(
         for pass in &mut passes {
             if concat_core::subject::needs_subject(&pass.package) {
                 pass.subject_mask = mask.clone();
+            }
+        }
+    }
+    if passes
+        .iter()
+        .any(|pass| concat_core::face::needs_face(&pass.package))
+    {
+        let frame = cutouts
+            .get(&clip)
+            .and_then(|job| job.face_frame(source_time));
+        for pass in &mut passes {
+            if concat_core::face::needs_face(&pass.package) {
+                pass.face_frame = frame.clone();
             }
         }
     }
