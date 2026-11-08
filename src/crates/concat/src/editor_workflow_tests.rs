@@ -200,7 +200,7 @@ fn import_edit_reopen_relink_export() {
                         })
                         .unwrap();
                     drop(studio);
-                    check_media_selection(&shell, &run_app);
+                    check_media_selection(&shell);
                     studio = shell.studio.borrow_mut();
                     studio
                         .apply(Command::AddCaptionSource {
@@ -453,19 +453,21 @@ fn inspect_export(path: &Path) {
 // Exercise the actual keyboard dispatch with live controller state. The UI
 // fixture separately verifies delivery/focus; these assertions cover the shared
 // keymap, project guards and undoable removal without touching timeline clips.
-fn check_media_selection(shell: &Rc<Shell>, app: &App) {
+fn check_media_selection(shell: &Rc<Shell>) {
+    let app = shell.app.upgrade().expect("the journey window is alive");
     let (extra, timeline_selection, before, bindings) = {
         let mut state = shell.studio.borrow_mut();
-        let mut item = state.project().media[0].clone();
-        item.id.clear();
-        let second_path = Path::new(&item.path).with_file_name("selection-source.mkv");
-        std::fs::copy(&item.path, &second_path).unwrap();
-        item.path = second_path.to_string_lossy().into_owned();
+        let first_path = &state.project().media[0].path;
+        let second_path = Path::new(first_path).with_file_name("selection-source.mkv");
+        std::fs::copy(first_path, &second_path).unwrap();
+        let mut item = concat_host::media::probe(second_path.to_str().unwrap())
+            .unwrap()
+            .to_new_media();
         item.name = "Second source".into();
         let extra = state.apply(Command::AddMedia { item }).unwrap();
         state.selection = vec![state.timeline().clips[0].id.clone()];
         state.media.selected.clear();
-        state.publish(app, &shell.models);
+        state.publish(&app, &shell.models);
         (
             extra,
             state.selection.clone(),
