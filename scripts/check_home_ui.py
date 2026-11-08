@@ -3,7 +3,9 @@
 """Exercise actual home, timeline, caption or catalogue controls with Slint's testing backend.
 
 No native window, GPU, audio, personal profile or copied UI implementation.
-This complements full desktop CI; it does not qualify physical accessibility.
+The home suite paints with the software renderer and bundled fonts; other
+suites use the mock renderer. This complements full desktop CI and does not
+qualify physical accessibility or native OS dialogs.
 """
 import argparse
 import json
@@ -39,6 +41,8 @@ def main():
                 manifest += f'{name} = {{version = {pinned}, default-features = false, features = ["std", "compat-1-2"]}}\n'
             elif name == "slint-build":
                 manifest += f'[build-dependencies]\n{name} = {pinned}\n'
+            elif args.suite == "home":
+                manifest += f'{name} = {{version = {pinned}, features = ["renderer-software"]}}\n'
             else:
                 manifest += f'{name} = {pinned}\n'
         (scratch / "Cargo.toml").write_text(manifest)
@@ -60,7 +64,8 @@ def main():
         media_pane = json.dumps(str(workspace / "crates/concat/ui/workspace/media-pane.slint"))[1:-1]
         transition_preview = json.dumps(str(workspace / "crates/concat/ui/workspace/transition-preview.slint"))[1:-1]
         primitives = json.dumps(str(workspace / "crates/concat/ui/primitives/primitives.slint"))[1:-1]
-        probe = (fixtures / "probe.slint").read_text()
+        probe = (fixtures / "probe.slint").read_text().replace(
+            "__FONTS__", json.dumps(str(workspace / "crates/concat-text/fonts"))[1:-1])
         for marker, relative in {
                 "__INSPECTOR__": "inspector/clip-inspector.slint",
                 "__EXPORT__": "dialogs/export.slint",

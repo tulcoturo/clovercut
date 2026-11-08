@@ -447,14 +447,14 @@ pub fn catalogue() -> Vec<Tool> {
         method(
             "export_start",
             "Start an export",
-            "Starts rendering an open project's active timeline to `output` (an .mp4 path), as the window's Export does. Returns at once with a `job` id; follow it with `export_wait` or `export_status`. Optional: crf (quality, lower is better, 20 by default), preset (x264 speed, \"medium\"), width/height, rateNum/rateDen, codec (\"h264\", \"hevc\" or \"av1\"), tenBit, colorRange, hdr. One export runs at a time; another is refused as busy.",
+            "Export the active timeline to `output`. Returns `job`; poll export_status/export_wait. codec: h264/hevc/av1 (MP4), prores-4444 (MOV), vp9-alpha (WebM). Options: crf (20; lower = better), preset (medium), width/height, rateNum/rateDen, tenBit, colorRange, hdr. One export at a time.",
             "export.run",
             Raw,
         ),
         method(
             "export_status",
             "Export status",
-            "How an export job stands, at once: `state` (\"running\", \"done\", \"cancelled\" or \"failed\"), `stage` (\"cutout\", \"stabilize\", \"rendering\", \"mixing audio\" or \"muxing\"), frames done of total, `fraction` of the stage (0-1), and once done the file and its size, or the error.",
+            "Job state: running/done/cancelled/failed; stage: cutout, stabilize, rendering, rendering in software, mixing audio, muxing. Reports frame/total and fraction (0-1); done has frame == total, output, dimensions and optional bytes. On failure, error; stage retains the last processing stage.",
             "export.status",
             Raw,
         )
@@ -462,7 +462,7 @@ pub fn catalogue() -> Vec<Tool> {
         Tool {
             name: "export_wait",
             title: "Wait for an export",
-            description: "Waits for an export job to end, up to `timeoutSeconds` (60 by default, 600 at most), reporting progress as it goes, and returns its status as `export_status` does. If it is still running when the time is up, call it again.",
+            description: "Wait up to timeoutSeconds (default 60, max 600), streaming progress. Returns export_status; call again if still running.",
             read_only: true,
             destructive: false,
             idempotent: true,

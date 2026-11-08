@@ -7,6 +7,11 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+A post-release fetch on 7 November still finds no new Concat main commits beyond
+`443fb2a3`. The [issue-led follow-up](audits/2026-11-07-upstream-issues-review.md)
+triages the open/recently closed inventory, checks desktop/API reports against
+Clovercut, and records focused corrections and larger deferred integrations.
+
 
 Reviewed through `443fb2a33648a86733c4360544cd8f291f5aeaae` on 7 November.
 The [release review and decisions](audits/2026-11-07-upstream-release-review.md)

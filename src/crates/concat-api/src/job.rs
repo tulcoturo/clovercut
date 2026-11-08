@@ -57,6 +57,16 @@ impl Book {
     /// Folds one event into its job's state. The last event of a job
     /// moves it to the finished list and lets its flag go.
     pub(crate) fn record(&self, event: &Event) {
+        // Inspect only the committed output, once, without holding the book's
+        // mutex across filesystem I/O. Keep the completion snapshot if the file
+        // is later moved or removed; a missing size does not undo a good export.
+        let bytes = match event {
+            Event::ExportDone { output, .. } => std::fs::metadata(output)
+                .ok()
+                .filter(|metadata| metadata.is_file())
+                .map(|metadata| metadata.len()),
+            _ => None,
+        };
         let mut inner = self.inner();
         let job = event.job().to_owned();
         let Some(status) = inner.states.get_mut(&job) else {
@@ -97,6 +107,8 @@ impl Book {
                 status.width = Some(*width);
                 status.height = Some(*height);
                 status.fraction = 1.0;
+                status.frame = status.total;
+                status.bytes = bytes;
             }
             Event::ExportFailed { error, .. } => {
                 status.state = if error.code == ErrorCode::Cancelled {
@@ -188,9 +200,66 @@ mod tests {
         });
         let done = book.status("j1").expect("still known");
         assert_eq!(done.state, JobState::Done);
+        assert_eq!((done.frame, done.total), (120, 120));
+        assert_eq!(done.fraction, 1.0);
         assert_eq!((done.width, done.height), (Some(16), Some(9)));
         assert_eq!(book.cancel_all(), 0, "a finished job has no flag to raise");
         assert!(book.status("j2").is_none());
+    }
+
+    #[test]
+    fn a_status_without_the_optional_size_remains_readable() {
+        let running = JobStatus::running("j1", "/p", "/o.mp4");
+        let old_shape = serde_json::to_value(&running).unwrap();
+        assert!(old_shape.get("bytes").is_none());
+        assert_eq!(
+            serde_json::from_value::<JobStatus>(old_shape).unwrap(),
+            running
+        );
+    }
+
+    #[test]
+    fn completed_size_is_a_snapshot_of_the_published_file() {
+        let book = Book::default();
+        let scratch = tempfile::tempdir().unwrap();
+        let output = scratch.path().join("published.mp4");
+        std::fs::write(&output, b"completed export").unwrap();
+        begun(&book, "j1");
+        assert_eq!(book.status("j1").unwrap().bytes, None);
+        book.record(&Event::ExportDone {
+            job: "j1".into(),
+            path: "/p".into(),
+            output: output.to_string_lossy().into_owned(),
+            width: 16,
+            height: 9,
+        });
+        std::fs::remove_file(output).unwrap();
+        let status = book.status("j1").unwrap();
+        assert_eq!(status.bytes, Some(16));
+        assert_eq!(serde_json::to_value(status).unwrap()["bytes"], 16);
+    }
+
+    #[test]
+    fn an_unavailable_output_size_does_not_turn_success_into_failure() {
+        let book = Book::default();
+        let scratch = tempfile::tempdir().unwrap();
+        for (job, output) in [
+            ("missing", scratch.path().join("missing.mp4")),
+            ("directory", scratch.path().to_path_buf()),
+        ] {
+            begun(&book, job);
+            book.record(&Event::ExportDone {
+                job: job.into(),
+                path: "/p".into(),
+                output: output.to_string_lossy().into_owned(),
+                width: 16,
+                height: 9,
+            });
+            let status = book.status(job).unwrap();
+            assert_eq!(status.state, JobState::Done);
+            assert_eq!(status.bytes, None);
+            assert!(serde_json::to_value(status).unwrap().get("bytes").is_none());
+        }
     }
 
     #[test]

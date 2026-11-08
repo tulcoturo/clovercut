@@ -310,6 +310,13 @@ component Chip inherits Rectangle {
     /// The keyboard is on this row and this is the chip it is on.
     in property <bool> ring;
 
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) { root.clicked(); }
+    }
+
     callback clicked();
 
     property <bool> lit: touch.has-hover && root.enabled;
@@ -569,6 +576,13 @@ component PillButton inherits Rectangle {
     in property <bool> block;
     /// Marks a link that opens in the browser.
     in property <bool> external;
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) { root.clicked(); }
+    }
 
     callback clicked();
 
@@ -865,6 +879,8 @@ component DropTile inherits Rectangle {
 component PosterAction inherits Rectangle {
     in property <Glyph> glyph;
     in property <string> label;
+    in property <bool> enabled: true;
+    out property <bool> hovered: touch.has-hover;
 
     callback clicked();
 
@@ -874,7 +890,10 @@ component PosterAction inherits Rectangle {
     background: touch.has-hover ? Theme.on-scrim.with-alpha(0.24) : Theme.scrim;
     accessible-role: button;
     accessible-label: root.label;
-    accessible-action-default => { root.clicked(); }
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) { root.clicked(); }
+    }
 
     animate background { duration: 100ms; }
 
@@ -888,6 +907,7 @@ component PosterAction inherits Rectangle {
     }
 
     touch := TouchArea {
+        enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
@@ -995,20 +1015,26 @@ component PosterCard inherits Pressable {
             }
         }
 
-        if root.actions: HorizontalLayout {
+        HorizontalLayout {
+            // Keep the controls instantiated: entering one transfers hover
+            // from the card to that button, and must not destroy its target.
+            visible: root.enabled && (root.actions || reveal.hovered || forget.hovered);
             x: parent.width - self.preferred-width - 8px;
             y: 8px;
             height: 28px;
             width: self.preferred-width;
             spacing: 6px;
 
-            if root.can-reveal && !root.project.missing: PosterAction {
+            reveal := PosterAction {
+                enabled: root.enabled;
+                visible: root.can-reveal && !root.project.missing;
                 glyph: Glyph.folder;
                 label: I18n.t("start.showInFolder");
                 clicked => { root.revealed(); }
             }
 
-            PosterAction {
+            forget := PosterAction {
+                enabled: root.enabled;
                 glyph: Glyph.close;
                 label: I18n.t("start.removeFromList");
                 clicked => { root.forgotten(); }
@@ -2294,7 +2320,8 @@ export component NewProjectDialog inherits Modal {
     /// location is shown rather than typed. See platform::pick_folder.
     /// https://github.com/jub0t/Concat/issues/222
     in property <bool> phone;
-    property <bool> narrow: root.width < 680px;
+    // Break on the actual card width, not the wider window behind it.
+    property <bool> narrow: root.surface-width < 640px;
     /// A project needs somewhere to go. Everything else has a default.
     property <bool> can-create: !root.data.busy && root.data.location != "";
 
@@ -2307,7 +2334,9 @@ export component NewProjectDialog inherits Modal {
     dismissable: !root.data.busy;
     // Wide enough for six rates a row, with their readout beside an 84px
     // label, and no wider than the window less a margin, on a phone.
-    surface-width: Math.min(640px, root.width - 32px);
+    surface-width: Math.min(640px, root.width - root.inset-left - root.inset-right - 32px);
+    surface-height: Math.min(form.preferred-height + 42px,
+        root.height - root.inset-top - root.inset-bottom - 24px);
 
     // The caret goes to the name each time the sheet comes up, with the
     // name selected, so the default is replaced by typing over it. From
@@ -2315,401 +2344,435 @@ export component NewProjectDialog inherits Modal {
     // hidden, when the window is, and shown many times after.
     changed open => {
         if (root.open) {
+            viewport.content-y = 0px;
             name-field.take-focus();
         }
     }
 
-    VerticalLayout {
-        padding-left: root.narrow ? 18px : 26px;
-        padding-right: root.narrow ? 18px : 26px;
-        padding-top: 16px;
-        padding-bottom: 22px;
+    // Keep the header visible and the whole form reachable at the welcome
+    // window's minimum size, including custom values and a wrapped error.
+    Rectangle {
+        min-height: 0px;
+        vertical-stretch: 1;
+        viewport := DirectWheelFlickable {
+            width: parent.width - 10px;
+            height: parent.height;
+            direct-wheel: !root.phone;
+            content-height: form.preferred-height;
+            content-width: self.width;
 
-        // What the form is for, before the form: the one line a person
-        // should read before choosing.
-        Text {
-            text: I18n.t("start.settingsApplyWholeEdit");
-            color: Theme.fg-muted;
-            font-size: Theme.fs;
-            wrap: word-wrap;
-        }
-
-        // Files dropped on the launch screen: the sheet is up because of
-        // them, and says where they are going.
-        if root.data.dropped > 0: HorizontalLayout {
-            padding-top: 10px;
-            spacing: 8px;
-
-            VerticalLayout {
-                alignment: start;
-                padding-top: 1px;
-                Icon {
-                    glyph: Glyph.import;
-                    size: 13px;
-                    tint: Theme.accent;
-                }
-            }
-
-            Text {
-                horizontal-stretch: 1;
-                text: root.data.dropped == 1
-                    ? I18n.t("start.droppedOneFile")
-                    : I18n.t1("start.droppedFiles", "\{root.data.dropped}");
-                color: Theme.fg;
-                font-size: Theme.fs;
-                wrap: word-wrap;
-            }
-        }
-
-        FormRow {
-            label: I18n.upper("common.name");
-            stacked: root.narrow;
-
-            name-field := PlainInput {
-                text: root.data.name;
-                placeholder: I18n.t("common.untitledProject");
-                enabled: !root.data.busy;
-                edited(text) => { root.name-edited(text); }
-                accepted => { root.create(); }
-            }
-        }
-
-        // A desk's question. A phone keeps its projects in the app's own
-        // folder, as every phone editor does, and a path there is nothing
-        // anybody can browse to, so the row is not shown.
-        if !root.phone: FormRow {
-            label: I18n.upper("start.location");
-            stacked: root.narrow;
-
-            HorizontalLayout {
-                spacing: 12px;
-
-                PlainInput {
-                    horizontal-stretch: 1;
-                    text: root.data.location;
-                    placeholder: I18n.t("start.chooseAFolder");
-                    size: Theme.fs;
-                    face: Theme.font-technical;
-                    enabled: !root.data.busy;
-                    edited(text) => { root.location-edited(text); }
-                    accepted => { root.create(); }
-                }
-
-                VerticalLayout {
-                    alignment: center;
-                    horizontal-stretch: 0;
-                    LinkButton {
-                        label: I18n.t("start.choose");
-                        enabled: !root.data.busy;
-                        // The field beside this ignores a new value while it
-                        // holds the caret (see PlainInput), so a folder picked
-                        // with the caret still in it never showed. Let go of
-                        // it first; the window's press-away blur only covers
-                        // a mouse, not a touch, a pen or the keyboard.
-                        clicked => {
-                            Focus.release();
-                            root.browse();
-                        }
-                    }
-                }
-            }
-        }
-
-        FormRow {
-            label: I18n.upper("start.shape");
-            stacked: root.narrow;
-
-            HorizontalLayout {
-                spacing: 16px;
-
-                ChipRow {
-                    horizontal-stretch: 1;
-                    options: root.aspects;
-                    per-row: root.narrow ? 3 : 0;
-                    current: root.data.aspect;
-                    // A typed frame is its own shape.
-                    enabled: !root.data.busy && root.data.size < root.sizes.length;
-                    block: root.narrow;
-                    changed(index) => { root.aspect-changed(index); }
-                }
-
-                // The chosen frame at the row's end, drawn rather than
-                // described: the one thing on this sheet that shows what
-                // the numbers mean.
-                if !root.narrow: VerticalLayout {
-                    alignment: center;
-                    horizontal-stretch: 0;
-                    FrameShape {
-                        room: 32px;
-                        ratio: root.data.frame-aspect;
-                    }
-                }
-            }
-        }
-
-        FormRow {
-            label: I18n.upper("common.size");
-            stacked: root.narrow;
-
-            VerticalLayout {
-                spacing: 10px;
-
-                HorizontalLayout {
-                    spacing: 16px;
-
-                    ChipRow {
-                        horizontal-stretch: 1;
-                        options: root.sizes;
-                        extra: I18n.t("common.custom");
-                        current: root.data.size;
-                        enabled: !root.data.busy;
-                        block: root.narrow;
-                        // Five chips and the readout do not fit one line of
-                        // a phone held upright: 4K and Custom ran off the
-                        // edge out of reach (#356). Three to a row there,
-                        // as the frame rates wrap four.
-                        per-row: root.narrow ? 3 : 0;
-                        changed(index) => { root.size-changed(index); }
-                    }
-
-                    VerticalLayout {
-                        alignment: center;
-                        horizontal-stretch: 0;
-                        Text {
-                            text: root.data.size-readout;
-                            color: Theme.fg-dim;
-                            font-family: Theme.font-technical;
-                            font-size: Theme.fs-sm;
-                        }
-                    }
-                }
-
-                // The typed frame: width by height, each side even and
-                // within 16 to 8192, which Rust rounds a typed number to.
-                if root.data.size == root.sizes.length: HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-
-                    NumberField {
-                        width: 96px;
-                        value: root.data.custom-width;
-                        minimum: 16;
-                        maximum: 8192;
-                        step: 2;
-                        unit: "W";
-                        enabled: !root.data.busy;
-                        changed(value) => { root.custom-width-edited(value); }
-                    }
-
-                    Text {
-                        text: "×";
-                        color: Theme.fg-dim;
-                        vertical-alignment: center;
-                    }
-
-                    NumberField {
-                        width: 96px;
-                        value: root.data.custom-height;
-                        minimum: 16;
-                        maximum: 8192;
-                        step: 2;
-                        unit: "H";
-                        enabled: !root.data.busy;
-                        changed(value) => { root.custom-height-edited(value); }
-                    }
-                }
-            }
-        }
-
-        FormRow {
-            label: I18n.upper("common.frameRate");
-            stacked: root.narrow;
-
-            VerticalLayout {
-                spacing: 10px;
-
-                HorizontalLayout {
-                    spacing: 16px;
-
-                    // Eleven rates and Custom in a list, not a wall of
-                    // twelve buttons: most edits want one of three, and
-                    // the rest are there when the list is opened.
-                    Select {
-                        width: 168px;
-                        options: root.data.rate-options;
-                        current: root.data.rate;
-                        enabled: !root.data.busy;
-                        changed(index) => { root.rate-changed(index); }
-                    }
-
-                    Rectangle { horizontal-stretch: 1; }
-
-                    VerticalLayout {
-                        alignment: center;
-                        horizontal-stretch: 0;
-                        Text {
-                            text: root.data.rate-readout;
-                            color: Theme.fg-dim;
-                            font-family: Theme.font-technical;
-                            font-size: Theme.fs-sm;
-                        }
-                    }
-                }
-
-                // The typed rate, from 1 to 240. The readout above says the
-                // fraction it is kept as: 23.976 is 24000/1001.
-                if root.data.rate == root.rates.length: HorizontalLayout {
-                    alignment: start;
-
-                    NumberField {
-                        width: 112px;
-                        value: root.data.custom-fps;
-                        minimum: 1;
-                        maximum: 240;
-                        step: 1;
-                        precision: 3;
-                        unit: "fps";
-                        enabled: !root.data.busy;
-                        changed(value) => { root.custom-fps-edited(value); }
-                    }
-                }
-            }
-        }
-
-        // What shows where no picture covers the frame; see CanvasPicker.
-        FormRow {
-            label: I18n.upper("start.background");
-            last: true;
-            stacked: root.narrow;
-
-            CanvasPicker {
-                value: root.data.canvas;
-                enabled: !root.data.busy;
-                changed(value) => { root.canvas-changed(value); }
-            }
-        }
-
-        // The notice, above the button, wrapping to as many lines as the
-        // error takes: an elided error is half an error, and on a phone
-        // that is most of it.
-        if root.data.error != "": Rectangle {
-            height: notice.preferred-height + 4px;
-
-            notice := Rectangle {
-                x: 0;
-                y: 4px;
+            form := VerticalLayout {
                 width: parent.width;
                 height: self.preferred-height;
-                border-radius: Theme.r;
-                background: Theme.danger-soft;
+                padding-left: root.narrow ? 18px : 26px;
+                padding-right: root.narrow ? 18px : 26px;
+                padding-top: 16px;
+                padding-bottom: 22px;
 
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 6px;
-                    padding-top: 8px;
-                    padding-bottom: 8px;
+                // What the form is for, before the form: the one line a person
+                // should read before choosing.
+                Text {
+                    text: I18n.t("start.settingsApplyWholeEdit");
+                    color: Theme.fg-muted;
+                    font-size: Theme.fs;
+                    wrap: word-wrap;
+                }
+
+                // Files dropped on the launch screen: the sheet is up because of
+                // them, and says where they are going.
+                if root.data.dropped > 0: HorizontalLayout {
+                    padding-top: 10px;
                     spacing: 8px;
 
                     VerticalLayout {
                         alignment: start;
-                        padding-top: 2px;
+                        padding-top: 1px;
                         Icon {
-                            glyph: Glyph.info;
+                            glyph: Glyph.import;
                             size: 13px;
-                            tint: Theme.danger;
+                            tint: Theme.accent;
                         }
                     }
 
                     Text {
                         horizontal-stretch: 1;
-                        text: root.data.error;
-                        color: Theme.danger;
+                        text: root.data.dropped == 1
+                            ? I18n.t("start.droppedOneFile")
+                            : I18n.t1("start.droppedFiles", "\{root.data.dropped}");
+                        color: Theme.fg;
                         font-size: Theme.fs;
                         wrap: word-wrap;
                     }
+                }
 
-                    VerticalLayout {
-                        alignment: start;
-                        CopyChip {
-                            text: root.data.error;
-                        }
+                FormRow {
+                    label: I18n.upper("common.name");
+                    stacked: root.narrow;
+
+                    name-field := PlainInput {
+                        text: root.data.name;
+                        placeholder: I18n.t("common.untitledProject");
+                        enabled: !root.data.busy;
+                        edited(text) => { root.name-edited(text); }
+                        accepted => { root.create(); }
                     }
+                }
 
-                    VerticalLayout {
-                        alignment: start;
-                        Rectangle {
-                            width: 22px;
-                            height: 22px;
-                            border-radius: Theme.r-xs;
+                // A desk's question. A phone keeps its projects in the app's own
+                // folder, as every phone editor does, and a path there is nothing
+                // anybody can browse to, so the row is not shown.
+                if !root.phone: FormRow {
+                    label: I18n.upper("start.location");
+                    stacked: root.narrow;
 
-                            Icon {
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
-                                glyph: Glyph.close;
-                                size: 11px;
-                                tint: Theme.danger;
-                            }
+                    HorizontalLayout {
+                        spacing: 12px;
 
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => { root.dismiss-error(); }
+                        PlainInput {
+                            horizontal-stretch: 1;
+                            text: root.data.location;
+                            placeholder: I18n.t("start.chooseAFolder");
+                            size: Theme.fs;
+                            face: Theme.font-technical;
+                            enabled: !root.data.busy;
+                            edited(text) => { root.location-edited(text); }
+                            accepted => { root.create(); }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 0;
+                            LinkButton {
+                                label: I18n.t("start.choose");
+                                enabled: !root.data.busy;
+                                // The field beside this ignores a new value while it
+                                // holds the caret (see PlainInput), so a folder picked
+                                // with the caret still in it never showed. Let go of
+                                // it first; the window's press-away blur only covers
+                                // a mouse, not a touch, a pen or the keyboard.
+                                clicked => {
+                                    Focus.release();
+                                    root.browse();
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        Rectangle { height: 22px; }
+                FormRow {
+                    label: I18n.upper("start.shape");
+                    stacked: root.narrow;
 
-        // The button and the line about what pressing it does to the disk:
-        // side by side where there is room, the button across the width
-        // and the line under it on a phone, where a pill a thumb can miss
-        // is a pill that will be missed.
-        if !root.narrow: HorizontalLayout {
-            spacing: 18px;
+                    HorizontalLayout {
+                        spacing: 16px;
 
-            PillButton {
-                primary: true;
-                label: root.data.busy
-                    ? I18n.t("start.creating")
-                    : I18n.t("start.create");
-                enabled: root.can-create;
-                clicked => { root.create(); }
-            }
+                        ChipRow {
+                            horizontal-stretch: 1;
+                            options: root.aspects;
+                            // Six natural-width chips cannot fit beside the preview
+                            // inside a 640px card. Reserve three equal cells per row.
+                            per-row: root.surface-width < 400px ? 2 : 3;
+                            current: root.data.aspect;
+                            // A typed frame is its own shape.
+                            enabled: !root.data.busy && root.data.size < root.sizes.length;
+                            block: root.narrow;
+                            changed(index) => { root.aspect-changed(index); }
+                        }
 
-            VerticalLayout {
-                alignment: center;
-                horizontal-stretch: 1;
-                Text {
-                    text: I18n.t("start.projectFolderCreatedNow");
-                    color: Theme.fg-dim;
-                    font-size: Theme.fs-sm;
-                    wrap: word-wrap;
+                        // The chosen frame at the row's end, drawn rather than
+                        // described: the one thing on this sheet that shows what
+                        // the numbers mean.
+                        if !root.narrow: VerticalLayout {
+                            alignment: center;
+                            min-width: 32px;
+                            max-width: 32px;
+                            horizontal-stretch: 0;
+                            FrameShape {
+                                room: 32px;
+                                ratio: root.data.frame-aspect;
+                            }
+                        }
+                    }
+                }
+
+                FormRow {
+                    label: I18n.upper("common.size");
+                    stacked: root.narrow;
+
+                    VerticalLayout {
+                        spacing: 10px;
+
+                        // The readout gets its own line; it must not squeeze
+                        // the controls out of a compact card.
+                        VerticalLayout {
+                            spacing: 16px;
+
+                            ChipRow {
+                                horizontal-stretch: 1;
+                                options: root.sizes;
+                                extra: I18n.t("common.custom");
+                                current: root.data.size;
+                                enabled: !root.data.busy;
+                                block: root.narrow;
+                                // Five chips and the readout do not fit one line of
+                                // a phone held upright: 4K and Custom ran off the
+                                // edge out of reach (#356). Three to a row there,
+                                // as the frame rates wrap four.
+                                per-row: root.narrow ? (root.surface-width < 500px ? 2 : 3) : 0;
+                                changed(index) => { root.size-changed(index); }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 0;
+                                Text {
+                                    text: root.data.size-readout;
+                                    color: Theme.fg-dim;
+                                    font-family: Theme.font-technical;
+                                    font-size: Theme.fs-sm;
+                                }
+                            }
+                        }
+
+                        // The typed frame: width by height, each side even and
+                        // within 16 to 8192, which Rust rounds a typed number to.
+                        if root.data.size == root.sizes.length: HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+
+                            NumberField {
+                                width: 96px;
+                                value: root.data.custom-width;
+                                minimum: 16;
+                                maximum: 8192;
+                                step: 2;
+                                unit: "W";
+                                enabled: !root.data.busy;
+                                changed(value) => { root.custom-width-edited(value); }
+                            }
+
+                            Text {
+                                text: "×";
+                                color: Theme.fg-dim;
+                                vertical-alignment: center;
+                            }
+
+                            NumberField {
+                                width: 96px;
+                                value: root.data.custom-height;
+                                minimum: 16;
+                                maximum: 8192;
+                                step: 2;
+                                unit: "H";
+                                enabled: !root.data.busy;
+                                changed(value) => { root.custom-height-edited(value); }
+                            }
+                        }
+                    }
+                }
+
+                FormRow {
+                    label: I18n.upper("common.frameRate");
+                    stacked: root.narrow;
+
+                    VerticalLayout {
+                        spacing: 10px;
+
+                        // The readout gets its own line; it must not squeeze
+                        // the controls out of a compact card.
+                        VerticalLayout {
+                            spacing: 16px;
+
+                            // Eleven rates and Custom in a list, not a wall of
+                            // twelve buttons: most edits want one of three, and
+                            // the rest are there when the list is opened.
+                            Select {
+                                width: 168px;
+                                options: root.data.rate-options;
+                                current: root.data.rate;
+                                enabled: !root.data.busy;
+                                changed(index) => { root.rate-changed(index); }
+                            }
+
+                            Rectangle { horizontal-stretch: 1; }
+
+                            VerticalLayout {
+                                alignment: center;
+                                horizontal-stretch: 0;
+                                Text {
+                                    text: root.data.rate-readout;
+                                    color: Theme.fg-dim;
+                                    font-family: Theme.font-technical;
+                                    font-size: Theme.fs-sm;
+                                }
+                            }
+                        }
+
+                        // The typed rate, from 1 to 240. The readout above says the
+                        // fraction it is kept as: 23.976 is 24000/1001.
+                        if root.data.rate == root.rates.length: HorizontalLayout {
+                            alignment: start;
+
+                            NumberField {
+                                width: 112px;
+                                value: root.data.custom-fps;
+                                minimum: 1;
+                                maximum: 240;
+                                step: 1;
+                                precision: 3;
+                                unit: "fps";
+                                enabled: !root.data.busy;
+                                changed(value) => { root.custom-fps-edited(value); }
+                            }
+                        }
+                    }
+                }
+
+                // What shows where no picture covers the frame; see CanvasPicker.
+                FormRow {
+                    label: I18n.upper("start.background");
+                    last: true;
+                    stacked: root.narrow;
+
+                    CanvasPicker {
+                        value: root.data.canvas;
+                        enabled: !root.data.busy;
+                        changed(value) => { root.canvas-changed(value); }
+                    }
+                }
+
+                // The notice, above the button, wrapping to as many lines as the
+                // error takes: an elided error is half an error, and on a phone
+                // that is most of it.
+                if root.data.error != "": Rectangle {
+                    height: notice.preferred-height + 4px;
+
+                    notice := Rectangle {
+                        x: 0;
+                        y: 4px;
+                        width: parent.width;
+                        height: self.preferred-height;
+                        border-radius: Theme.r;
+                        background: Theme.danger-soft;
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 6px;
+                            padding-top: 8px;
+                            padding-bottom: 8px;
+                            spacing: 8px;
+
+                            VerticalLayout {
+                                alignment: start;
+                                padding-top: 2px;
+                                Icon {
+                                    glyph: Glyph.info;
+                                    size: 13px;
+                                    tint: Theme.danger;
+                                }
+                            }
+
+                            Text {
+                                horizontal-stretch: 1;
+                                text: root.data.error;
+                                color: Theme.danger;
+                                font-size: Theme.fs;
+                                wrap: word-wrap;
+                            }
+
+                            VerticalLayout {
+                                alignment: start;
+                                CopyChip {
+                                    text: root.data.error;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: start;
+                                Rectangle {
+                                    width: 22px;
+                                    height: 22px;
+                                    border-radius: Theme.r-xs;
+
+                                    Icon {
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                        glyph: Glyph.close;
+                                        size: 11px;
+                                        tint: Theme.danger;
+                                    }
+
+                                    TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => { root.dismiss-error(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle { height: 22px; }
+
+                // The button and the line about what pressing it does to the disk:
+                // side by side where there is room, the button across the width
+                // and the line under it on a phone, where a pill a thumb can miss
+                // is a pill that will be missed.
+                if !root.narrow: HorizontalLayout {
+                    spacing: 18px;
+
+                    PillButton {
+                        primary: true;
+                        label: root.data.busy
+                            ? I18n.t("start.creating")
+                            : I18n.t("start.create");
+                        enabled: root.can-create;
+                        clicked => { root.create(); }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: I18n.t("start.projectFolderCreatedNow");
+                            color: Theme.fg-dim;
+                            font-size: Theme.fs-sm;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                if root.narrow: VerticalLayout {
+                    spacing: 12px;
+
+                    PillButton {
+                        primary: true;
+                        block: true;
+                        label: root.data.busy
+                            ? I18n.t("start.creating")
+                            : I18n.t("start.create");
+                        enabled: root.can-create;
+                        clicked => { root.create(); }
+                    }
+
+                    Text {
+                        text: I18n.t("start.projectFolderCreatedNow");
+                        color: Theme.fg-dim;
+                        font-size: Theme.fs-sm;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
                 }
             }
         }
-
-        if root.narrow: VerticalLayout {
-            spacing: 12px;
-
-            PillButton {
-                primary: true;
-                block: true;
-                label: root.data.busy
-                    ? I18n.t("start.creating")
-                    : I18n.t("start.create");
-                enabled: root.can-create;
-                clicked => { root.create(); }
-            }
-
-            Text {
-                text: I18n.t("start.projectFolderCreatedNow");
-                color: Theme.fg-dim;
-                font-size: Theme.fs-sm;
-                horizontal-alignment: center;
-                wrap: word-wrap;
-            }
+        ThinScrollbar {
+            x: parent.width - 9px;
+            width: 8px;
+            height: parent.height;
+            viewport: viewport.height;
+            content: viewport.content-height;
+            offset: -viewport.content-y;
+            scrolled(offset) => { viewport.content-y = -offset; }
         }
     }
 }
