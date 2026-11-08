@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import "__FONTS__/HankenGrotesk-Regular.ttf";
+import "__FONTS__/HankenGrotesk-Medium.ttf";
+import "__FONTS__/HankenGrotesk-SemiBold.ttf";
+import "__FONTS__/HankenGrotesk-Bold.ttf";
+import "__FONTS__/HankenGrotesk-Italic.ttf";
+import { ResizeBox } from "__RESIZE_BOX__";
+import { TextPanel } from "__TEXT_PANEL__";
+import { RelinkDialog } from "__RELINK__";
+import { CaptionsDialog } from "__CAPTIONS__";
+import { SpeechDialog } from "__SPEECH_DIALOG__";
+import { VoiceoverPanel } from "__VOICEOVER_PANEL__";
+export component TextProbe inherits Window {
+    width: 800px;
+    height: 900px;
+    in-out property <string> words;
+    in-out property <int> mode;
+    in-out property <int> edits;
+    in-out property <int> commits;
+    in-out property <int> anchor;
+    in-out property <int> cursor;
+    in-out property <int> selection-cursor;
+    in-out property <int> dismisses;
+    in-out property <bool> opened: true;
+    in-out property <bool> taking;
+    in property <bool> resize: true;
+    out property <length> editor-height: box.box-height;
+    out property <length> editor-scroll: box.scroll-y;
+    public function reveal-bottom() { box.reveal(input.preferred-height, 16px); }
+    box := ResizeBox {
+        visible: root.mode == 0;
+        x: 20px; y: 20px; width: 360px;
+        box-height: 104px;
+        resizable: root.resize;
+        content-height: input.preferred-height;
+        input := TextInput {
+            width: parent.width;
+            y: box.pad-y;
+            height: Math.max(self.preferred-height, box.view-height);
+            text <=> root.words;
+            font-size: 14px;
+            font-family: "Hanken Grotesk";
+            color: white;
+            single-line: false;
+            wrap: word-wrap;
+            accessible-label: "long-text";
+            cursor-position-changed(at) => { box.reveal(at.y, self.font-size * 1.4); }
+        }
+    }
+    if root.mode == 1: Rectangle {
+        x: 0; y: 0;
+        width: 420px; height: parent.height; clip: true;
+        TextPanel {
+        x: 0; y: 0;
+        width: parent.width; height: self.preferred-height;
+        selected: {id: "title", content: root.words, batch: 1, frame-width: 1920, frame-height: 1080,
+            font-family: "Hanken Grotesk", font-size: 0.05, text-opacity: 1, styling-words: true};
+        set-words(text, caret) => { root.words = text; root.cursor = caret; root.edits += 1; }
+        select-words(anchor, cursor) => { root.anchor = anchor; root.selection-cursor = cursor; }
+        commit => { root.commits += 1; }
+        }
+    }
+    if root.mode == 2: RelinkDialog {
+        width: parent.width; height: parent.height;
+        data: {open: root.opened, items: [{id: "m", name: "missing", path: "/missing.mp4", clips: 1}]};
+        dismiss => { root.opened = false; root.dismisses += 1; }
+    }
+    if root.mode == 3: CaptionsDialog {
+        width: parent.width; height: parent.height;
+        data: {open: true, text: root.words, ready: true, from-voice: false};
+        models: ["base"]; languages: ["Automatic"];
+        text-edited(text) => { root.words = text; root.edits += 1; }
+    }
+    if root.mode == 4: SpeechDialog {
+        width: parent.width; height: parent.height;
+        data: {open: true, text: root.words};
+        text-edited(text) => { root.words = text; root.edits += 1; }
+    }
+    if root.mode == 5: VoiceoverPanel {
+        x: 0; y: 0;
+        width: 500px;
+        data: {open: true, prompt: root.words, phase: root.taking ? 2 : 0};
+        prompt-edited(text) => { root.words = text; root.edits += 1; }
+    }
+}

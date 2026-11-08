@@ -66,6 +66,17 @@ CI installs them on its disposable runner. This runs in headless CI on UI change
 checks. It does not qualify physical screen readers, native file-picker modality,
 driver-specific GPU appearance, desktop shortcut routing or the complete editing journey.
 
+## Long text and relink dialog checks
+
+Run `python3 scripts/check_home_ui.py --offline --suite text` for the actual
+ResizeBox, title, caption, speech and voiceover controls under the software
+renderer. The fixture covers immediate wheel input, caret reveal, stale scroll
+clamping, pressed-only resize, Unicode selection, title draft commits and the
+voiceover recording guard. Fixed dialog fields keep their original height.
+The relink cases activate both the header close button and the outside scrim,
+checking that each reaches the existing dismissal callback. These checks do
+not qualify native file pickers, physical input latency or recording hardware.
+
 ## Ordinary validation
 
 | Suite | Command | Requirements |
