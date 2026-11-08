@@ -1,12 +1,7 @@
 struct Params { amount:f32, size:f32 }
-fn effect(uv:vec2<f32>)->vec4<f32> {
- var base=sample(uv);
- if(params.amount<=0.0){return base;}
- let source=face_source(uv);
- for(var i=0u;i<4u;i++) {
-  let face=face_inputs.faces[i];
-  // Guard instead of continue: WARP/FXC must not lower this to a flagged while loop.
-  if(face.mouth_score.z>=0.7) {
+fn decorate_face(original:vec4<f32>,source:vec2<f32>,face:TrackedFace)->vec4<f32> {
+ var base=original;
+ if(face.mouth_score.z<0.7){return base;}
   let size=params.size*0.01;
   let p=face_local(source,face)/size;
   let sway=sin(frame.clip_time*3.0)*0.035;
@@ -24,7 +19,16 @@ fn effect(uv:vec2<f32>)->vec4<f32> {
   base=face_over(base,vec3<f32>(0.012)+vec3<f32>(0.15)*highlight,nose_shape*params.amount*0.01);
   let line=face_cover(face_round_box(q-vec2<f32>(0.0,0.19),vec2<f32>(0.022,0.09),0.015));
   base=face_over(base,vec3<f32>(0.025),line*params.amount*0.01);
-  }
- }
+ return base;
+}
+fn effect(uv:vec2<f32>)->vec4<f32> {
+ var base=sample(uv);
+ if(params.amount<=0.0){return base;}
+ let source=face_source(uv);
+ // Fixed calls avoid dynamic indexing/loop lowering in Windows WARP/FXC.
+ base=decorate_face(base,source,face_inputs.faces[0]);
+ base=decorate_face(base,source,face_inputs.faces[1]);
+ base=decorate_face(base,source,face_inputs.faces[2]);
+ base=decorate_face(base,source,face_inputs.faces[3]);
  return base;
 }
