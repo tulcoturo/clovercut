@@ -5,7 +5,8 @@ fn effect(uv:vec2<f32>)->vec4<f32> {
  let source=face_source(uv);
  for(var i=0u;i<4u;i++) {
   let face=face_inputs.faces[i];
-  if(face.mouth_score.z<0.7){continue;}
+  // Guard instead of continue: WARP/FXC must not lower this to a flagged while loop.
+  if(face.mouth_score.z>=0.7) {
   let size=params.size*0.01;
   let p=face_local(source,face)/size;
   let sway=sin(frame.clip_time*3.0)*0.035;
@@ -23,6 +24,7 @@ fn effect(uv:vec2<f32>)->vec4<f32> {
   base=face_over(base,vec3<f32>(0.012)+vec3<f32>(0.15)*highlight,nose_shape*params.amount*0.01);
   let line=face_cover(face_round_box(q-vec2<f32>(0.0,0.19),vec2<f32>(0.022,0.09),0.015));
   base=face_over(base,vec3<f32>(0.025),line*params.amount*0.01);
+  }
  }
  return base;
 }
