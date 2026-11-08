@@ -3,7 +3,7 @@
 """Exercise actual home, timeline, caption or catalogue controls with Slint's testing backend.
 
 No native window, GPU, audio, personal profile or copied UI implementation.
-The home suite paints with the software renderer and bundled fonts; other
+The home and text suites paint with the software renderer and bundled fonts; other
 suites use the mock renderer. This complements full desktop CI and does not
 qualify physical accessibility or native OS dialogs.
 """
@@ -19,7 +19,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll", "text"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
@@ -41,7 +41,7 @@ def main():
                 manifest += f'{name} = {{version = {pinned}, default-features = false, features = ["std", "compat-1-2"]}}\n'
             elif name == "slint-build":
                 manifest += f'[build-dependencies]\n{name} = {pinned}\n'
-            elif args.suite == "home":
+            elif args.suite in ("home", "text"):
                 manifest += f'{name} = {{version = {pinned}, features = ["renderer-software"]}}\n'
             else:
                 manifest += f'{name} = {pinned}\n'
@@ -73,6 +73,10 @@ def main():
                 "__RELINK__": "dialogs/relink.slint",
                 "__START__": "start.slint",
                 "__CAPTIONS__": "dialogs/captions.slint",
+                "__TEXT_PANEL__": "inspector/text-panel.slint",
+                "__RESIZE_BOX__": "primitives/resize-box.slint",
+                "__SPEECH_DIALOG__": "dialogs/speech.slint",
+                "__VOICEOVER_PANEL__": "dialogs/voiceover.slint",
         }.items():
             probe = probe.replace(marker, json.dumps(str(workspace / "crates/concat/ui" / relative))[1:-1])
 

@@ -29,6 +29,9 @@ export component RelinkDialog inherits Modal {
     callback remove(id: string);
     callback dismiss();
 
+    // The title-bar close and outside click share the existing dismissal,
+    // including cancellation of project-owned searches in the host.
+    closed => { root.dismiss(); }
     open: root.data.open;
     title: I18n.t("relink.missingMedia");
     glyph: Glyph.info;
