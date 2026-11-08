@@ -804,7 +804,7 @@ mod tests {
         let mut painter = Painter::with_city(gpu, &still, Some(&city), 480, 270).unwrap();
         let catalogue = Catalogue::builtin();
         let (reference, mask) = painter.subject(480, 270).unwrap();
-        assert!(mask.gray.iter().any(|v| *v == 0));
+        assert!(mask.gray.contains(&0));
         assert!(mask.gray.iter().any(|v| *v > 240));
         let model = concat_vision::Segmenter::selfie().unwrap();
         model.begin();
@@ -813,6 +813,30 @@ mod tests {
             inferred.bytes().iter().any(|v| *v > 128),
             "the reference must contain a detectable person"
         );
+        let (mut intersection, mut union) = (0usize, 0usize);
+        for y in 0..inferred.height() {
+            for x in 0..inferred.width() {
+                let detected = inferred.at(i64::from(x), i64::from(y)) > 128;
+                let expected = mask.gray[((y * mask.height / inferred.height()) * mask.width
+                    + x * mask.width / inferred.width())
+                    as usize]
+                    > 128;
+                intersection += usize::from(detected && expected);
+                union += usize::from(detected || expected);
+            }
+        }
+        assert!(
+            intersection as f64 / union.max(1) as f64 > 0.2,
+            "person inference must overlap the known silhouette, not just return foreground"
+        );
+        let inferred = Arc::new(
+            SubjectMask::new(
+                inferred.width(),
+                inferred.height(),
+                inferred.bytes().to_vec(),
+            )
+            .unwrap(),
+        );
         for id in ["concat.subject-neon", "concat.subject-electric"] {
             let card = Card::of(catalogue, catalogue.get(id).unwrap(), &dir).unwrap();
             let before = painter.preview_frame(&card, 0.0).unwrap();
@@ -820,18 +844,28 @@ mod tests {
             let later = painter.preview_frame(&card, 0.75).unwrap();
             assert_ne!(before, first, "{id} shows the effect");
             assert_ne!(first, later, "{id} advances real shader time");
+            painter.subject = Some((Arc::clone(&reference), Arc::clone(&inferred)));
+            let detected = painter.preview_frame(&card, 0.5).unwrap();
+            painter.subject = Some((Arc::clone(&reference), Arc::clone(&mask)));
+            assert_ne!(before, detected, "{id} renders a genuine inferred matte");
             if let Some(output) = std::env::var_os("CLOVERCUT_SUBJECT_PROBES").or_else(|| {
                 std::env::var_os("GITHUB_WORKSPACE")
                     .map(|path| PathBuf::from(path).join("subject-probes").into_os_string())
             }) {
                 let output = PathBuf::from(output);
                 std::fs::create_dir_all(&output).unwrap();
-                let mut ppm =
-                    format!("P6\n{} {}\n255\n", first.width(), first.height()).into_bytes();
-                for pixel in first.pixels().chunks_exact(4) {
-                    ppm.extend_from_slice(&pixel[..3]);
+                for (name, frame) in [
+                    ("thumbnail", &first),
+                    ("inferred", &detected),
+                    ("original", &before),
+                ] {
+                    let mut ppm =
+                        format!("P6\n{} {}\n255\n", frame.width(), frame.height()).into_bytes();
+                    for pixel in frame.pixels().chunks_exact(4) {
+                        ppm.extend_from_slice(&pixel[..3]);
+                    }
+                    std::fs::write(output.join(format!("{id}-{name}.ppm")), ppm).unwrap();
                 }
-                std::fs::write(output.join(format!("{id}-thumbnail.ppm")), ppm).unwrap();
             }
         }
         std::fs::remove_dir_all(dir).unwrap();

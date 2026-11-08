@@ -18,3 +18,18 @@ export component EffectsProbe inherits Window {
         applied => { root.applied += 1; }
     }
 }
+
+import { MediaPane } from "__MEDIA_PANE__";
+import { CatalogueEntryData } from "__INSPECTOR__";
+export component SubjectShelfProbe inherits Window {
+    width: 900px;
+    height: 600px;
+    in property <[CatalogueEntryData]> entries;
+    in-out property <int> clip-applied;
+    in-out property <int> layer-applied;
+    MediaPane {
+        catalogue-effects: root.entries;
+        apply-effect(id) => { root.clip-applied += 1; }
+        apply-filter(id, label) => { root.layer-applied += 1; }
+    }
+}

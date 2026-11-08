@@ -12,4 +12,4 @@ The GPU retains four bind groups. New mask bindings share the reveal group; the 
 
 The dedicated Subject category has actual shader-driven animated person thumbnails. Their source is documented in [asset provenance](../assets/subject-card.md). No model inference or download occurs on hover.
 
-Validation includes package probes, project stage ordering and atomic rejection, mask geometry/alpha/movement GPU tests, analysis request selection and bypass, mask-only export behavior, and real thumbnail animation with bundled person inference. Native and visual results must be reviewed before integration.
+Validation includes package probes, project stage ordering and atomic rejection, mask geometry/alpha/movement GPU tests, analysis request selection and bypass, mask-only export behavior, real thumbnail animation with bundled person inference and silhouette overlap, and actual MediaPane source-only application while adjustment-layer mode is enabled. Native and visual results must be reviewed before integration.

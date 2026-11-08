@@ -83,7 +83,62 @@ fn main() {
         assert_eq!(app.get_applied(), 0, "hover does not apply an effect");
         app.hide().unwrap();
     }
+    let app = SubjectShelfProbe::new().unwrap();
+    app.set_entries(
+        Rc::new(slint::VecModel::from(vec![
+            CatalogueEntryData {
+                id: "concat.subject-neon".into(),
+                name: "Subject Neon".into(),
+                source_only: true,
+                ..Default::default()
+            },
+            CatalogueEntryData {
+                id: "concat.warm".into(),
+                name: "Warm".into(),
+                ..Default::default()
+            },
+        ]))
+        .into(),
+    );
+    app.show().unwrap();
+    i_slint_backend_testing::ElementHandle::find_by_element_id(&app, "LibraryTab::touch")
+        .nth(6)
+        .expect("Effects page")
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    i_slint_backend_testing::ElementHandle::find_by_element_id(&app, "Switch::touch")
+        .next()
+        .expect("effect layer toggle")
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    i_slint_backend_testing::ElementHandle::find_by_element_id(&app, "CatalogueCard::card")
+        .nth(1)
+        .expect("ordinary effect")
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    assert_eq!(
+        app.get_layer_applied(),
+        1,
+        "ordinary effects retain adjustment-layer mode"
+    );
+    i_slint_backend_testing::ElementHandle::find_by_element_id(&app, "CatalogueCard::card")
+        .next()
+        .expect("subject effect")
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    assert_eq!(
+        app.get_clip_applied(),
+        1,
+        "subject effect applies to source despite layer mode"
+    );
+    assert_eq!(app.get_layer_applied(), 1);
+    i_slint_backend_testing::ElementHandle::find_by_element_id(&app, "CatalogueCard::card")
+        .nth(1)
+        .unwrap()
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    assert_eq!(
+        app.get_clip_applied(),
+        2,
+        "source-only selection resets layer mode"
+    );
+    app.hide().unwrap();
     println!(
-        "actual catalogue card: effect/filter/transition hover debounce, retarget, cancel, quick crossing and disabled states passed"
+        "actual catalogue card: effect/filter/transition hover debounce, retarget, cancel, quick crossing, disabled states and source-only subject shelf routing passed"
     );
 }
