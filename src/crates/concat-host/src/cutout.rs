@@ -520,7 +520,7 @@ mod tests {
         clip.video_effects[0].enabled = true;
         clip.cutout = Some(Cutout {
             subject: Subject::Object,
-            ..Default::default()
+            ..Cutout::auto()
         });
         let request = Cutouts::requests(&project, Path::new("/project"));
         assert_eq!(
