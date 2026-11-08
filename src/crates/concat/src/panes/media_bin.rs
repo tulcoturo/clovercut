@@ -31,11 +31,14 @@ pub enum MediaMsg {
     FilterChanged(MediaFilter),
     /// 0 added, 1 name, 2 kind.
     SortChanged(i32),
-    /// A card clicked, by its row; additive keeps what was selected.
+    /// A card clicked by stable row; Shift ranges and additive toggles are separate.
     Select {
         row: i32,
         additive: bool,
+        range: bool,
     },
+    /// Select all files on the current shelf.
+    SelectAll,
     /// A marquee closed over the grid: the block of cells it caught.
     Band {
         columns: i32,
@@ -63,6 +66,7 @@ pub struct MediaBin {
     rows: HashMap<String, i32>,
     next_row: i32,
     pub selected: HashSet<String>,
+    selection_anchor: Option<String>,
     pub filter: MediaFilter,
     /// 0 = Added, 1 = Name, 2 = Kind
     pub sort: usize,
@@ -81,6 +85,7 @@ impl Default for MediaBin {
             rows: HashMap::new(),
             next_row: 1,
             selected: HashSet::new(),
+            selection_anchor: None,
             filter: MediaFilter::All,
             sort: 0,
             thumbs: HashMap::new(),
@@ -96,20 +101,19 @@ impl MediaBin {
         match msg {
             MediaMsg::FilterChanged(filter) => self.filter = filter,
             MediaMsg::SortChanged(index) => self.sort = (index.max(0) as usize).min(2),
-            MediaMsg::Select { row, additive } => {
-                let Some(id) = self
-                    .by_row(studio.project(), row)
-                    .map(|item| item.id.clone())
-                else {
-                    return;
-                };
-                self.select(id.clone(), additive);
-                // A plain click shows a picture on the monitor, or plays a
-                // sound, without putting it on the timeline.
-                if !additive {
+            MediaMsg::Select {
+                row,
+                additive,
+                range,
+            } => {
+                if let Some(id) = self.select_card(studio.project(), row, additive, range)
+                    && !additive
+                    && !range
+                {
                     studio.preview_media(&id, row);
                 }
             }
+            MediaMsg::SelectAll => self.select_all(studio.project()),
             MediaMsg::Band {
                 columns,
                 from_col,
@@ -118,6 +122,7 @@ impl MediaBin {
                 to_row,
                 additive,
             } => {
+                self.selection_anchor = None;
                 self.selected = self.band(
                     studio.project(),
                     columns,
@@ -250,16 +255,32 @@ impl MediaBin {
         }
     }
 
-    /// A click: the one card, or toggled into what is held.
-    fn select(&mut self, id: String, additive: bool) {
-        if additive {
-            if !self.selected.remove(&id) {
-                self.selected.insert(id);
-            }
-        } else {
-            self.selected.clear();
-            self.selected.insert(id);
-        }
+    /// Resolve a stable row against the actual visible order before selecting.
+    fn select_card(
+        &mut self,
+        project: &Project,
+        row: i32,
+        additive: bool,
+        range: bool,
+    ) -> Option<String> {
+        let id = self.by_row(project, row)?.id.clone();
+        let visible = self.visible(project);
+        let ids: Vec<&str> = visible.iter().map(|item| item.id.as_str()).collect();
+        crate::media_selection::click(
+            &mut self.selected,
+            &mut self.selection_anchor,
+            &ids,
+            &id,
+            additive,
+            range,
+        )
+        .then_some(id)
+    }
+
+    fn select_all(&mut self, project: &Project) {
+        let visible = self.visible(project);
+        let ids: Vec<&str> = visible.iter().map(|item| item.id.as_str()).collect();
+        crate::media_selection::all(&mut self.selected, &mut self.selection_anchor, &ids);
     }
 
     /// A marquee closed over the grid, as the block of cells it caught. The
@@ -273,21 +294,17 @@ impl MediaBin {
         (from_row, to_row): (i32, i32),
         additive: bool,
     ) -> HashSet<String> {
-        let mut cell = 0;
         let mut next = if additive {
             self.selected.clone()
         } else {
             HashSet::new()
         };
-        for item in &project.media {
-            if !Self::shows(self.filter, item) {
-                continue;
-            }
+        for (cell, item) in self.visible(project).into_iter().enumerate() {
+            let cell = cell as i32;
             let (row, col) = (cell / columns.max(1), cell % columns.max(1));
             if row >= from_row && row <= to_row && col >= from_col && col <= to_col {
                 next.insert(item.id.clone());
             }
-            cell += 1;
         }
         next
     }
@@ -484,16 +501,64 @@ mod tests {
     }
 
     #[test]
-    fn a_click_toggles_only_when_additive() {
+    fn a_range_uses_visible_sort_and_rejects_stale_hidden_rows() {
         let mut bin = MediaBin::default();
-        bin.select("a".into(), false);
-        bin.select("b".into(), false);
-        assert_eq!(bin.selected.len(), 1);
-        assert!(bin.selected.contains("b"));
-        bin.select("a".into(), true);
-        assert_eq!(bin.selected.len(), 2);
-        bin.select("a".into(), true);
-        assert!(!bin.selected.contains("a"));
+        let mut project = project();
+        bin.assign_rows(&project);
+        bin.sort = 1;
+        // Name order: a1, v2, i1, v1; not document order.
+        bin.select_card(&project, 4, false, false);
+        bin.select_card(&project, 1, false, true);
+        assert_eq!(
+            bin.selected,
+            HashSet::from(["v2".into(), "i1".into(), "v1".into()])
+        );
+        bin.filter = MediaFilter::Video;
+        bin.select_card(&project, 1, false, true);
+        assert_eq!(bin.selected, HashSet::from(["v2".into(), "v1".into()]));
+        assert!(bin.select_card(&project, 2, false, false).is_none());
+        project.media.retain(|item| item.id != "v2");
+        assert!(bin.select_card(&project, 4, false, false).is_none());
+        bin.select_card(&project, 1, false, true);
+        assert_eq!(bin.selected, HashSet::from(["v1".into()]));
+    }
+
+    #[test]
+    fn select_all_respects_import_and_generated_shelves() {
+        let mut project = project();
+        project.media.push(MediaItem {
+            id: "s1".into(),
+            kind: Kind::Audio,
+            origin: Some(MediaOrigin::Speech),
+            ..MediaItem::default()
+        });
+        let mut bin = MediaBin::default();
+        bin.selected.insert("s1".into());
+        bin.filter = MediaFilter::Video;
+        bin.select_all(&project);
+        assert_eq!(bin.selected, HashSet::from(["v1".into(), "v2".into()]));
+        bin.filter = MediaFilter::All;
+        bin.select_all(&project);
+        assert_eq!(bin.selected.len(), 4);
+        assert!(!bin.selected.contains("s1"));
+        bin.filter = MediaFilter::Speech;
+        bin.select_all(&project);
+        assert_eq!(bin.selected, HashSet::from(["s1".into()]));
+        bin.filter = MediaFilter::Processed;
+        bin.select_all(&project);
+        assert!(bin.selected.is_empty());
+        assert!(bin.selection_anchor.is_none());
+    }
+
+    #[test]
+    fn a_marquee_uses_the_same_sorted_order_as_the_cards() {
+        let mut bin = MediaBin::default();
+        let project = project();
+        bin.sort = 1;
+        assert_eq!(
+            bin.band(&project, 2, (0, 1), (0, 0), false),
+            HashSet::from(["a1".into(), "v2".into()])
+        );
     }
 
     #[test]

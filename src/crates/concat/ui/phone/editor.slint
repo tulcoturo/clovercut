@@ -81,7 +81,7 @@ component PhoneMediaGrid inherits Rectangle {
         item: entry;
         removable: false;
 
-        clicked(additive) => { root.picked(entry.id); }
+        clicked(additive, range) => { root.picked(entry.id); }
         activated => { root.picked(entry.id); }
     }
 }

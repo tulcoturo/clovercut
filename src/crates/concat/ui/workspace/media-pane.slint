@@ -448,8 +448,8 @@ export component MediaCard inherits Rectangle {
     /// this card moved rather than as a second copy of it.
     opacity: drag.dragging ? 0.45 : 1.0;
 
-    /// modifier-held click: add to or remove from the selection
-    callback clicked(additive: bool);
+    /// Ctrl/Command toggles a card; Shift selects the visible range.
+    callback clicked(additive: bool, range: bool);
     /// double click: put it on the timeline at the playhead
     callback activated();
     callback removed();
@@ -468,6 +468,7 @@ export component MediaCard inherits Rectangle {
 
     /// modifier state at the moment of the press — `clicked` does not carry it
     property <bool> additive;
+    property <bool> range;
 
     // The whole card is the drag handle: dragging one onto the timeline is
     // how material gets into an edit. The DragArea only intercepts once the
@@ -509,12 +510,12 @@ export component MediaCard inherits Rectangle {
                     return;
                 }
                 if (event.kind == PointerEventKind.down) {
-                    root.additive = event.modifiers.shift || event.modifiers.control
-                        || event.modifiers.meta;
+                    root.additive = event.modifiers.control || event.modifiers.meta;
+                    root.range = event.modifiers.shift;
                 }
             }
             clicked => {
-                root.clicked(root.additive);
+                root.clicked(root.additive, root.range);
             }
             double-clicked => {
                 root.activated();
@@ -678,13 +679,41 @@ export component MediaCard inherits Rectangle {
     }
 }
 
+// Centred placeholder for a page with nothing on it.
+component Empty inherits VerticalLayout {
+    in property <Glyph> glyph;
+    in property <string> text;
+
+    padding: 16px;
+    padding-top: 32px;
+    spacing: 8px;
+
+    HorizontalLayout {
+        alignment: center;
+        Icon {
+            glyph: root.glyph;
+            size: 28px;
+            tint: Theme.fg-dim;
+        }
+    }
+
+    Text {
+        text: root.text;
+        color: Theme.fg-dim;
+        font-size: Theme.fs;
+        horizontal-alignment: center;
+        wrap: word-wrap;
+    }
+}
+
 // ── the card grid ────────────────────────────────────────────────────────────
 
 // `grid-cols-[repeat(auto-fill,minmax(88px,1fr))]`, arithmetic instead of a
 // layout: Slint has no auto-fill grid, and a GridLayout wants its cells named
 // at compile time, which a model cannot do.
-component MediaGrid inherits Rectangle {
+export component MediaGrid inherits FocusScope {
     in property <[MediaItemData]> items;
+    in property <string> empty-text;
     /// A floor under the grid's own height, so the empty page below the last
     /// row still belongs to it.
     ///
@@ -695,7 +724,14 @@ component MediaGrid inherits Rectangle {
     /// most of one is empty. This is the bin's version of that empty lane.
     in property <length> page-floor;
 
-    callback clicked(id: int, additive: bool);
+    callback clicked(id: int, additive: bool, range: bool);
+    callback key-chord(text: string, shift: bool, alt: bool, control: bool, meta: bool) -> bool;
+    focus-on-tab-navigation: true;
+    key-pressed(event) => {
+        if (root.key-chord(event.text, event.modifiers.shift, event.modifiers.alt,
+                event.modifiers.control, event.modifiers.meta)) { return accept; }
+        return reject;
+    }
     callback activated(id: int);
     callback removed(id: int);
     /// Right-click on a card. Rust fills the menu and bumps `menu-token`;
@@ -796,6 +832,7 @@ component MediaGrid inherits Rectangle {
         pointer-event(event) => {
             if (event.kind == PointerEventKind.down) {
                 root.pressed();
+                root.focus();
                 self.additive = event.modifiers.shift;
                 self.from-x = self.mouse-x;
                 self.from-y = self.mouse-y;
@@ -823,6 +860,14 @@ component MediaGrid inherits Rectangle {
         }
     }
 
+    // Keep the focus scope alive when the last card is removed or a filter
+    // becomes empty. Only the cards disappear, not their keyboard owner.
+    if root.items.length == 0: Empty {
+        x: 0; y: 0; width: parent.width;
+        glyph: Glyph.import;
+        text: root.empty-text;
+    }
+
     for entry[index] in root.items: MediaCard {
         x: Math.mod(index, root.cols) * (root.card-w + root.gap);
         y: Math.floor(index / root.cols) * (root.card-h + root.gap);
@@ -830,8 +875,11 @@ component MediaGrid inherits Rectangle {
         height: root.card-h;
         item: entry;
 
-        clicked(additive) => {
-            root.clicked(entry.id, additive);
+        clicked(additive, range) => {
+            // The host blurs/commits the old field. Take focus afterwards
+            // so that blur cannot send it back to the window.
+            root.clicked(entry.id, additive, range);
+            root.focus();
         }
         activated => {
             root.activated(entry.id);
@@ -1811,34 +1859,15 @@ export component ShapeGrid inherits Rectangle {
 
 // ── the pane ─────────────────────────────────────────────────────────────────
 
-// Centred placeholder for a page with nothing on it.
-component Empty inherits VerticalLayout {
-    in property <Glyph> glyph;
-    in property <string> text;
-
-    padding: 16px;
-    padding-top: 32px;
-    spacing: 8px;
-
-    HorizontalLayout {
-        alignment: center;
-        Icon {
-            glyph: root.glyph;
-            size: 28px;
-            tint: Theme.fg-dim;
+export component MediaPane inherits FocusScope {
+    focus-on-tab-navigation: false;
+    key-pressed(event) => {
+        if (root.tab == 0 && root.key-chord(event.text, event.modifiers.shift,
+                event.modifiers.alt, event.modifiers.control, event.modifiers.meta)) {
+            return accept;
         }
+        return reject;
     }
-
-    Text {
-        text: root.text;
-        color: Theme.fg-dim;
-        font-size: Theme.fs;
-        horizontal-alignment: center;
-        wrap: word-wrap;
-    }
-}
-
-export component MediaPane inherits Rectangle {
     /// The bin, already narrowed to `filter`. Filtering happens on the Rust
     /// side because a Slint model cannot be filtered in the language, and
     /// filtering inside the `for` would leave holes in the grid's indices.
@@ -1868,7 +1897,8 @@ export component MediaPane inherits Rectangle {
     callback sort-changed(index: int);
     /// A press on the bin's floor; see Editor.blur.
     callback floor-pressed();
-    callback select(id: int, additive: bool);
+    callback select(id: int, additive: bool, range: bool);
+    callback key-chord(text: string, shift: bool, alt: bool, control: bool, meta: bool) -> bool;
     /// A marquee closed over the card grid — see MediaGrid.band-selected.
     callback band-selected(columns: int, from-col: int, to-col: int,
         from-row: int, to-row: int, additive: bool);
@@ -2009,6 +2039,14 @@ export component MediaPane inherits Rectangle {
     // now packages like any other effect, browsed the same way through
     // `catalogue-transitions`/`transition-groups` below.
 
+    function choose-tab(to: int) {
+        // Commit a field and hand focus to a persistent scope before the
+        // page (and its focused grid/control) is torn down.
+        root.floor-pressed();
+        root.focus();
+        root.tab = to;
+    }
+
     function narrow(to: MediaFilter) {
         root.filter-changed(to);
     }
@@ -2083,7 +2121,7 @@ export component MediaPane inherits Rectangle {
                             glyph: Glyph.film;
                             label: I18n.t("common.media");
                             current: root.tab == 0;
-                            clicked => { root.tab = 0; }
+                            clicked => { root.choose-tab(0); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         // Beside Media, where CapCut keeps it: the page
@@ -2092,49 +2130,49 @@ export component MediaPane inherits Rectangle {
                             glyph: Glyph.music;
                             label: I18n.t("common.audio");
                             current: root.tab == 8;
-                            clicked => { root.tab = 8; }
+                            clicked => { root.choose-tab(8); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         text-chip := LibraryTab {
                             glyph: Glyph.text-mark;
                             label: I18n.t("common.text");
                             current: root.tab == 1;
-                            clicked => { root.tab = 1; }
+                            clicked => { root.choose-tab(1); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         captions-chip := LibraryTab {
                             glyph: Glyph.captions;
                             label: I18n.t("captions.captions");
                             current: root.tab == 9;
-                            clicked => { root.tab = 9; }
+                            clicked => { root.choose-tab(9); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         stickers-chip := LibraryTab {
                             glyph: Glyph.sticker;
                             label: I18n.t("mediaPane.stickers");
                             current: root.tab == 2;
-                            clicked => { root.tab = 2; }
+                            clicked => { root.choose-tab(2); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         transitions-chip := LibraryTab {
                             glyph: Glyph.transition;
                             label: I18n.t("mediaPane.transitions");
                             current: root.tab == 3;
-                            clicked => { root.tab = 3; }
+                            clicked => { root.choose-tab(3); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         effects-chip := LibraryTab {
                             glyph: Glyph.sparkle;
                             label: I18n.t("common.effects");
                             current: root.tab == 4;
-                            clicked => { root.tab = 4; }
+                            clicked => { root.choose-tab(4); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         filters-chip := LibraryTab {
                             glyph: Glyph.filter;
                             label: I18n.t("mediaPane.filters");
                             current: root.tab == 5;
-                            clicked => { root.tab = 5; }
+                            clicked => { root.choose-tab(5); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         // Beside Filters, where CapCut keeps it: the page
@@ -2143,14 +2181,14 @@ export component MediaPane inherits Rectangle {
                             glyph: Glyph.sun;
                             label: I18n.t("mediaPane.adjustments");
                             current: root.tab == 7;
-                            clicked => { root.tab = 7; }
+                            clicked => { root.choose-tab(7); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         templates-chip := LibraryTab {
                             glyph: Glyph.slot;
                             label: I18n.t("mediaPane.templates");
                             current: root.tab == 6;
-                            clicked => { root.tab = 6; }
+                            clicked => { root.choose-tab(6); }
                             scrolled(d) => { strip.content-x = d < 0px ? root.strip-floor : 0px; }
                         }
                         }
@@ -2707,18 +2745,7 @@ export component MediaPane inherits Rectangle {
                     }
                 }
 
-                if root.tab == 0 && root.items.length == 0: Empty {
-                    glyph: Glyph.import;
-                    text: root.filter == MediaFilter.speech
-                        ? I18n.t("mediaPane.nothingReadAloudYet")
-                        : root.filter == MediaFilter.processed
-                        ? I18n.t("mediaPane.nothingRenderedYetRight")
-                        : root.count-all > 0
-                        ? I18n.t("mediaPane.nothingKindProject")
-                        : I18n.t("mediaPane.dropToImport");
-                }
-
-                if root.tab == 0 && root.items.length > 0: HorizontalLayout {
+                if root.tab == 0: HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
                     padding-bottom: 8px;
@@ -2726,6 +2753,13 @@ export component MediaPane inherits Rectangle {
                     MediaGrid {
                         horizontal-stretch: 1;
                         items: root.items;
+                        empty-text: root.filter == MediaFilter.speech
+                            ? I18n.t("mediaPane.nothingReadAloudYet")
+                            : root.filter == MediaFilter.processed
+                            ? I18n.t("mediaPane.nothingRenderedYetRight")
+                            : root.count-all > 0
+                            ? I18n.t("mediaPane.nothingKindProject")
+                            : I18n.t("mediaPane.dropToImport");
                         // Whatever the page has left after the rows above it:
                         // the import row is 8 + 36 + 8, the delete strip 28
                         // and its own 8, and this row keeps 8 under itself.
@@ -2740,7 +2774,7 @@ export component MediaPane inherits Rectangle {
                         menu-token: root.menu-token;
 
                         pressed => { root.floor-pressed(); }
-                        clicked(id, additive) => { root.select(id, additive); }
+                        clicked(id, additive, range) => { root.select(id, additive, range); }
                         activated(id) => { root.activate(id); }
                         removed(id) => { root.remove(id); }
                         context(id) => { root.context(id); }

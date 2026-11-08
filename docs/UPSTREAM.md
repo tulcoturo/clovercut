@@ -7,6 +7,10 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+The [media-selection follow-up](audits/2026-11-08-media-selection.md) checks
+Concat #696 against Clovercut, adapts focused Select All and visible-order range
+selection, and records the additional cosmetic commit through `9d7f61b3`.
+
 Reviewed all 22 additional commits through `f1d59f3d` on 8 November. The
 [commit decisions](audits/2026-11-08-upstream-review.md) record selective
 long-text and relink adaptations, existing audio equivalents, and larger
