@@ -278,6 +278,56 @@ fn main() {
             began.elapsed()
         );
     }
+    // Exercise non-empty facial uniforms on both Vulkan and Windows WARP,
+    // not only the empty-face package trials above.
+    let face = Arc::new(
+        concat_core::face::FaceFrame::new(
+            vec![concat_core::face::Face {
+                bounds: [0.25, 0.1, 0.5, 0.7],
+                points: [
+                    [0.38, 0.35],
+                    [0.62, 0.35],
+                    [0.5, 0.5],
+                    [0.42, 0.62],
+                    [0.58, 0.62],
+                ],
+                confidence: 0.95,
+            }],
+            W as f32 / H as f32,
+        )
+        .unwrap(),
+    );
+    for id in ["concat.face-sunglasses", "concat.face-dog"] {
+        let package = catalogue.get(id).expect("face package");
+        let render = |gpu: &mut WgpuCompositor, face: Option<Arc<concat_core::face::FaceFrame>>| {
+            let mut pass = package.pass(&empty, None).expect("face shader");
+            pass.face_frame = face;
+            let mut layer = PlannedLayer::picture(detached_clip(), Arc::new(image.clone()));
+            layer.effects = vec![pass];
+            gpu.render(&FramePlan {
+                time: seconds,
+                canvas: [0; 4],
+                layers: vec![layer],
+                ..FramePlan::empty(W, H)
+            })
+        };
+        let absent = render(&mut gpu, None);
+        assert!(
+            difference(&baseline, &absent) < 0.05,
+            "{id}: no face must preserve the picture"
+        );
+        let decorated = render(&mut gpu, Some(Arc::clone(&face)));
+        assert!(
+            difference(&baseline, &decorated) > 0.1,
+            "{id}: detected face has no visible accessory"
+        );
+        gpu.trial(&canary, std::time::Duration::from_secs(60))
+            .unwrap_or_else(|error| panic!("{id}: device unusable after tracked face: {error}"));
+        if let Some(output) = &output {
+            ppm(&output.join(format!("{id}.ppm")), &decorated);
+        }
+        println!("{id}: missing face, tracked accessory and live-device canary passed");
+    }
     // Actual stacking/order, as stored by the editor and consumed by both the
     // preview and export compositor. Different orders must produce different frames.
     let make_stack = |ids: &[&str]| {
