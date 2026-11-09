@@ -888,9 +888,16 @@ mod tests {
             let card = Card::of(catalogue, catalogue.get(id).unwrap(), &dir).unwrap();
             let before = painter.preview_frame(&card, 0.0).unwrap();
             let first = painter.preview_frame(&card, 0.25).unwrap();
-            let later = painter.preview_frame(&card, 0.75).unwrap();
             assert_ne!(before, first, "{id} shows the effect");
-            assert_ne!(first, later, "{id} advances real shader time");
+            // Mirrored preview phases alias the neon sine clock. Compare two
+            // full-strength frames at distinct, non-aliased clip instants instead.
+            let mut later = card.clone();
+            later.moment += 0.25;
+            assert_ne!(
+                painter.frame(&card).unwrap(),
+                painter.frame(&later).unwrap(),
+                "{id} advances real shader time at constant strength"
+            );
             painter.subject = Some((Arc::clone(&reference), Arc::clone(&inferred)));
             let detected = painter.preview_frame(&card, 0.5).unwrap();
             painter.subject = Some((Arc::clone(&reference), Arc::clone(&mask)));

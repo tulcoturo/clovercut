@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.digicam"
-name = "Digicam"
+name = "Point and Shoot"
 kind = "filter"
 category = "Retro"
 order = 45

@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.sage"
-name = "Sage"
+name = "Indie"
 kind = "filter"
 category = "Cinematic"
 order = 36

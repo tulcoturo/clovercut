@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.daydream"
-name = "Daydream"
+name = "Window Seat"
 kind = "filter"
 category = "Cinematic"
 order = 35

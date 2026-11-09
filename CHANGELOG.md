@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+Person-aware neon/electric effects, tracked sunglasses and dog accessories, animated
+reference previews and bundled fallback cards. Media selection, long-text editing,
+export progress, preview cadence metrics and desktop interaction fixes; task-scoped
+wakefulness on Windows/macOS and compatible look label updates.
+See [release notes](docs/releases/0.2.4.md).
+
 ## 0.2.3
 
 Nine creative effects and animated effect/filter thumbnails; preview recovery,
