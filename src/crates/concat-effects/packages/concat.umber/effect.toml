@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.umber"
-name = "Umber"
+name = "Walnut"
 kind = "filter"
 category = "Everyday"
 order = 19

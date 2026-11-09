@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.polaroid"
-name = "Polaroid"
+name = "Instant Print"
 kind = "filter"
 category = "Retro"
 order = 41

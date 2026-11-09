@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.rain"
-name = "Rain"
+name = "Wet Street"
 kind = "filter"
 category = "Cinematic"
 order = 38

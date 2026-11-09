@@ -342,6 +342,12 @@ pub struct ParamKey {
     pub ease: KeyEase,
 }
 
+/// Subject decoration is baked before colour/distortion effects so those
+/// treatments move the person and its aura together. Each stage keeps its order.
+pub fn order_subject_effects(effects: &mut [AppliedFilter]) {
+    effects.sort_by_key(|effect| !concat_core::subject::source_effect(&effect.id));
+}
+
 impl AppliedFilter {
     /// A link with nothing set: the package's defaults, enabled.
     pub fn new(id: impl Into<String>) -> AppliedFilter {
@@ -596,6 +602,14 @@ impl Cutout {
             subject: Subject::Auto,
             feather: DEFAULT_FEATHER,
             strokes: Vec::new(),
+        }
+    }
+
+    /// Automatic person masks, also used by subject effects without removing a background.
+    pub fn person() -> Cutout {
+        Cutout {
+            subject: Subject::Person,
+            ..Self::auto()
         }
     }
 
@@ -2297,6 +2311,7 @@ impl Clip {
     /// it has just read, so a hand-edited or older file holds nothing an
     /// edit could not have produced.
     pub fn tidy(mut self) -> Clip {
+        order_subject_effects(&mut self.video_effects);
         use ranges::*;
         fn finite(value: f64, fallback: f64) -> f64 {
             if value.is_finite() { value } else { fallback }

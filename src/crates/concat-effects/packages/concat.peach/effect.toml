@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.peach"
-name = "Peach"
+name = "Blush"
 kind = "filter"
 category = "Portrait"
 order = 20

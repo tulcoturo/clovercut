@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.ivory"
-name = "Ivory"
+name = "Linen"
 kind = "filter"
 category = "Everyday"
 order = 18

@@ -48,6 +48,8 @@ pub struct AnalyseRequest {
     pub still: bool,
     /// What to keep.
     pub subject: Subject,
+    /// Facial landmarks instead of a segmentation mask.
+    pub face: bool,
     /// The stretches of source, in seconds, that clips show. Instants
     /// already analysed inside them are skipped.
     pub ranges: Vec<(f64, f64)>,
@@ -74,6 +76,7 @@ pub struct Cutouts {
     /// The app's data directory, where downloaded models live.
     data: PathBuf,
     selfie: OnceLock<Result<Arc<Segmenter>, String>>,
+    face: OnceLock<Result<Arc<concat_vision::face::Detector>, String>>,
     person: Mutex<Option<Arc<Segmenter>>>,
     object: Mutex<Option<Arc<Segmenter>>>,
 }
@@ -85,6 +88,7 @@ impl Cutouts {
             gate: Arc::new(SingleFlight::new()),
             data: data.to_path_buf(),
             selfie: OnceLock::new(),
+            face: OnceLock::new(),
             person: Mutex::new(None),
             object: Mutex::new(None),
         }
@@ -161,8 +165,16 @@ impl Cutouts {
     pub fn requests(project: &Project, project_dir: &Path) -> Vec<(String, AnalyseRequest)> {
         let mut wanted: Vec<(String, AnalyseRequest)> = Vec::new();
         for clip in &project.active().clips {
-            let Some(cutout) = clip.cutout.as_ref() else {
-                continue;
+            let automatic = concat_project::model::Cutout::person();
+            let cutout = match clip.cutout.as_ref() {
+                Some(cutout) => cutout,
+                None if clip.video_effects.iter().any(|effect| {
+                    effect.enabled && concat_core::subject::needs_subject(&effect.id)
+                }) =>
+                {
+                    &automatic
+                }
+                None => continue,
             };
             if !clip.kind.is_visual() {
                 continue;
@@ -190,17 +202,69 @@ impl Cutouts {
                         media_size: (media.width.unwrap_or(0), media.height.unwrap_or(0)),
                         still: media.kind == MediaKind::Image,
                         subject: cutout.subject,
+                        face: false,
                         ranges: vec![range],
                     },
                 )),
             }
         }
+        for clip in &project.active().clips {
+            if !matches!(
+                clip.kind,
+                concat_project::model::ClipKind::Video | concat_project::model::ClipKind::Image
+            ) || !clip
+                .video_effects
+                .iter()
+                .any(|effect| effect.enabled && concat_core::face::needs_face(&effect.id))
+            {
+                continue;
+            }
+            let Some(media) = project.media_by_id(&clip.media_id) else {
+                continue;
+            };
+            let range = (
+                clip.source_start,
+                clip.source_start + clip.duration * clip.speed.max(0.0625),
+            );
+            if let Some((_, request)) = wanted
+                .iter_mut()
+                .find(|(id, request)| *id == media.id && request.face)
+            {
+                request.ranges.push(range);
+            } else {
+                wanted.push((
+                    media.id.clone(),
+                    AnalyseRequest {
+                        project: project_dir.into(),
+                        media_path: media.path.clone(),
+                        media_size: (media.width.unwrap_or(0), media.height.unwrap_or(0)),
+                        still: media.kind == MediaKind::Image,
+                        subject: Subject::Person,
+                        face: true,
+                        ranges: vec![range],
+                    },
+                ));
+            }
+        }
         wanted
+    }
+
+    /// Stable identity distinguishes face analysis from person segmentation.
+    pub fn key(media: &str, request: &AnalyseRequest) -> String {
+        if request.face {
+            format!("{media}:face")
+        } else {
+            format!("{media}:{}", request.subject.key())
+        }
     }
 
     /// Where `request`'s masks are kept.
     fn dir(request: &AnalyseRequest) -> PathBuf {
-        mask_dir(&request.project, &request.media_path, request.subject)
+        if request.face {
+            concat_vision::face_store::directory(&request.project, &request.media_path)
+        } else {
+            mask_dir(&request.project, &request.media_path, request.subject)
+        }
     }
 
     /// Whether the app died analysing `request` last time, so it is not to
@@ -213,6 +277,11 @@ impl Cutouts {
     /// A store made by a model the subject would not pick now needs all
     /// of them again.
     pub fn outstanding(request: &AnalyseRequest) -> usize {
+        if request.face {
+            return concat_vision::face_store::Store::open(&Self::dir(request))
+                .missing(&request.ranges, request.still)
+                .len();
+        }
         let store = MaskStore::open(&mask_dir(
             &request.project,
             &request.media_path,
@@ -243,6 +312,9 @@ impl Cutouts {
     ) -> Result<usize, String> {
         let job = self.gate.begin("cutout analysis")?;
         let cancel = job.cancel_handle();
+        if request.face {
+            return self.analyse_faces(request, &cancel, progress);
+        }
         let mut store = MaskStore::open(&mask_dir(
             &request.project,
             &request.media_path,
@@ -377,6 +449,53 @@ impl Cutouts {
         progress(Progress::Analysing(1.0));
         Ok(done)
     }
+    fn analyse_faces(
+        &self,
+        request: &AnalyseRequest,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<usize, String> {
+        let _wire = Tripwire::arm(&Self::dir(request));
+        let detector = self
+            .face
+            .get_or_init(|| concat_vision::face::Detector::load().map(Arc::new))
+            .clone()?;
+        let store = concat_vision::face_store::Store::open(&Self::dir(request));
+        let wanted = store.missing(&request.ranges, request.still);
+        let mut done = 0;
+        let face_size =
+            concat_vision::face::Detector::input_size(request.media_size.0, request.media_size.1);
+        for run in runs(&wanted, 1000 / u64::from(concat_vision::face_store::RATE)) {
+            let options = DecodeOptions::default()
+                .starting_at(Rational::new(run[0] as i64, 1000))
+                .scaled_to(face_size.0, face_size.1)
+                .at_rate(FrameRate::new(Rational::new(
+                    i64::from(concat_vision::face_store::RATE),
+                    1,
+                )))
+                .limited_to(run.len() as u64);
+            let mut decoder =
+                Decoder::open(&request.media_path, &options).map_err(|e| e.to_string())?;
+            for millis in run {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err("face analysis cancelled".into());
+                }
+                let Some(frame) = decoder.next_frame().map_err(|e| e.to_string())? else {
+                    return Err("face analysis: source ended before requested range".into());
+                };
+                let faces = detector.detect(&frame)?;
+                if cancel.load(Ordering::Relaxed) {
+                    return Err("face analysis cancelled".into());
+                }
+                store.put(millis, &faces)?;
+                done += 1;
+                progress(Progress::Analysing(
+                    done as f32 / wanted.len().max(1) as f32,
+                ));
+            }
+        }
+        Ok(done)
+    }
 }
 
 /// Streams a model into `file`, by way of a `.part` beside it, reporting
@@ -480,6 +599,91 @@ fn runs(instants: &[u64], step: u64) -> Vec<Vec<u64>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subject_effects_request_person_masks_without_enabling_background_removal() {
+        use concat_project::model::{AppliedFilter, Clip, ClipKind, Cutout, MediaItem};
+        let mut project = Project::new();
+        project.media.push(MediaItem {
+            id: "m1".into(),
+            path: "/fixture.mov".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(
+            Clip {
+                id: "c1".into(),
+                media_id: "m1".into(),
+                kind: ClipKind::Video,
+                duration: 2.0,
+                video_effects: vec![AppliedFilter::new("concat.subject-neon")],
+                ..Default::default()
+            }
+            .into(),
+        );
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(request.len(), 1);
+        assert_eq!(request[0].1.subject, Subject::Person);
+        assert!(project.active().clips[0].cutout.is_none());
+        let clip = project.active_mut().clip_mut("c1").unwrap();
+        clip.video_effects[0].enabled = false;
+        assert!(Cutouts::requests(&project, Path::new("/project")).is_empty());
+        let clip = project.active_mut().clip_mut("c1").unwrap();
+        clip.video_effects[0].enabled = true;
+        clip.cutout = Some(Cutout {
+            subject: Subject::Object,
+            ..Cutout::auto()
+        });
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(
+            request[0].1.subject,
+            Subject::Object,
+            "existing brush/cutout subject wins"
+        );
+        let mut second = project.active().clips[0].as_ref().clone();
+        second.id = "c2".into();
+        second.source_start = 4.0;
+        project.active_mut().clips.push(second.into());
+        let request = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(request.len(), 1);
+        assert_eq!(
+            request[0].1.ranges.len(),
+            2,
+            "clips sharing a source share one analysis"
+        );
+    }
+
+    #[test]
+    fn facial_effects_share_one_local_face_job_and_do_not_request_a_segmentation_model() {
+        use concat_project::model::{AppliedFilter, Clip, ClipKind, MediaItem};
+        let mut project = Project::new();
+        project.media.push(MediaItem {
+            id: "m1".into(),
+            path: "/face.mov".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(
+            Clip {
+                id: "c1".into(),
+                kind: ClipKind::Video,
+                media_id: "m1".into(),
+                duration: 1.0,
+                video_effects: vec![
+                    AppliedFilter::new("concat.face-sunglasses"),
+                    AppliedFilter::new("concat.face-dog"),
+                ],
+                ..Default::default()
+            }
+            .into(),
+        );
+        let requests = Cutouts::requests(&project, Path::new("/project"));
+        assert_eq!(requests.len(), 1);
+        assert!(requests[0].1.face);
+        let clip = project.active_mut().clip_mut("c1").unwrap();
+        for effect in &mut clip.video_effects {
+            effect.enabled = false;
+        }
+        assert!(Cutouts::requests(&project, Path::new("/project")).is_empty());
+    }
 
     #[test]
     fn instants_group_into_runs_a_step_apart() {

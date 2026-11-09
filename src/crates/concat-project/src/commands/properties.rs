@@ -33,6 +33,15 @@ pub(super) fn apply(
             let Some(clip) = timeline.clip_mut(&clip_id) else {
                 return Ok(Outcome::default());
             };
+            if !matches!(clip.kind, ClipKind::Video | ClipKind::Image)
+                && patch.video_effects.as_ref().is_some_and(|effects| {
+                    effects
+                        .iter()
+                        .any(|effect| concat_core::subject::source_effect(&effect.id))
+                })
+            {
+                return Err(CommandError::SubjectNeedsMedia);
+            }
             let mut applied = false;
             if let Some(name) = patch.name {
                 applied |= assign(&mut clip.name, name);
@@ -84,7 +93,8 @@ pub(super) fn apply(
             if let Some(filters) = patch.filters {
                 applied |= assign(&mut clip.filters, filters);
             }
-            if let Some(effects) = patch.video_effects {
+            if let Some(mut effects) = patch.video_effects {
+                crate::model::order_subject_effects(&mut effects);
                 applied |= assign(&mut clip.video_effects, effects);
             }
             if let Some(transition) = patch.transition_in {

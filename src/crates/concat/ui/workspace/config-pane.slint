@@ -8,7 +8,7 @@ import { Pane, PaneBody, PaneScroll } from "pane.slint";
 import { PaneKind } from "pane-switcher.slint";
 import { EffectData } from "../demo/effects-panel.slint";
 import {
-    AdjustPanel, AppliedEntryData, AppliedParamData, AudioPanel, BackgroundRows, ProcessorRows,
+    AnalysisRow, AdjustPanel, AppliedEntryData, AppliedParamData, AudioPanel, BackgroundRows, ProcessorRows,
     TransitionChoiceData,
     CatalogueEntryData, ColourKnobData, EnhancePanel, FilterPanel, PresetStack, SpeedPanel,
     TransitionPanel, VideoPanel,
@@ -21,6 +21,7 @@ import { VideoMotionPanel } from "../inspector/video-motion-panel.slint";
 import { CaptionMotionPanel } from "../inspector/caption-motion-panel.slint";
 import { CaptionEditor } from "captions-panel.slint";
 import { CaptionPanel } from "../inspector/caption-panel.slint";
+import { Note } from "../inspector/controls.slint";
 import { TextPanel } from "../inspector/text-panel.slint";
 import {
     ClipField, ClipKind, ClipTextField, SelectedClipData, SelectedTransitionData,
@@ -797,6 +798,15 @@ export component ConfigPane inherits Rectangle {
 
                 // The picture's chain. Filters are not in it: a filter is a
                 // layer on the lanes, edited in its own panel.
+                if root.showing == "Effects" && root.selected.subject-effects
+                    && root.selected.cutout-progress >= 0: AnalysisRow {
+                    progress: root.selected.cutout-progress;
+                    fetching: root.selected.cutout-fetching;
+                }
+                if root.showing == "Effects" && root.selected.subject-effects
+                    && root.selected.cutout-progress < 0 && root.selected.cutout-empty: Note {
+                    text: I18n.t("clipInspector.nothingFoundKeepPicture");
+                }
                 if root.showing == "Effects": PresetStack {
                     noun: I18n.t("common.effect");
                     library-title: I18n.t("common.effects");

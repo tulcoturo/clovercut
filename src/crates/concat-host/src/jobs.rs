@@ -52,6 +52,7 @@ impl SingleFlight {
         Ok(Job {
             owner: Arc::clone(self),
             cancel,
+            _awake: crate::awake::Awake::hold(),
         })
     }
 
@@ -75,6 +76,8 @@ impl SingleFlight {
 pub struct Job {
     owner: Arc<SingleFlight>,
     cancel: Arc<AtomicBool>,
+    /// Keep supported desktop systems awake until this job really finishes.
+    _awake: crate::awake::Awake,
 }
 
 impl Job {

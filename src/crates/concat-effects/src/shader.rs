@@ -93,6 +93,52 @@ fn reveal_order(uv: vec2<f32>) -> f32 {
 }
 "#;
 
+// Opt-in host inputs for subject effects: existing package sources/cache keys
+// and third-party helper names remain unchanged.
+const SUBJECT_HEAD: &str = r#"
+@group(3) @binding(2) var subject_texture: texture_2d<f32>;
+struct SubjectMapping { u: vec4<f32>, v: vec4<f32> }
+@group(3) @binding(3) var<uniform> subject_mapping: SubjectMapping;
+
+/// Analysed subject coverage, or zero until analysis has produced a mask.
+fn subject_at(uv: vec2<f32>) -> f32 {
+    let p = vec3<f32>(uv, 1.0);
+    let mapped = vec2<f32>(dot(subject_mapping.u.xyz, p), dot(subject_mapping.v.xyz, p));
+    if (any(mapped < vec2<f32>(0.0)) || any(mapped > vec2<f32>(1.0))) { return 0.0; }
+    return textureSampleLevel(subject_texture, reveal_sampler, mapped, 0.0).r;
+}
+
+"#;
+
+const FACE_HEAD: &str = r#"
+struct TrackedFace { eyes:vec4<f32>, nose_mouth:vec4<f32>, mouth_score:vec4<f32> }
+struct FaceInputs { u:vec4<f32>,v:vec4<f32>,faces:array<TrackedFace,4> }
+@group(3) @binding(4) var<uniform> face_inputs:FaceInputs;
+fn face_source(uv:vec2<f32>)->vec2<f32> {
+ let p=vec3<f32>(uv,1.0);
+ return vec2<f32>(dot(face_inputs.u.xyz,p),dot(face_inputs.v.xyz,p));
+}
+fn face_local(uv:vec2<f32>,face:TrackedFace)->vec2<f32> {
+ let aspect=vec2<f32>(face.mouth_score.w,1.0);
+ let a=face.eyes.xy*aspect; let b=face.eyes.zw*aspect;
+ let delta=b-a; let len=max(length(delta),0.0001);
+ let x=delta/len; let y=vec2<f32>(-x.y,x.x);
+ let p=(uv*aspect-(a+b)*0.5)/len;
+ return vec2<f32>(dot(p,x),dot(p,y));
+}
+fn face_ellipse(p:vec2<f32>,r:vec2<f32>)->f32 {return (length(p/r)-1.0)*min(r.x,r.y);}
+fn face_round_box(p:vec2<f32>,r:vec2<f32>,rounding:f32)->f32 {
+ let q=abs(p)-r+vec2<f32>(rounding);
+ return length(max(q,vec2<f32>(0.0)))+min(max(q.x,q.y),0.0)-rounding;
+}
+fn face_cover(distance:f32)->f32 {return 1.0-smoothstep(-0.015,0.015,distance);}
+fn face_over(base:vec4<f32>,colour:vec3<f32>,alpha:f32)->vec4<f32> {
+ let a=clamp(alpha,0.0,1.0); let out_a=a+base.a*(1.0-a);
+ if(out_a<0.000001){return base;}
+ return vec4<f32>((colour*a+base.rgb*base.a*(1.0-a))/out_a,out_a);
+}
+"#;
+
 /// An effect's `sample` under the scene-linear contract.
 ///
 /// Every `sample` here, and a transition's `from_at` and `to_at`, reads
@@ -991,6 +1037,8 @@ impl Shader {
             intensity,
             lut,
             reveal_map,
+            subject_mask: None,
+            face_frame: None,
             stages: self.stages.iter().map(|rule| rule.stage(values)).collect(),
         }
     }
@@ -1044,6 +1092,8 @@ fn provided(entry: Entry, pictures: usize, group: u32, binding: u32) -> Option<B
         (_, 2, 1) => Some(Bound::Sampler),
         (Entry::Effect, 3, 0) => Some(Bound::Picture),
         (Entry::Effect, 3, 1) => Some(Bound::Sampler),
+        (Entry::Effect, 3, 2) => Some(Bound::Picture),
+        (Entry::Effect, 3, 3 | 4) => Some(Bound::Uniform),
         _ => None,
     }
 }
@@ -1518,7 +1568,13 @@ fn stitch(
                 .to_owned(),
         );
     }
-    let host = Contract::of(manifest).host(entry) + &passes_host(passes);
+    let mut host = Contract::of(manifest).host(entry) + &passes_host(passes);
+    if matches!(entry, Entry::Effect) && concat_core::subject::needs_subject(&manifest.effect.id) {
+        host.push_str(SUBJECT_HEAD);
+    }
+    if matches!(entry, Entry::Effect) && concat_core::face::needs_face(&manifest.effect.id) {
+        host.push_str(FACE_HEAD);
+    }
     let mut source = String::with_capacity(host.len() + body.len() + 64);
     if !declares_params {
         // A package with no knobs still has to bind something.

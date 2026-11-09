@@ -4,7 +4,7 @@ Download the DMG for your Mac from the [official releases](https://github.com/tu
 
 ## First launch and Gatekeeper
 
-The current 0.2.3 packages are not Apple-notarized. Their ad-hoc signature does not identify a verified Apple developer, so macOS can display “Apple cannot check it for malicious software”. This is separate from the app's macOS version compatibility.
+The current 0.2.4 packages are not Apple-notarized. Their ad-hoc signature does not identify a verified Apple developer, so macOS can display “Apple cannot check it for malicious software”. This is separate from the app's macOS version compatibility.
 
 If you downloaded the package from the official release and choose to trust it, follow [Apple's instructions for opening an unnotarized app](https://support.apple.com/en-us/102445):
 
@@ -21,7 +21,7 @@ If macOS instead reports that the app will damage your computer or that it is da
 Release assets include `SHA256SUMS`. Compare the DMG's hash with the corresponding entry:
 
 ```sh
-shasum -a 256 ~/Downloads/Clovercut-0.2.3-macos-arm64.dmg
+shasum -a 256 ~/Downloads/Clovercut-0.2.4-macos-arm64.dmg
 ```
 
 Use your actual filename, including `x86_64` on Intel. Matching the checksum detects a damaged or mismatched download; it does not substitute for Apple notarization.

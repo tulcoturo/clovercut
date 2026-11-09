@@ -62,6 +62,8 @@ import {
 /// catalogue; the id is what Rust is handed back when the row is clicked, and
 /// ids are stable forever because project files store them.
 export struct CatalogueEntryData {
+    /// Requires an actual source clip, never a whole-timeline effect layer.
+    source-only: bool,
     id: string,
     name: string,
     /// Starred, so it shows under the star chip whatever shelf it is on.
@@ -124,6 +126,8 @@ export global Library {
 
 /// One link of the selected clip's chain, in chain order.
 export struct AppliedEntryData {
+    /// A tracked subject decoration, before the whole-picture treatment stage.
+    subject: bool,
     id: string,
     name: string,
     /// False bypasses the link without losing what was dialled into it.
@@ -379,14 +383,14 @@ export component PresetStack inherits VerticalLayout {
                             IconButton {
                                 glyph: Glyph.chevron-up;
                                 label: I18n.t1("clipInspector.moveUp", "\{item.name}");
-                                enabled: index > 0;
+                                enabled: index > 0 && item.subject == root.applied[index - 1].subject;
                                 clicked => { root.move-by(index, -1); }
                             }
 
                             IconButton {
                                 glyph: Glyph.chevron-down;
                                 label: I18n.t1("clipInspector.moveDown", "\{item.name}");
-                                enabled: index < root.applied.length - 1;
+                                enabled: index < root.applied.length - 1 && item.subject == root.applied[index + 1].subject;
                                 clicked => { root.move-by(index, 1); }
                             }
 
@@ -883,7 +887,7 @@ component ToolButton inherits Rectangle {
 
 // The cutout model at work, while it runs: the masks are found in the
 // background and the picture is shown as shot until they are.
-component AnalysisRow inherits Row {
+export component AnalysisRow inherits Row {
     in property <float> progress;
     /// The model is still being downloaded; the frames come after.
     in property <bool> fetching;

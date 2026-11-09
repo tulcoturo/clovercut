@@ -401,6 +401,7 @@ jobs:
             src/target/nextest/ci/*.xml
             src/nextest-*.log
             src/runtime-probe.*
+            subject-probes/**
           if-no-files-found: ignore
   macos-toolchain:
     needs: selection

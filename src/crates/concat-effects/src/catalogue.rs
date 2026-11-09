@@ -1217,6 +1217,12 @@ impl Catalogue {
     ) -> Vec<ShaderPass> {
         effects
             .iter()
+            .filter(|effect| concat_core::subject::source_effect(&effect.id))
+            .chain(
+                effects
+                    .iter()
+                    .filter(|effect| !concat_core::subject::source_effect(&effect.id)),
+            )
             .filter(|applied| applied.enabled)
             .filter_map(|applied| {
                 self.get(&applied.id)?

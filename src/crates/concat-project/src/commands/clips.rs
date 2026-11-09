@@ -220,6 +220,9 @@ pub(super) fn apply(
             name,
             sound,
         } => {
+            if concat_core::subject::source_effect(&effect_id) {
+                return Err(CommandError::SubjectNeedsMedia);
+            }
             let duration = duration
                 .unwrap_or(DEFAULT_LAYER_DURATION)
                 .max(MIN_CLIP_DURATION);

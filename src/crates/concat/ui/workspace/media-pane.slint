@@ -1357,6 +1357,7 @@ export component ShelfGrid inherits Rectangle {
     in property <string> payload-kind;
 
     callback applied(id: string, label: string);
+    callback applied-to-clip(id: string);
     /// See CatalogueCard: a shelf whose cards show before they add.
     in property <bool> auditions;
     in property <string> auditioning;
@@ -1395,12 +1396,15 @@ export component ShelfGrid inherits Rectangle {
         favourite: entry.favourite;
         starred(on) => { Library.favourite(entry.id, on); }
         payload: root.payload-kind == "" ? ""
-            : "\{root.payload-kind}:\{entry.id}:\{entry.name}";
+            : "\{entry.source-only ? "effect" : root.payload-kind}:\{entry.id}:\{entry.name}";
         auditions: root.auditions;
         auditioning: root.auditions && root.auditioning == entry.id;
 
         auditioned => { root.auditioned(entry.id); }
-        applied => { root.applied(entry.id, entry.name); }
+        applied => {
+            if (entry.source-only) { root.applied-to-clip(entry.id); }
+            else { root.applied(entry.id, entry.name); }
+        }
     }
 }
 
@@ -3017,6 +3021,10 @@ export component MediaPane inherits FocusScope {
                     ShelfGrid {
                         entries: root.audio-shelf ? root.catalogue-audio : root.catalogue-effects;
                         payload-kind: root.audio-shelf ? "audio-filter" : (root.effect-layer ? "effect-layer" : "effect");
+                        applied-to-clip(id) => {
+                            root.effect-layer = false;
+                            root.apply-effect(id);
+                        }
                         glyph: root.audio-shelf ? Glyph.waveform : Glyph.sparkle;
                         // A sound has no picture: its cards are the compact kind.
                         compact: root.audio-shelf;

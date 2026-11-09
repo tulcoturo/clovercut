@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.midnight"
-name = "Midnight"
+name = "After Hours"
 kind = "filter"
 category = "Cinematic"
 order = 37

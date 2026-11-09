@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.marquee"
-name = "Marquee"
+name = "City Lights"
 kind = "filter"
 category = "Stylised"
 order = 52

@@ -1,0 +1,32 @@
+format = 2
+[effect]
+id = "concat.face-dog"
+name = "Dog Face"
+kind = "effect"
+category = "Face"
+shelves = ["Featured"]
+order = 20
+intensity = "amount"
+description = "Floppy ears, a muzzle and nose anchored to detected facial landmarks."
+[[param]]
+key = "amount"
+label = "Opacity"
+min = 0
+max = 100
+default = 100
+step = 1
+unit = "%"
+animate = true
+[[param]]
+key = "size"
+label = "Size"
+min = 60
+max = 160
+default = 100
+step = 1
+unit = "%"
+animate = true
+[wgsl]
+entry = "effect.wgsl"
+[card]
+moment = 0.7

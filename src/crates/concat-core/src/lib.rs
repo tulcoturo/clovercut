@@ -18,10 +18,12 @@
 
 pub mod animate;
 pub mod arena;
+pub mod face;
 pub mod frame;
 pub mod mask;
 pub mod retime;
 pub mod shader;
+pub mod subject;
 pub mod time;
 pub mod timeline;
 

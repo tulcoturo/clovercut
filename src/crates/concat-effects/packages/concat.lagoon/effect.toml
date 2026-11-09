@@ -2,7 +2,7 @@ format = 2
 
 [effect]
 id = "concat.lagoon"
-name = "Lagoon"
+name = "Aquamarine"
 kind = "filter"
 category = "Everyday"
 order = 16

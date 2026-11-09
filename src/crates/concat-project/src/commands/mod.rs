@@ -965,6 +965,9 @@ pub struct Outcome {
 /// those sentences names a host can match on.
 #[derive(Clone, PartialEq, Eq, Debug, thiserror::Error)]
 pub enum CommandError {
+    /// A person-aware effect cannot analyse a title, shape or whole-timeline layer.
+    #[error("Subject effects need a video or image clip, not a layer, title or shape.")]
+    SubjectNeedsMedia,
     /// A clipboard dependency or placement cannot be preserved safely.
     #[error("{reason}")]
     CannotPaste {

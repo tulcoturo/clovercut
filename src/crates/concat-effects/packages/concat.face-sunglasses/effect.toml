@@ -1,0 +1,32 @@
+format = 2
+[effect]
+id = "concat.face-sunglasses"
+name = "Face Sunglasses"
+kind = "effect"
+category = "Face"
+shelves = ["Featured"]
+order = 10
+intensity = "amount"
+description = "Dark sunglasses anchored to detected eyes, following face position, size and tilt."
+[[param]]
+key = "amount"
+label = "Opacity"
+min = 0
+max = 100
+default = 100
+step = 1
+unit = "%"
+animate = true
+[[param]]
+key = "size"
+label = "Size"
+min = 60
+max = 160
+default = 100
+step = 1
+unit = "%"
+animate = true
+[wgsl]
+entry = "effect.wgsl"
+[card]
+moment = 0.7

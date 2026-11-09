@@ -122,7 +122,8 @@ permissions:
 jobs:
   headless:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Eight real Slint component fixtures need ~12 minutes on a cold runner.
+    timeout-minutes: 25
     env:
       CARGO_BUILD_JOBS: '2'
       CARGO_PROFILE_DEV_DEBUG: '0'
