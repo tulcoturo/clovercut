@@ -1,10 +1,12 @@
-# Clovercut quality and polish plan
+# Archived quality and polish plan — 4 November 2026
+
+Archived on 9 November 2026. This is a historical qualification record, not the current roadmap. See [current release notes](../releases/0.2.4.md), [testing](../TESTING.md) and [desktop QA](../DESKTOP_QA.md).
 
 Updated 4 November 2026. Current release: 0.2.2; original audit baseline: 0.1.9 (`fb8b7f90`).
 Detailed findings, test dispositions and dated execution records live in the
-[quality audit](docs/audits/2026-10-28.md); commands and qualification requirements
-live in [TESTING.md](docs/TESTING.md).
-The [desktop checklist](docs/DESKTOP_QA.md) defines the remaining interactive
+[quality audit](2026-10-28.md); commands and qualification requirements
+live in [TESTING.md](../TESTING.md).
+The [desktop checklist](../DESKTOP_QA.md) defines the remaining interactive
 acceptance cases across platforms.
 
 The objective is predictable editing, trustworthy validation and fast feedback.
@@ -14,8 +16,8 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 ## Next review after 0.2.2
 
 - **Delivered:** project-browser keyboard/accessibility polish, small-library search/sorting, remembered grid/list view and export request ownership. Release 0.2.2 is published; its second release run passed all native build/CI gates. The audio cancellation regression now checks the actual chunk boundary instead of using an uncalibrated 100 ms shared-runner limit.
-- **Verified in native CI:** bind overwrite confirmation to its displayed destination. The controller journey now covers changed names/folders and an actual matching overwrite. See [the source finding and validation limits](docs/audits/2026-11-02-export-overwrite-consent.md); no physical-interaction or user data-loss reproduction is claimed.
-- **Measured document baseline:** [100/500 video clips plus matching caption cues and stored filters](docs/audits/2026-11-02-project-document-baseline.md), using actual optimized document code with raw samples and clean-source provenance. This excludes media/GUI work. Native session-open, model-publication, seek/frame-source and resource-counter measurements passed the opt-in native probe ([raw report and limits](docs/audits/2026-11-02-native-large-project-baseline.md)); keep software-adapter observations separate from physical presentation/audio. Do not optimize from a single uncontrolled document-only run.
+- **Verified in native CI:** bind overwrite confirmation to its displayed destination. The controller journey now covers changed names/folders and an actual matching overwrite. See [the source finding and validation limits](2026-11-02-export-overwrite-consent.md); no physical-interaction or user data-loss reproduction is claimed.
+- **Measured document baseline:** [100/500 video clips plus matching caption cues and stored filters](2026-11-02-project-document-baseline.md), using actual optimized document code with raw samples and clean-source provenance. This excludes media/GUI work. Native session-open, model-publication, seek/frame-source and resource-counter measurements passed the opt-in native probe ([raw report and limits](2026-11-02-native-large-project-baseline.md)); keep software-adapter observations separate from physical presentation/audio. Do not optimize from a single uncontrolled document-only run.
 - **Still open:** Apple Developer ID/notarization (#9), physical audio/screen-reader qualification, sustained A/V drift and prior-version upgrade/recovery scenarios. Documentation or a successful modern-runner launch does not close those qualifications.
 
 ## Current status
@@ -33,7 +35,7 @@ locks, undo and preview/export regressions. No new release is implied by this pl
 Implemented behaviour is distinguished from interactive qualification below.
 [Release 0.2.1](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.1)
 adds paginated project browsing, a usable template library and inline project
-renaming. Its [qualification record](docs/audits/2026-10-30-release-0.2.1.md)
+renaming. Its [qualification record](2026-10-30-release-0.2.1.md)
 records full CI, all six native package jobs, published checksums and live-site
 verification. The qualification limits below remain open.
 
@@ -47,7 +49,7 @@ Both final macOS DMGs were inspected: all eagerly loaded binaries declare
 minimum 12.0 and none imports the reported VideoToolbox rotation symbols.
 The guarded, lazily loaded Intel ONNX runtime retains its separate minimum.
 Actual Monterey launch remains unconfirmed because no test machine is available.
-[Release qualification](docs/audits/2026-10-29-release-0.2.0.md) records source,
+[Release qualification](2026-10-29-release-0.2.0.md) records source,
 checksums and remaining limits. Release 0.1.9 downloads are unchanged: upgrade
 to 0.2.0 before using **Clear project cache**, which can remove generated source
 media in 0.1.9. Version 0.2.0 preserves that media.
@@ -190,7 +192,7 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   retained. Reader-pool regression covers approximation and decoder fallback.
 - **Native CI passed on `a6a9a352`:** issue #18 direct home wheel scrolling and narrow
   timeline viewport publication; VideoToolbox quality and shared-device export
-  recovery; selected dependency updates. See the [4 November inventory](docs/audits/2026-11-04-upstream-review.md).
+  recovery; selected dependency updates. See the [4 November inventory](2026-11-04-upstream-review.md).
 - **Implemented, measurement pending:** idle-cache portion of `f19fda34`; normal
   active budgets remain available. Decoder thread/allocator changes are deferred.
   No memory plateau or interactive speedup is claimed before qualification.
@@ -199,12 +201,12 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   with explicit commit/cancel, one undo step per drag, lock protection and no
   synthetic handles on bounded clip slices. Pointer tests use the actual UI;
   controller/persistence qualification passed with all 14 desktop journeys.
-  [Raw runtime evidence and limits](docs/audits/2026-11-04-desktop-upstream-qualification.md)
+  [Raw runtime evidence and limits](2026-11-04-desktop-upstream-qualification.md)
   remain separate from physical Monterey interaction and memory-plateau claims.
 
 - **Integrated, native CI passed:** Remove Black from `2b594e8e`, saved
   spoken-language selection and speech-reel timing from `e2b20c27`.
-  [Combined qualification](docs/audits/2026-11-05-caption-effects-qualification.md):
+  [Combined qualification](2026-11-05-caption-effects-qualification.md):
   1341 ordinary, 30 gRPC and 14 virtual-desktop tests. Legacy chroma-key
   migration and measured transcription accuracy remain separate work.
 
@@ -217,13 +219,13 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Integrated AAC tail:** packet padding is bounded to the requested sample
   count while preserving priming and PCM/Opus behavior. Full native CI passed
   1343 ordinary, 30 gRPC and 14 virtual-desktop tests; Apple encoder selection
-  remains separate. See the [qualification](docs/audits/2026-11-04-aac-tail.md).
+  remains separate. See the [qualification](2026-11-04-aac-tail.md).
 
 - **Integrated GPU initialization:** shared startup flags avoid the unused
   indirect-validation pipeline; common memory thresholds retain existing export
   recovery. Full native CI passed 1341 ordinary, 30 gRPC and 14 desktop tests.
   Physical Metal and VRAM pressure remain unqualified; see
-  [evidence](docs/audits/2026-11-05-gpu-initialization.md).
+  [evidence](2026-11-05-gpu-initialization.md).
 
 - **Integrated home-guide affordance:** external-link arrow on the empty-home
   first-edit guide, with existing home UI tests and headless CI passing.
@@ -231,25 +233,25 @@ media in 0.1.9. Version 0.2.0 preserves that media.
 - **Integrated missing-media removal (#25):** source/clip removal is one Undo,
   cancels pending relink work and rejects stale rows. Full CI passed 1343 ordinary,
   30 gRPC and 14 virtual-desktop tests, including restoration and fresh relink/export.
-  [Evidence](docs/audits/2026-11-05-remove-missing-media.md).
+  [Evidence](2026-11-05-remove-missing-media.md).
 
 - **Integrated workspace persistence:** retain selected preset alongside wide/compact
   docks, Reset semantics, preference recovery and bounded window geometry. Debounce
   edits/resizes and flush normal close paths. 53 storage/preference tests, strict
   isolated Clippy, Slint source generation and 25 locales pass. Full native CI
-  passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. [Implementation and limits](docs/audits/2026-11-05-remember-workspace.md).
+  passed 1349 ordinary, 30 gRPC and 14 virtual-desktop tests. [Implementation and limits](2026-11-05-remember-workspace.md).
   Restart offers remain separate pending save/recording/export/project-lock handling.
 
 - **Integrated playhead palette (#30):** six named theme-aware colours and a custom
   picker preserve legacy hex preferences and default reset. Full native CI passed
   1345 ordinary, 30 gRPC and 14 virtual-desktop tests on the original candidate;
   the combination with qualified workspace persistence passed 54 local storage
-  tests, strict Clippy and full Slint generation. [Evidence](docs/audits/2026-11-06-playhead-palette.md).
+  tests, strict Clippy and full Slint generation. [Evidence](2026-11-06-playhead-palette.md).
   Physical settings pointer/display qualification remains open.
 
 - **Integrated macOS window safe start (#32):** CPU window rendering with Metal
   video composition. Exact candidate CI passed 1351 ordinary, 30 gRPC and 14
-  desktop cases. Physical macOS remains unqualified. [Evidence](docs/audits/2026-11-06-macos-safe-start.md).
+  desktop cases. Physical macOS remains unqualified. [Evidence](2026-11-06-macos-safe-start.md).
 
 ## Creative effects — 7 November
 
@@ -257,7 +259,7 @@ media in 0.1.9. Version 0.2.0 preserves that media.
   library to 33 effects, including VHS Tape and Old Film. Actual shader rendering
   passes scene-linear probes, spatial response, zero Amount, parameter bounds,
   alpha, clip-local timing and stack ordering. Effects and filters use the
-  existing cancellable hover-thumbnail worker. [Implementation and evidence](docs/audits/2026-11-07-creative-effects.md).
+  existing cancellable hover-thumbnail worker. [Implementation and evidence](2026-11-07-creative-effects.md).
 
 ## Completion evidence
 
