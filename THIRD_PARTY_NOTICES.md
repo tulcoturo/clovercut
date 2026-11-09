@@ -262,10 +262,12 @@ of it.
 
 The effect catalogue cards are drawn from a photograph by Vitaly Gariev on
 Unsplash (https://unsplash.com/@silverkblack), used under the Unsplash
-License. The still lives at `src/crates/concat-host/assets/card-still.jpg`
-and is embedded in the app; each card is the effect's own shader run over
-it on the GPU when the app first needs the card (`concat-host`'s
-`cards.rs`).
+License. Some historical catalogue cards were rendered from this photograph;
+their attribution remains applicable. The historical source is retained in
+[version 0.2.4](https://github.com/tulcoturo/clovercut/blob/v0.2.4/src/crates/concat-host/assets/card-still.jpg).
+The current renderer uses the reference assets declared in `concat-host`'s
+`cards.rs`; the fictional person reference is documented in
+[asset provenance](docs/assets/subject-card.md).
 
 ## GIPHY attribution mark
 

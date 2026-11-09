@@ -9,7 +9,7 @@
 - [Automation with MCP](MCP.md).
 - [Building and releasing](RELEASING.md).
 - [Concat adaptations](UPSTREAM.md): provenance, deliberate differences and pending candidates.
-- [Quality and polish plan](../POLISH_PLAN.md) and [28 October quality audit](audits/2026-10-28.md).
+- [Archived polish plan (4 November)](audits/2026-11-04-polish-plan.md) and [28 October quality audit](audits/2026-10-28.md).
 - [Test suites and qualification](TESTING.md): ordinary checks, ignored cases and honest result reporting.
 - [Release notes](releases/): published version history and upcoming release notes.
 
