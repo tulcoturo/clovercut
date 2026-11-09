@@ -1639,3 +1639,9 @@ h1 span {
     transition: none!important;
   }
 }
+
+/* Actual renderer previews for the 0.2.4 effects. */
+.effects-grid { margin-top: 32px; }
+.effect-preview { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+.effects-note { margin-top: 24px; color: var(--muted); line-height: 1.7; }
+.effects-note a { color: inherit; text-underline-offset: 4px; }

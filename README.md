@@ -2,7 +2,7 @@
   <img src="assets/typography.svg" alt="Clovercut" width="460" />
 </p>
 
-<p align="center"><strong>A desktop video editor built around an organised timeline and integrated creative libraries.</strong></p>
+<p align="center"><strong>Local editing. Creative effects. No subscription or export watermark.</strong></p>
 
 <p align="center">
   <a href="https://tulcoturo.github.io/clovercut/">Website</a> ·
@@ -18,6 +18,25 @@ presets and searchable content libraries. Editing and AI processing run locally,
 with no Clovercut account, subscription or export watermark.
 
 ![Clovercut desktop workspace with creative libraries, preview, inspector and colour-coded timeline](assets/screenshots/editor-workspace.png)
+
+## Why choose Clovercut?
+
+Clovercut brings a familiar desktop editing workflow, local AI and playful visual
+effects together in one free, open-source application. If you are comparing video
+editors, these are the priorities Clovercut is built around:
+
+| What matters to you | What Clovercut offers |
+|---|---|
+| A straightforward free editor | No Clovercut account, subscription or export watermark. |
+| Control over your footage | Editing, rendering and AI inference run on your computer. Optional online libraries have their own setup and terms. |
+| Linux alongside Windows and macOS | Desktop packages for x86_64 and ARM64, including AppImage, deb and rpm on Linux. |
+| Creative effects with local analysis | Neon and electricity around a person, plus sunglasses and dog accessories that follow detected facial landmarks. |
+| A familiar editing flow | Typed timeline lanes, workspace presets and configurable shortcuts, including profiles for other editors. |
+| An open project you can inspect and extend | AGPL-3.0 source, keyframeable effects and filters, GL Transitions and an MCP automation interface. |
+
+Clovercut focuses on desktop editing, creator tools and local processing. The facial accessories are 2D effects;
+tracking quality depends on the footage and hardware. See the
+[release notes](docs/releases/0.2.4.md) for the current scope and qualification.
 
 ## What Clovercut adds
 
@@ -36,6 +55,11 @@ Its main additions and workflow differences are:
   Preview assets and add them to the timeline from the editor.
 - **Personal creative libraries.** Keep favourites, recently used and most-used
   effects, filters, transitions and stickers across projects.
+- **Person and face effects.** Subject Neon and Subject Electric decorate the
+  detected silhouette while keeping the background. Face Sunglasses and Dog Face
+  follow facial landmarks, with a bundled local detector and reusable analysis.
+  Animated effect/filter thumbnails show the actual shaders; fallback cards ship
+  with the application.
 - **An expanded transition library.** Browse 123 supported GL Transitions,
   download them on demand and preview them by hovering over their cards.
   Installed transitions remain available offline.
@@ -70,8 +94,8 @@ published packages.
 
 ## Local processing, optional online libraries
 
-Editing, rendering and AI inference run on your computer. AI models require an
-initial download and can then be used offline. Online content libraries are
+Editing, rendering and AI inference run on your computer. Some AI features require an initial model download and can then be used offline.
+The facial detector is bundled and needs no model download. Online content libraries are
 optional and disabled by default.
 
 Freesound requires an API key. The YouTube Audio Library uses a bundled local
