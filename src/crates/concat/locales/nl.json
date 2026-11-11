@@ -421,7 +421,6 @@
   "mask.phoneHint": "Kies een vorm om een deel van het beeld te houden.",
   "mask.rectangle": "Rechthoek",
   "mask.roundness": "Afronding",
-  "mask.row": "Masker · {0}",
   "mask.star": "Ster",
   "mask.thickness": "Dikte",
   "mask.title": "Masker",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Verbind de Studio-audiobibliotheek met de audiodienst om dit nummer te downloaden.",
   "youtube.invalidUrl": "Gebruik een HTTPS-adres of HTTP op localhost.",
   "youtube.signIn": "Aanmelden bij YouTube Studio",
-  "youtube.signInOpened": "Meld je aan in de browser, open de audiobibliotheek en vernieuw hier. Je sessie wordt opgeslagen."
+  "youtube.signInOpened": "Meld je aan in de browser, open de audiobibliotheek en vernieuw hier. Je sessie wordt opgeslagen.",
+  "mask.add": "Optellen",
+  "mask.addShape": "{0} toevoegen",
+  "mask.count": "{0} maskers",
+  "mask.expand": "Uitbreiden",
+  "mask.intersect": "Doorsnede",
+  "mask.numbered": "Masker {0}",
+  "mask.subtract": "Aftrekken"
 }

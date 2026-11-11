@@ -174,6 +174,14 @@ To preserve system stability and keep user machine resources free (no heavy loca
 - [x] Clean test-scoped `Decoder` and `FrameSource` imports (`da2fd371`).
 - [x] Resilient IPv4 and DNS fallback configuration in GitHub Actions CI workflows.
 
-#### Mask Stack (Next)
-- [ ] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`, `ab16bf42`, `31193bc0`, `bb0e7c44`).
+#### Multi-Mask Stack Architecture (Completed - PR feat/upstream-mask-stack)
+- [x] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`, `ab16bf42`, `31193bc0`, `bb0e7c44`):
+  - `concat-core`: `mask.rs` implements `MaskStack`, `MaskMode` (Add, Subtract, Intersect, None), `ShapeMask` with `expand` and `opacity`; `animate.rs` and `timeline.rs` keyframe each mask individually.
+  - `concat-render`: WGSL mask shader `MASK_STACK_WGSL` compiles uniform buffers supporting up to 8 combined masks; reference CPU evaluation and GPU integration tests.
+  - `concat-project`: `model.rs` represents `Clip.masks: Vec<Mask>` with `MaskSource`, `MaskMode`, individual parameter tracks `key_runs`, `Command::SetMaskKey`, `ClearMaskKey`, `ClearMaskKeys`.
+  - `concat-export` & `concat-host`: Pipeline resolves and renders mask stacks per clip across export and preview pipelines.
+  - `concat-mcp`: Updated `clip_masks` and `mask_key_set` tools with matching JSON schemas.
+  - `concat` UI (Slint & Rust): Added `studio/masks.rs`, updated `masking.rs` (`MaskAt`), inspector UI with mask list reordering, mode pickers, expand, opacity, and full keyframe cluster support. All 26 locales updated.
+
+#### Next Priorities
 - [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics (`a42e6963`).

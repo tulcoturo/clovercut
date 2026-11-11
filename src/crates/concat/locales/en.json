@@ -421,7 +421,6 @@
   "mask.phoneHint": "Pick a shape to keep part of the picture.",
   "mask.rectangle": "Rectangle",
   "mask.roundness": "Roundness",
-  "mask.row": "Mask · {0}",
   "mask.star": "Star",
   "mask.thickness": "Thickness",
   "mask.title": "Mask",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Connect the Studio Audio Library to the audio service to download this track.",
   "youtube.invalidUrl": "Use an HTTPS address or HTTP on localhost.",
   "youtube.signIn": "Sign in to YouTube Studio",
-  "youtube.signInOpened": "Sign in in the browser, open Audio Library, then refresh here. Your session will be saved."
+  "youtube.signInOpened": "Sign in in the browser, open Audio Library, then refresh here. Your session will be saved.",
+  "mask.add": "Add",
+  "mask.addShape": "Add {0}",
+  "mask.count": "{0} masks",
+  "mask.expand": "Expand",
+  "mask.intersect": "Intersect",
+  "mask.numbered": "Mask {0}",
+  "mask.subtract": "Subtract"
 }

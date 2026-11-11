@@ -421,7 +421,6 @@
   "mask.phoneHint": "تصویر کا کچھ حصہ رکھنے کے لیے ایک شکل چنیں۔",
   "mask.rectangle": "مستطیل",
   "mask.roundness": "کونوں کی گولائی",
-  "mask.row": "ماسک · {0}",
   "mask.star": "ستارہ",
   "mask.thickness": "موٹائی",
   "mask.title": "ماسک",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "یہ ٹریک ڈاؤن لوڈ کرنے کے لیے Studio آڈیو لائبریری کو آڈیو سروس سے جوڑیں۔",
   "youtube.invalidUrl": "HTTPS پتہ یا localhost پر HTTP استعمال کریں۔",
   "youtube.signIn": "YouTube Studio میں سائن ان کریں",
-  "youtube.signInOpened": "براؤزر میں سائن ان کریں، آڈیو لائبریری کھولیں اور یہاں ریفریش کریں۔ آپ کا سیشن محفوظ رہے گا۔"
+  "youtube.signInOpened": "براؤزر میں سائن ان کریں، آڈیو لائبریری کھولیں اور یہاں ریفریش کریں۔ آپ کا سیشن محفوظ رہے گا۔",
+  "mask.add": "شامل",
+  "mask.addShape": "{0} شامل کریں",
+  "mask.count": "{0} ماسک",
+  "mask.expand": "پھیلاؤ",
+  "mask.intersect": "تقاطع",
+  "mask.numbered": "ماسک {0}",
+  "mask.subtract": "منفی"
 }

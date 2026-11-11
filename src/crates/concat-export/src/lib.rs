@@ -45,7 +45,7 @@ use concat_media::audio::{self, AudioClip};
 use concat_media::{
     DecodeOptions, EncodeOptions, Encoder, FrameSink, RateMode, VideoCodec,
 };
-use concat_project::model::{AppliedFilter, ClipMask, ColorSpace, Cutout};
+use concat_project::model::{AppliedFilter, ColorSpace, Cutout, Mask};
 use concat_render::{
     Compositor, FramePlan, PlannedLayer, PlannedTreatment, Transition, WgpuCompositor, plan_frame,
 };
@@ -256,10 +256,10 @@ pub struct ExportClip {
     /// leaves the picture whole.
     #[serde(default)]
     pub cutout: Option<Cutout>,
-    /// The shape that keeps part of the picture, as the document holds
-    /// it; its keyed numbers ride in `animation` as `maskX` and on.
+    /// The shapes that keep part of the picture, top first; each carries
+    /// its own keys and mode.
     #[serde(default)]
-    pub mask: Option<ClipMask>,
+    pub masks: Vec<Mask>,
     /// The clip's entrance, exit and loop; see the document's
     /// `Clip::motion`.
     #[serde(default)]

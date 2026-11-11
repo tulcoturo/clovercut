@@ -117,7 +117,7 @@ fn decorated(kind: ClipKind, lane: &str) -> Clip {
     if kind == ClipKind::Shape {
         c.shape = Some(ShapeStyle::default());
     }
-    c.mask = Some(ClipMask::default());
+    c.masks = vec![Mask::of("mask-1", "Mask 1", MaskShape::Circle)];
     c.cutout = Some(Cutout {
         mode: CutoutMode::Custom,
         subject: Subject::Person,

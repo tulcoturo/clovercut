@@ -421,7 +421,6 @@
   "mask.phoneHint": "Wybierz kształt, aby zachować część obrazu.",
   "mask.rectangle": "Prostokąt",
   "mask.roundness": "Zaokrąglenie",
-  "mask.row": "Maska · {0}",
   "mask.star": "Gwiazda",
   "mask.thickness": "Grubość",
   "mask.title": "Maska",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Połącz Bibliotekę audio Studio z usługą audio, aby pobrać ten utwór.",
   "youtube.invalidUrl": "Użyj adresu HTTPS lub HTTP na localhost.",
   "youtube.signIn": "Zaloguj się do YouTube Studio",
-  "youtube.signInOpened": "Zaloguj się w przeglądarce, otwórz Bibliotekę audio i odśwież tutaj. Sesja zostanie zapisana."
+  "youtube.signInOpened": "Zaloguj się w przeglądarce, otwórz Bibliotekę audio i odśwież tutaj. Sesja zostanie zapisana.",
+  "mask.add": "Dodaj",
+  "mask.addShape": "Dodaj: {0}",
+  "mask.count": "Maski: {0}",
+  "mask.expand": "Rozszerz",
+  "mask.intersect": "Część wspólna",
+  "mask.numbered": "Maska {0}",
+  "mask.subtract": "Odejmij"
 }

@@ -421,7 +421,6 @@
   "mask.phoneHint": "شکلی را انتخاب کنید تا بخشی از تصویر بماند.",
   "mask.rectangle": "مستطیل",
   "mask.roundness": "گردی گوشه‌ها",
-  "mask.row": "ماسک · {0}",
   "mask.star": "ستاره",
   "mask.thickness": "ضخامت",
   "mask.title": "ماسک",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "برای دریافت این قطعه، کتابخانهٔ صوتی Studio را به سرویس صدا متصل کنید.",
   "youtube.invalidUrl": "از نشانی HTTPS یا HTTP روی localhost استفاده کنید.",
   "youtube.signIn": "ورود به YouTube Studio",
-  "youtube.signInOpened": "در مرورگر وارد شوید، کتابخانهٔ صوتی را باز کنید و اینجا تازه‌سازی کنید. نشست شما ذخیره می‌شود."
+  "youtube.signInOpened": "در مرورگر وارد شوید، کتابخانهٔ صوتی را باز کنید و اینجا تازه‌سازی کنید. نشست شما ذخیره می‌شود.",
+  "mask.add": "افزودن",
+  "mask.addShape": "افزودن {0}",
+  "mask.count": "{0} ماسک",
+  "mask.expand": "گسترش",
+  "mask.intersect": "اشتراک",
+  "mask.numbered": "ماسک {0}",
+  "mask.subtract": "تفریق"
 }

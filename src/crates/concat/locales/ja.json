@@ -421,7 +421,6 @@
   "mask.phoneHint": "形を選ぶと、映像の一部だけを残せます。",
   "mask.rectangle": "長方形",
   "mask.roundness": "角の丸み",
-  "mask.row": "マスク · {0}",
   "mask.star": "星",
   "mask.thickness": "太さ",
   "mask.title": "マスク",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "この曲をダウンロードするには、Studioオーディオライブラリを音声サービスに接続してください。",
   "youtube.invalidUrl": "HTTPS、またはlocalhostのHTTPアドレスを使用してください。",
   "youtube.signIn": "YouTube Studio にログイン",
-  "youtube.signInOpened": "ブラウザでログインしてオーディオライブラリを開き、ここで更新してください。ログイン状態は保存されます。"
+  "youtube.signInOpened": "ブラウザでログインしてオーディオライブラリを開き、ここで更新してください。ログイン状態は保存されます。",
+  "mask.add": "加算",
+  "mask.addShape": "{0}を追加",
+  "mask.count": "マスク {0} 個",
+  "mask.expand": "拡張",
+  "mask.intersect": "交差",
+  "mask.numbered": "マスク {0}",
+  "mask.subtract": "減算"
 }

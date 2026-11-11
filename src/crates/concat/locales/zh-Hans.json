@@ -421,7 +421,6 @@
   "mask.phoneHint": "选择一个形状，只保留画面的一部分。",
   "mask.rectangle": "矩形",
   "mask.roundness": "圆角",
-  "mask.row": "蒙版 · {0}",
   "mask.star": "星形",
   "mask.thickness": "厚度",
   "mask.title": "蒙版",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "请将 Studio 音频库连接到音频服务以下载此音轨。",
   "youtube.invalidUrl": "请使用 HTTPS 地址或 localhost 上的 HTTP。",
   "youtube.signIn": "登录 YouTube Studio",
-  "youtube.signInOpened": "请在浏览器中登录并打开音频库，然后在此刷新。登录状态将被保存。"
+  "youtube.signInOpened": "请在浏览器中登录并打开音频库，然后在此刷新。登录状态将被保存。",
+  "mask.add": "相加",
+  "mask.addShape": "添加{0}",
+  "mask.count": "{0} 个蒙版",
+  "mask.expand": "扩展",
+  "mask.intersect": "相交",
+  "mask.numbered": "蒙版 {0}",
+  "mask.subtract": "相减"
 }

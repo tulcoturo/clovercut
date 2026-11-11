@@ -92,7 +92,7 @@ fn cross_project_paste_and_group_duplicate_preserve_state_and_undo() {
     studio.apply(Command::UpdateClip {
         clip_id: video.clone(),
         patch: ClipPatch {
-            mask: Some(Some(model::ClipMask::default())),
+            masks: Some(vec![model::Mask::of("m1", "", model::MaskShape::Circle)]),
             opacity: Some(0.4),
             ..Default::default()
         },
@@ -197,7 +197,7 @@ fn cross_project_paste_and_group_duplicate_preserve_state_and_undo() {
                 .iter()
                 .find(|c| c.kind == model::ClipKind::Video)
                 .unwrap();
-            assert!(video.mask.is_some());
+            assert_eq!(video.masks.len(), 1);
             assert_eq!(video.opacity, 0.4);
             let imported = studio.project().media_by_id(&video.media_id).unwrap();
             assert_ne!(imported.id, unrelated);
