@@ -12,6 +12,8 @@ pub fn needs_subject(id: &str) -> bool {
             | "concat.subject-electric"
             | "concat.subject-cyber-aura"
             | "concat.subject-clone-trail"
+            | "concat.subject-disintegration"
+            | "concat.subject-edge-runner"
     )
 }
 

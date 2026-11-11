@@ -5,7 +5,12 @@
 pub fn needs_face(id: &str) -> bool {
     matches!(
         id,
-        "concat.face-sunglasses" | "concat.face-dog" | "concat.big-head" | "concat.face-alien"
+        "concat.face-sunglasses"
+            | "concat.face-dog"
+            | "concat.big-head"
+            | "concat.face-alien"
+            | "concat.face-laser-eyes"
+            | "concat.face-funhouse"
     )
 }
 

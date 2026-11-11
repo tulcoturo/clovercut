@@ -1,0 +1,16 @@
+[[probe]]
+name = "no analysed subject leaves the original unchanged"
+input = [0.2, 0.4, 0.1, 0.5]
+expect = [0.2, 0.4, 0.1, 0.5]
+
+[[probe]]
+name = "missing matte preserves HDR light and alpha"
+at = "max"
+input = [4, 2, 0.25, 0.5]
+expect = [4, 2, 0.25, 0.5]
+
+[[probe]]
+name = "minimum settings preserve the source"
+at = "min"
+input = [0.2, 0.4, 0.1, 0.5]
+expect = [0.2, 0.4, 0.1, 0.5]

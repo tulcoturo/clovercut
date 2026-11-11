@@ -1,0 +1,56 @@
+format = 2
+
+[effect]
+id = "concat.subject-edge-runner"
+name = "Edge Runner"
+kind = "effect"
+category = "Subject"
+shelves = ["Featured"]
+order = 14
+intensity = "amount"
+description = "Dynamic electric circuit pulses racing around the person silhouette with chromatic trailing light."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 200
+default = 100
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "width"
+label = "Line Width"
+min = 0.5
+max = 5
+default = 1.6
+step = 0.1
+unit = "%"
+animate = true
+
+[[param]]
+key = "speed"
+label = "Run Speed"
+min = 0
+max = 5
+default = 1.6
+step = 0.1
+animate = true
+
+[[param]]
+key = "hue"
+label = "Neon Hue"
+min = 0
+max = 360
+default = 195
+step = 1
+unit = "°"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

@@ -1,0 +1,57 @@
+format = 2
+
+[effect]
+id = "concat.subject-disintegration"
+name = "Subject Disintegration"
+kind = "effect"
+category = "Subject"
+shelves = ["Featured"]
+order = 13
+intensity = "progress"
+description = "Dissolves the subject into glowing ember particles floating away, CapCut Thanos snap style."
+
+[[param]]
+key = "progress"
+label = "Dissolve"
+min = 0
+max = 100
+default = 50
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "direction"
+label = "Wind Angle"
+min = 0
+max = 360
+default = 45
+step = 1
+unit = "°"
+animate = true
+
+[[param]]
+key = "spread"
+label = "Particle Spread"
+min = 10
+max = 100
+default = 50
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "hue"
+label = "Ember Hue"
+min = 0
+max = 360
+default = 28
+step = 1
+unit = "°"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

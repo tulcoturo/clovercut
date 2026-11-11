@@ -1,0 +1,57 @@
+format = 2
+
+[effect]
+id = "concat.face-laser-eyes"
+name = "Laser Eyes"
+kind = "effect"
+category = "Face"
+shelves = ["Featured"]
+order = 14
+intensity = "amount"
+description = "Fires blazing laser beams with intense iris glow and lens flares from detected eyes."
+
+[[param]]
+key = "amount"
+label = "Intensity"
+min = 0
+max = 200
+default = 100
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "beam_length"
+label = "Beam Length"
+min = 20
+max = 200
+default = 110
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "flare_size"
+label = "Flare Size"
+min = 50
+max = 200
+default = 100
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "hue"
+label = "Laser Hue"
+min = 0
+max = 360
+default = 0
+step = 1
+unit = "°"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

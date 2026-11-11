@@ -184,7 +184,7 @@ To preserve system stability and keep user machine resources free (no heavy loca
   - `concat` UI (Slint & Rust): Added `studio/masks.rs`, updated `masking.rs` (`MaskAt`), inspector UI with mask list reordering, mode pickers, expand, opacity, and full keyframe cluster support. All 26 locales updated.
   - CI verification: 100% green across visual effect, GPU render, and headless quality checks. Merged into `main`.
 
-#### Creative CapCut-Style Face Distortion & Full-Body Effects (Completed - PR feat/creative-face-body-effects)
+#### Creative CapCut-Style Face Distortion & Full-Body Effects (Completed - PR #54 & Batch 2)
 - [x] **Big Head (`concat.big-head`)**:
   - Exaggerated head/face enlargement with spherical radial bulge centered on detected facial landmarks (`needs_face: true`).
   - Configurable `amount`, `radius`, and edge `feather` with zero artifacts on the torso or background.
@@ -197,7 +197,26 @@ To preserve system stability and keep user machine resources free (no heavy loca
 - [x] **Clone Trail (`concat.subject-clone-trail`)**:
   - Chromatic RGB ghost clones oscillating behind the moving subject, CapCut viral phantom dance style.
   - Configurable `amount`, `spread`, `speed`, and `glow`.
+- [x] **Subject Disintegration (`concat.subject-disintegration`)**:
+  - Dramatic particle dissolution ("Thanos snap" style) with glowing incandescent ember boundaries and floating sparks flying in the wind.
+  - Configurable `progress`, `direction`, `spread`, and `hue`.
+- [x] **Laser Eyes (`concat.face-laser-eyes`)**:
+  - Blazing laser beams projected from detected eyes with starburst iris flares and customizable beam hue.
+  - Configurable `amount`, `beam_length`, `flare_size`, and `hue`.
+- [x] **Edge Runner (`concat.subject-edge-runner`)**:
+  - High-speed electric circuit pulses racing around the person silhouette with chromatic decay trail.
+  - Configurable `amount`, `width`, `speed`, and `hue`.
+- [x] **Face Funhouse (`concat.face-funhouse`)**:
+  - Fluid wave warp distorting facial expressions with rippling carnival mirror optics.
+  - Configurable `amount`, `frequency`, `speed`, and `radius`.
 - [x] Verified zero-overhead pass-through when subject or face is absent (fully compliant with probe tests and FXC/WARP drivers).
 
-#### Next Priorities
-- [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics (`a42e6963`).
+#### Crash-Resilient Structured Logging (`concat-log` - PR feat/creative-fx-and-log)
+- [x] Integrated `concat-log` crate into workspace (`a42e6963`, #594, #330):
+  - Synchronous unbuffered file writes guaranteeing zero lost log lines ahead of crashes or process aborts.
+  - Crash detection on subsequent run launch with previous error attribution.
+  - Deduplication of repeating log entries (collapsing identical messages after 10 repetitions).
+  - Automatic `$HOME` sanitization (`~`) in paths for privacy.
+  - Clean run shutdown hook (`concat_host::logs::end()`).
+  - Timed operation tracing (`Op`) and colored console output.
+  - Documentation in `docs/LOGGING.md`.
