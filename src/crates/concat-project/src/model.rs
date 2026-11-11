@@ -2751,19 +2751,20 @@ impl Clip {
         for key in &mut self.keys {
             key.value = match key.property {
                 KeyProperty::Scale => key.value.clamp(MIN_SCALE, MAX_SCALE),
-                property if property.is_text() => {
-                    if property == KeyProperty::StrokeWidth {
-                        key.value.clamp(0.0, 0.15)
-                    } else {
-                        key.value.clamp(0.0, 1.0)
-                    }
-                }
                 KeyProperty::Opacity => key.value.clamp(0.0, 1.0),
                 KeyProperty::Volume => key.value.max(0.0),
                 KeyProperty::OffsetX | KeyProperty::OffsetY => {
                     key.value.clamp(-MAX_OFFSET, MAX_OFFSET)
                 }
                 KeyProperty::Rotation => key.value,
+                KeyProperty::TextRed
+                | KeyProperty::TextGreen
+                | KeyProperty::TextBlue
+                | KeyProperty::StrokeRed
+                | KeyProperty::StrokeGreen
+                | KeyProperty::StrokeBlue
+                | KeyProperty::StrokeOpacity => key.value.clamp(0.0, 1.0),
+                KeyProperty::StrokeWidth => key.value.clamp(0.0, 0.15),
             };
         }
         self.sort_keys();

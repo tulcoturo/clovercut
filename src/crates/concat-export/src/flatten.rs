@@ -277,6 +277,7 @@ pub fn export_base(clip: &concat_project::model::Clip, property: KeyProperty) ->
         // A factor's neutral is one; an addition's is zero.
         KeyProperty::Scale | KeyProperty::Opacity | KeyProperty::Volume => 1.0,
         KeyProperty::OffsetX | KeyProperty::OffsetY | KeyProperty::Rotation => 0.0,
+        _ => 0.0,
     }
 }
 

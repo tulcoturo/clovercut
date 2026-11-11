@@ -271,6 +271,14 @@ pub(super) fn apply(
                 // same value at a different instant.
                 KeyProperty::Volume => value.max(0.0),
                 KeyProperty::OffsetX | KeyProperty::OffsetY | KeyProperty::Rotation => value,
+                KeyProperty::TextRed
+                | KeyProperty::TextGreen
+                | KeyProperty::TextBlue
+                | KeyProperty::StrokeRed
+                | KeyProperty::StrokeGreen
+                | KeyProperty::StrokeBlue
+                | KeyProperty::StrokeOpacity => value.clamp(0.0, 1.0),
+                KeyProperty::StrokeWidth => value.clamp(0.0, 0.15),
             };
             let before = clip.keys.clone();
             clip.set_key(property, at, value, ease);
