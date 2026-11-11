@@ -2544,7 +2544,7 @@ pub fn render_shape(style: &ShapeStyle, width: u32, height: u32) -> Result<Rende
 /// an M5, that was over half of the time a 1080p title took to paint.
 /// The PNG holds the same pixels either way; this one is a little larger.
 fn encode_png(canvas: &Pixmap) -> Result<Vec<u8>, Error> {
-    let rgba = straight_rgba(canvas);
+    let rgba = straight_rgba_copy(canvas);
     let mut png = Vec::new();
     let mut encoder = png::Encoder::new(&mut png, canvas.width(), canvas.height());
     encoder.set_color(png::ColorType::Rgba);
@@ -2557,7 +2557,7 @@ fn encode_png(canvas: &Pixmap) -> Result<Vec<u8>, Error> {
     Ok(png)
 }
 
-fn straight_rgba(canvas: &Pixmap) -> Vec<u8> {
+fn straight_rgba_copy(canvas: &Pixmap) -> Vec<u8> {
     let mut rgba = Vec::with_capacity(canvas.pixels().len() * 4);
     for pixel in canvas.pixels() {
         let straight = pixel.demultiply();
