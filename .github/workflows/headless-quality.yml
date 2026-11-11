@@ -197,6 +197,18 @@ jobs:
         run: python3 scripts/check_project_io.py
       - name: Font metrics for the isolated home-screen check
         run: |
+          echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+          echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4 >/dev/null
+          sudo python3 - <<'PYTHON'
+          from pathlib import Path
+          paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), *Path('/etc/apt/sources.list.d').glob('*.sources'), *Path('/etc/apt/sources.list.d').glob('*.list')]
+          for path in paths:
+              if path.is_file():
+                  text = path.read_text()
+                  updated = text.replace('http://azure.archive.ubuntu.com/ubuntu', 'http://archive.ubuntu.com/ubuntu').replace('https://azure.archive.ubuntu.com/ubuntu', 'http://archive.ubuntu.com/ubuntu').replace('https://archive.ubuntu.com/ubuntu', 'http://archive.ubuntu.com/ubuntu')
+                  if updated != text:
+                      path.write_text(updated)
+          PYTHON
           sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
