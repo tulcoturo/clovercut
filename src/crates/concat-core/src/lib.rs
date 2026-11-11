@@ -21,6 +21,7 @@ pub mod arena;
 pub mod face;
 pub mod frame;
 pub mod mask;
+pub mod motion;
 pub mod retime;
 pub mod shader;
 pub mod subject;
