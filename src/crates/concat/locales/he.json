@@ -421,7 +421,6 @@
   "mask.phoneHint": "בחרו צורה כדי לשמור חלק מהתמונה.",
   "mask.rectangle": "מלבן",
   "mask.roundness": "עיגול פינות",
-  "mask.row": "מסכה · {0}",
   "mask.star": "כוכב",
   "mask.thickness": "עובי",
   "mask.title": "מסכה",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "יש לחבר את ספריית האודיו של Studio לשירות השמע כדי להוריד את הרצועה.",
   "youtube.invalidUrl": "יש להשתמש בכתובת HTTPS או ב־HTTP ב־localhost.",
   "youtube.signIn": "כניסה ל-YouTube Studio",
-  "youtube.signInOpened": "יש להיכנס בדפדפן, לפתוח את ספריית האודיו ולרענן כאן. ההתחברות תישמר."
+  "youtube.signInOpened": "יש להיכנס בדפדפן, לפתוח את ספריית האודיו ולרענן כאן. ההתחברות תישמר.",
+  "mask.add": "הוספה",
+  "mask.addShape": "הוספת {0}",
+  "mask.count": "{0} מסכות",
+  "mask.expand": "הרחבה",
+  "mask.intersect": "חיתוך",
+  "mask.numbered": "מסכה {0}",
+  "mask.subtract": "חיסור"
 }

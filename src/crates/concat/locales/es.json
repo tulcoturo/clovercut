@@ -421,7 +421,6 @@
   "mask.phoneHint": "Elige una forma para conservar parte de la imagen.",
   "mask.rectangle": "Rectángulo",
   "mask.roundness": "Redondeo",
-  "mask.row": "Máscara · {0}",
   "mask.star": "Estrella",
   "mask.thickness": "Grosor",
   "mask.title": "Máscara",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Conecta la Biblioteca de audio de Studio al servicio de audio para descargar esta pista.",
   "youtube.invalidUrl": "Usa una dirección HTTPS o HTTP en localhost.",
   "youtube.signIn": "Iniciar sesión en YouTube Studio",
-  "youtube.signInOpened": "Inicia sesión en el navegador, abre la Biblioteca de audio y actualiza aquí. Se guardará tu sesión."
+  "youtube.signInOpened": "Inicia sesión en el navegador, abre la Biblioteca de audio y actualiza aquí. Se guardará tu sesión.",
+  "mask.add": "Sumar",
+  "mask.addShape": "Añadir {0}",
+  "mask.count": "{0} máscaras",
+  "mask.expand": "Expandir",
+  "mask.intersect": "Intersecar",
+  "mask.numbered": "Máscara {0}",
+  "mask.subtract": "Restar"
 }

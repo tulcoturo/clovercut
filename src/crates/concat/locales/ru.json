@@ -421,7 +421,6 @@
   "mask.phoneHint": "Выберите фигуру, чтобы оставить часть изображения.",
   "mask.rectangle": "Прямоугольник",
   "mask.roundness": "Скругление",
-  "mask.row": "Маска · {0}",
   "mask.star": "Звезда",
   "mask.thickness": "Толщина",
   "mask.title": "Маска",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Подключите фонотеку Studio к аудиосервису для загрузки этого трека.",
   "youtube.invalidUrl": "Используйте HTTPS или HTTP на localhost.",
   "youtube.signIn": "Войти в YouTube Studio",
-  "youtube.signInOpened": "Войдите в браузере, откройте фонотеку и обновите список здесь. Сеанс будет сохранён."
+  "youtube.signInOpened": "Войдите в браузере, откройте фонотеку и обновите список здесь. Сеанс будет сохранён.",
+  "mask.add": "Сложение",
+  "mask.addShape": "Добавить: {0}",
+  "mask.count": "Масок: {0}",
+  "mask.expand": "Расширение",
+  "mask.intersect": "Пересечение",
+  "mask.numbered": "Маска {0}",
+  "mask.subtract": "Вычитание"
 }

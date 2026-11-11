@@ -421,7 +421,6 @@
   "mask.phoneHint": "Pilih bentuk untuk mempertahankan sebagian gambar.",
   "mask.rectangle": "Persegi panjang",
   "mask.roundness": "Kebulatan sudut",
-  "mask.row": "Masker · {0}",
   "mask.star": "Bintang",
   "mask.thickness": "Ketebalan",
   "mask.title": "Masker",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Hubungkan Koleksi Audio Studio ke layanan audio untuk mengunduh trek ini.",
   "youtube.invalidUrl": "Gunakan alamat HTTPS atau HTTP di localhost.",
   "youtube.signIn": "Login ke YouTube Studio",
-  "youtube.signInOpened": "Login di browser, buka Koleksi Audio, lalu muat ulang di sini. Sesi Anda akan disimpan."
+  "youtube.signInOpened": "Login di browser, buka Koleksi Audio, lalu muat ulang di sini. Sesi Anda akan disimpan.",
+  "mask.add": "Tambah",
+  "mask.addShape": "Tambah {0}",
+  "mask.count": "{0} masker",
+  "mask.expand": "Perluas",
+  "mask.intersect": "Irisan",
+  "mask.numbered": "Masker {0}",
+  "mask.subtract": "Kurangi"
 }

@@ -13,8 +13,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::model::{
-    AppliedFilter, AudioTrack, Background, Clip, ClipKind, ClipMask, ClipMotion, ColorRange, ColorSpace, Crop,
-    CustomFont, Cutout, CutoutMode, Enhanced, Framing, KeyEase, KeyProperty, MediaItem, MediaKind,
+    AppliedFilter, AudioTrack, Background, Clip, ClipKind, ClipMotion, ColorRange, ColorSpace, Crop,
+    CustomFont, Cutout, CutoutMode, Enhanced, Framing, KeyEase, KeyProperty, Mask, MediaItem, MediaKind,
     MediaOrigin, Project, RunStyle, ShapeStyle, SpeedPoint, Stabilize, Stroke, TextStyle, Timeline,
     Track, TrackKind, Transition, VideoSettings,
 };
@@ -129,17 +129,12 @@ pub struct ClipPatch {
     )]
     #[cfg_attr(feature = "schema", schemars(with = "Option<Crop>"))]
     pub crop: Option<Option<Crop>>,
-    /// The mask, same three-way wire semantics as `crop`: absent leaves it
-    /// alone, null takes it off, a value replaces it, tidied on the way in.
-    /// Its keys are the clip's own (`setClipKey` with `maskX` and on), and
-    /// stay when it is taken off, for a mask put back on to ride again.
-    #[serde(
-        default,
-        with = "double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    #[cfg_attr(feature = "schema", schemars(with = "Option<ClipMask>"))]
-    pub mask: Option<Option<ClipMask>>,
+    /// The masks, top first: absent leaves them alone, a list replaces
+    /// them, empty takes them all off. Tidied on the way in; an empty or
+    /// repeated id is minted anew. Each carries its own keys
+    /// (`setMaskKey`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub masks: Option<Vec<Mask>>,
     /// The entrance, exit and loop, same three-way wire semantics as
     /// `crop`: absent leaves them alone, null takes them all off, a value
     /// replaces them, tidied on the way in.
@@ -565,6 +560,46 @@ pub enum Command {
         entry: usize,
         /// The parameter's manifest key.
         key: String,
+    },
+    /// Puts a key on one number of one of a clip's masks, replacing
+    /// whichever key on it was already within a hair of `at`. The value is
+    /// the number's own, held to its range.
+    SetMaskKey {
+        /// The clip.
+        clip_id: String,
+        /// The mask's id. One the clip does not have is a no-op.
+        mask_id: String,
+        /// Which number: one of `model::Mask::NUMBERS`.
+        number: String,
+        /// Where in the clip, `0..=1`.
+        at: f64,
+        /// The value there.
+        value: f64,
+        /// How the key is approached from the one before it.
+        #[serde(default)]
+        ease: KeyEase,
+    },
+    /// Removes a key from one number of one of a clip's masks, if there is
+    /// one within a hair of `at`.
+    ClearMaskKey {
+        /// The clip.
+        clip_id: String,
+        /// The mask's id. One the clip does not have is a no-op.
+        mask_id: String,
+        /// Which number: one of `model::Mask::NUMBERS`.
+        number: String,
+        /// Where in the clip, `0..=1`.
+        at: f64,
+    },
+    /// Takes every key off one number of one of a clip's masks, leaving
+    /// the value it holds.
+    ClearMaskKeys {
+        /// The clip.
+        clip_id: String,
+        /// The mask's id. One the clip does not have is a no-op.
+        mask_id: String,
+        /// Which number: one of `model::Mask::NUMBERS`.
+        number: String,
     },
     /// Sets or clears a picture's cutout: the mask that takes its
     /// background away. Tidied on the way in; see [`Cutout::tidy`].
@@ -1235,17 +1270,10 @@ impl Command {
                         .iter()
                         .flatten()
                         .any(|crop| bad([crop.left, crop.top, crop.right, crop.bottom]))
-                    || patch.mask.iter().flatten().any(|mask| {
-                        bad([
-                            mask.x,
-                            mask.y,
-                            mask.width,
-                            mask.height,
-                            mask.rotation,
-                            mask.roundness,
-                            mask.feather,
-                        ])
-                    })
+                    // Masks are not checked here: `Mask::tidy_all` fills a
+                    // number that is not one from a new mask's - which is how
+                    // a size the caller left out reads - and drops a key that
+                    // is not, so none can land.
                     || patch.filters.as_deref().is_some_and(bad_chain)
                     || patch.video_effects.as_deref().is_some_and(bad_chain)
                     || patch
@@ -1426,6 +1454,9 @@ pub fn apply_with_locks(
         | Command::SetEffectKey { .. }
         | Command::ClearEffectKey { .. }
         | Command::ClearEffectKeys { .. }
+        | Command::SetMaskKey { .. }
+        | Command::ClearMaskKey { .. }
+        | Command::ClearMaskKeys { .. }
         | Command::SetClipSpeedCurve { .. }
         | Command::SetClipTransform { .. }
         | Command::FrameClip { .. }) => properties::apply(project, mint, command, locked),

@@ -421,7 +421,6 @@
   "mask.phoneHint": "Görüntünün bir kısmını tutmak için bir şekil seçin.",
   "mask.rectangle": "Dikdörtgen",
   "mask.roundness": "Köşe yuvarlaklığı",
-  "mask.row": "Maske · {0}",
   "mask.star": "Yıldız",
   "mask.thickness": "Kalınlık",
   "mask.title": "Maske",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Bu parçayı indirmek için Studio Ses Kitaplığı’nı ses hizmetine bağlayın.",
   "youtube.invalidUrl": "HTTPS adresi veya localhost üzerinde HTTP kullanın.",
   "youtube.signIn": "YouTube Studio’da oturum aç",
-  "youtube.signInOpened": "Tarayıcıda oturum aç, Ses Kitaplığı’nı aç ve burayı yenile. Oturumun kaydedilecek."
+  "youtube.signInOpened": "Tarayıcıda oturum aç, Ses Kitaplığı’nı aç ve burayı yenile. Oturumun kaydedilecek.",
+  "mask.add": "Ekle",
+  "mask.addShape": "{0} ekle",
+  "mask.count": "{0} maske",
+  "mask.expand": "Genişlet",
+  "mask.intersect": "Kesişim",
+  "mask.numbered": "Maske {0}",
+  "mask.subtract": "Çıkar"
 }

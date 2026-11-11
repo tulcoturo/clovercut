@@ -421,7 +421,6 @@
   "mask.phoneHint": "เลือกรูปทรงเพื่อเก็บภาพไว้เพียงบางส่วน",
   "mask.rectangle": "สี่เหลี่ยมผืนผ้า",
   "mask.roundness": "ความโค้งมุม",
-  "mask.row": "มาสก์ · {0}",
   "mask.star": "ดาว",
   "mask.thickness": "ความหนา",
   "mask.title": "มาสก์",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "เชื่อมต่อคลังเพลงและเสียงของ Studio กับบริการเสียงเพื่อดาวน์โหลดแทร็กนี้",
   "youtube.invalidUrl": "ใช้ที่อยู่ HTTPS หรือ HTTP บน localhost",
   "youtube.signIn": "ลงชื่อเข้าใช้ YouTube Studio",
-  "youtube.signInOpened": "ลงชื่อเข้าใช้ในเบราว์เซอร์ เปิดคลังเพลงและเสียง แล้วรีเฟรชที่นี่ ระบบจะบันทึกเซสชันของคุณ"
+  "youtube.signInOpened": "ลงชื่อเข้าใช้ในเบราว์เซอร์ เปิดคลังเพลงและเสียง แล้วรีเฟรชที่นี่ ระบบจะบันทึกเซสชันของคุณ",
+  "mask.add": "เพิ่ม",
+  "mask.addShape": "เพิ่ม{0}",
+  "mask.count": "มาสก์ {0} ชิ้น",
+  "mask.expand": "ขยาย",
+  "mask.intersect": "ส่วนที่ซ้อน",
+  "mask.numbered": "มาสก์ {0}",
+  "mask.subtract": "ลบออก"
 }

@@ -421,7 +421,6 @@
   "mask.phoneHint": "ছবির একটি অংশ রাখতে একটি আকার বেছে নিন।",
   "mask.rectangle": "আয়তক্ষেত্র",
   "mask.roundness": "কোণের গোলাকারতা",
-  "mask.row": "মাস্ক · {0}",
   "mask.star": "তারা",
   "mask.thickness": "পুরুত্ব",
   "mask.title": "মাস্ক",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "এই ট্র্যাক ডাউনলোড করতে Studio অডিও লাইব্রেরিকে অডিও পরিষেবার সঙ্গে যুক্ত করুন।",
   "youtube.invalidUrl": "HTTPS ঠিকানা বা localhost-এ HTTP ব্যবহার করুন।",
   "youtube.signIn": "YouTube Studio-তে সাইন ইন করুন",
-  "youtube.signInOpened": "ব্রাউজারে সাইন ইন করে অডিও লাইব্রেরি খুলুন, তারপর এখানে রিফ্রেশ করুন। আপনার সেশন সংরক্ষিত থাকবে।"
+  "youtube.signInOpened": "ব্রাউজারে সাইন ইন করে অডিও লাইব্রেরি খুলুন, তারপর এখানে রিফ্রেশ করুন। আপনার সেশন সংরক্ষিত থাকবে।",
+  "mask.add": "যোগ",
+  "mask.addShape": "{0} যোগ করুন",
+  "mask.count": "{0}টি মাস্ক",
+  "mask.expand": "প্রসারণ",
+  "mask.intersect": "ছেদ",
+  "mask.numbered": "মাস্ক {0}",
+  "mask.subtract": "বিয়োগ"
 }

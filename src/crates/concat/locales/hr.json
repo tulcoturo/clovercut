@@ -421,7 +421,6 @@
   "mask.phoneHint": "Odaberite oblik kako biste zadržali dio slike.",
   "mask.rectangle": "Pravokutnik",
   "mask.roundness": "Zaobljenost",
-  "mask.row": "Maska · {0}",
   "mask.star": "Zvijezda",
   "mask.thickness": "Debljina",
   "mask.title": "Maska",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "Povežite Studio audioteku s audio uslugom za preuzimanje ove snimke.",
   "youtube.invalidUrl": "Koristite HTTPS adresu ili HTTP na localhostu.",
   "youtube.signIn": "Prijava u YouTube Studio",
-  "youtube.signInOpened": "Prijavite se u pregledniku, otvorite audioteku i osvježite ovdje. Sesija će biti spremljena."
+  "youtube.signInOpened": "Prijavite se u pregledniku, otvorite audioteku i osvježite ovdje. Sesija će biti spremljena.",
+  "mask.add": "Dodaj",
+  "mask.addShape": "Dodaj {0}",
+  "mask.count": "Maske: {0}",
+  "mask.expand": "Proširi",
+  "mask.intersect": "Presjek",
+  "mask.numbered": "Maska {0}",
+  "mask.subtract": "Oduzmi"
 }

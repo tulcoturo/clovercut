@@ -421,7 +421,6 @@
   "mask.phoneHint": "모양을 골라 화면의 일부만 남기세요.",
   "mask.rectangle": "직사각형",
   "mask.roundness": "모서리 둥글기",
-  "mask.row": "마스크 · {0}",
   "mask.star": "별",
   "mask.thickness": "두께",
   "mask.title": "마스크",
@@ -1149,5 +1148,12 @@
   "youtube.connectStudio": "이 트랙을 다운로드하려면 Studio 오디오 보관함을 오디오 서비스에 연결하세요.",
   "youtube.invalidUrl": "HTTPS 주소 또는 localhost의 HTTP를 사용하세요.",
   "youtube.signIn": "YouTube Studio에 로그인",
-  "youtube.signInOpened": "브라우저에서 로그인하고 오디오 보관함을 연 다음 여기서 새로고침하세요. 로그인 상태가 저장됩니다."
+  "youtube.signInOpened": "브라우저에서 로그인하고 오디오 보관함을 연 다음 여기서 새로고침하세요. 로그인 상태가 저장됩니다.",
+  "mask.add": "더하기",
+  "mask.addShape": "{0} 추가",
+  "mask.count": "마스크 {0}개",
+  "mask.expand": "확장",
+  "mask.intersect": "교차",
+  "mask.numbered": "마스크 {0}",
+  "mask.subtract": "빼기"
 }
