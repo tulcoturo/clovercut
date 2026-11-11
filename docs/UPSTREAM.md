@@ -364,6 +364,7 @@ Hardware-specific and live-provider tests retain their explicit prerequisites.
 | Filter preview | `599157e7` | Label the audition in the monitor and allow dismissal by its close button, Escape or selecting a clip. |
 | Text effects | `0acb767b` | Add the generic effects chain beside Clovercut's caption, style and animation tabs. |
 | Encoder stalls | `0c86f62b` | A hardware encoder stall restarts the render once in software, resets progress/ETA and reports the new stage. |
+| Export read-ahead | `565ea9a2`, `da2fd371` | Each paced clip decodes on a dedicated feed thread opened 0.5s before its cut, eliminating seek stalls during multi-clip export. |
 
 Other selectively adapted changes include unnamed WAV channel layouts
 (`e353fe57`), updater TLS roots/MCP annotations/VAD cache publication (`41ca63a4`),

@@ -167,7 +167,13 @@ To preserve system stability and keep user machine resources free (no heavy loca
 - [x] Dynamic RAM-based cache ceiling allocation via `live_share` based on physical system memory (`7acf1cfa`).
 - [x] Scalability benchmark suite `edit_scale.rs`.
 
+#### Export Multi-Threaded Read-Ahead (Completed - PR #52)
+- [x] Decoupled clip decoding onto dedicated background threads with bounded queues (`concat-export/src/ahead.rs` - `565ea9a2`).
+- [x] `Feeds::look_ahead` opens decoder 0.5s prior to cut on desktop to eliminate cut seek stalls (`565ea9a2`).
+- [x] Android `read_lead` set to 0 to preserve MediaCodec hardware codec seats.
+- [x] Clean test-scoped `Decoder` and `FrameSource` imports (`da2fd371`).
+- [x] Resilient IPv4 and DNS fallback configuration in GitHub Actions CI workflows.
+
 #### Mask Stack (Next)
-- [ ] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`).
-- [ ] Multi-threaded export read per clip (`565ea9a2`).
-- [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics.
+- [ ] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`, `ab16bf42`, `31193bc0`, `bb0e7c44`).
+- [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics (`a42e6963`).
