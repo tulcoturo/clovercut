@@ -161,7 +161,13 @@ To preserve system stability and keep user machine resources free (no heavy loca
 - [x] Integrate interactive motion picker with animated cards (`motion_tiles.rs`, `motion-picker.slint`, `AnimatePanel`).
 - [x] Add phone UI support and complete 25-locale translations.
 
-#### Mask Stack & Multithreaded Painting (Next)
+#### Title Painting & Rendering Performance (Completed - PR #51)
+- [x] Fast PNG deflate compression using `png::Compression::Fast` in `concat-text` (`0496f612`).
+- [x] Multi-threaded title painting on every core via `std::thread::available_parallelism()` and `std::thread::scope` in `paint_ahead` (`7acf1cfa`).
+- [x] Dynamic RAM-based cache ceiling allocation via `live_share` based on physical system memory (`7acf1cfa`).
+- [x] Scalability benchmark suite `edit_scale.rs`.
+
+#### Mask Stack (Next)
 - [ ] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`).
-- [ ] Multi-threaded title painting on background worker (`997c6ff9`, `7acf1cfa`).
+- [ ] Multi-threaded export read per clip (`565ea9a2`).
 - [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics.
