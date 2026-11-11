@@ -420,7 +420,7 @@ impl MonitorPane {
         } else {
             clock
         };
-        let Some((clips, settings)) = studio.preview_clips(width, height, time) else {
+        let Some((clips, settings)) = studio.preview_clips_ready(width, height, time) else {
             return;
         };
         let quality = self.quality_of(studio.project());

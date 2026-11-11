@@ -87,6 +87,8 @@ pub struct Titles {
     /// most recently asked for of the rest, so a width dragged back and
     /// forth over the same values paints each once.
     live: Arc<Mutex<LivePaintings>>,
+    /// The cache generation a background preview is allowed to populate.
+    live_epoch: Option<u64>,
 }
 
 /// The live paintings kept, in bytes of pixels, beyond the ones the
@@ -134,6 +136,8 @@ struct LivePaintings {
     kept: HashMap<u64, LivePainting>,
     /// Which pass over the timeline this is; see [`LivePaintings::begin`].
     pass: u64,
+    /// Advanced when the project drops its live paintings.
+    epoch: u64,
     /// Bytes of pixels held.
     bytes: usize,
     /// What the paintings past passes asked for may hold.
@@ -147,6 +151,7 @@ impl LivePaintings {
         LivePaintings {
             kept: HashMap::new(),
             pass: 0,
+            epoch: 0,
             bytes: 0,
             budget,
             ceiling,
@@ -231,7 +236,17 @@ impl Titles {
                 live_share(crate::memory::total(), 32, LIVE_BYTES),
                 live_share(crate::memory::total(), 8, LIVE_CEILING),
             ))),
+            live_epoch: None,
         }
+    }
+
+    /// Capture the current live-cache generation for a background preview.
+    /// A painter that finishes after project close may return its frames,
+    /// but cannot repopulate the cache that close has just emptied.
+    pub fn preview_painter(&self) -> Self {
+        let mut painter = self.clone();
+        painter.live_epoch = Some(self.live.lock().unwrap_or_else(|e| e.into_inner()).epoch);
+        painter
     }
 
     /// Every text and shape clip on the active timeline, as an image clip
@@ -501,6 +516,9 @@ impl Titles {
         height: u32,
     ) -> Result<(PathBuf, Art, Arc<Frame>), String> {
         let path = PathBuf::from(format!("memory://titles/{key:016x}"));
+        let epoch = self
+            .live_epoch
+            .unwrap_or_else(|| self.live.lock().unwrap_or_else(|e| e.into_inner()).epoch);
         let rendered = match painting {
             Painting::Title(style) => {
                 let title = title_style(style);
@@ -522,11 +540,10 @@ impl Titles {
             Frame::from_rgba(rendered.width, rendered.height, rendered.rgba)
                 .ok_or_else(|| "the painter returned a frame of the wrong size".to_owned())?,
         );
-        self.live.lock().unwrap_or_else(|e| e.into_inner()).keep(
-            key,
-            art.clone(),
-            Arc::clone(&frame),
-        );
+        let mut live = self.live.lock().unwrap_or_else(|e| e.into_inner());
+        if live.epoch == epoch {
+            live.keep(key, art.clone(), Arc::clone(&frame));
+        }
         Ok((path, art, frame))
     }
 
@@ -625,13 +642,7 @@ impl Titles {
     /// after finds each one kept. A transcribed interview is hundreds of
     /// captions, each painted on its own; one after another they were
     /// seconds of a window that did not answer.
-    fn paint_ahead(
-        &self,
-        project: &Project,
-        width: u32,
-        height: u32,
-        live: bool,
-    ) {
+    fn paint_ahead(&self, project: &Project, width: u32, height: u32, live: bool) {
         let plain_text = TextStyle::default();
         let plain_shape = ShapeStyle::default();
         let keys: Vec<(u64, Painting<'_>)> = project
@@ -739,6 +750,7 @@ impl Titles {
     /// project closes or switches.
     pub fn clear_live(&self) {
         let mut live = self.live.lock().unwrap_or_else(|e| e.into_inner());
+        live.epoch = live.epoch.wrapping_add(1);
         live.kept.clear();
         live.bytes = 0;
     }
@@ -963,6 +975,46 @@ fn shape_style(style: &ShapeStyle) -> concat_text::ShapeStyle {
 mod tests {
     use super::*;
     use concat_project::{Command, Editor};
+
+    #[test]
+    fn a_preview_finishing_after_close_cannot_restore_live_cache() {
+        let temporary = tempfile::tempdir().unwrap();
+        let titles = Titles::new(&AppDirs::under(temporary.path()));
+        let painter = titles.preview_painter();
+        let mut editor = Editor::new();
+        editor
+            .apply(Command::AddTextClip {
+                above: true,
+                track_id: None,
+                start: 0.0,
+                style: None,
+                duration: Some(2.0),
+                offset_y: None,
+            })
+            .unwrap();
+        titles.clear_live();
+        assert_eq!(
+            painter.clips_live_at(editor.project(), 160, 90, 0.5).len(),
+            1
+        );
+        assert_eq!(
+            titles.live_count(),
+            0,
+            "late paints must not revive a closed project's cache"
+        );
+        assert_eq!(
+            titles
+                .preview_painter()
+                .clips_live_at(editor.project(), 160, 90, 0.5)
+                .len(),
+            1
+        );
+        assert_eq!(
+            titles.live_count(),
+            1,
+            "the next project's painter may cache frames"
+        );
+    }
 
     #[test]
     fn typography_reaches_preview_export_and_cache_without_rewriting_captions() {
