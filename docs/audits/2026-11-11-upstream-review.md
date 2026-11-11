@@ -139,21 +139,29 @@ The 17 native transitions were re-written in clean-room WGSL:
 
 To preserve system stability and keep user machine resources free (no heavy local compilations):
 
-### Phase 1: High-Performance & Crash-Proof Fixes (Immediate)
-- [ ] Adopt bounded shadow blur in `concat-text/src/lib.rs` (`0496f612`).
-- [ ] Adopt glance decoding in `concat-media/src/decode.rs` (`1f0a7494`).
-- [ ] Adopt Chroma Key early-return and loop fixes in `concat-effects/packages/concat.chroma-key/effect.wgsl` (`817631a2`, `2a2fd238`, `ae32e16c`).
-- [ ] Adopt shader warm-up on startup in `concat-host/src/preview.rs` (`56cd69a5`).
-- [ ] Adopt CI memory ceiling configurations in `.github/workflows/ci.yml` (`71efe1f4`, `6926a27a`).
+### Phase 1: High-Performance & Crash-Proof Fixes (Completed - PR #49)
+- [x] Adopt bounded shadow blur in `concat-text/src/lib.rs` (`0496f612`).
+- [x] Adopt glance decoding in `concat-media/src/decode.rs` (`1f0a7494`).
+- [x] Retain Clovercut simplified display-level chroma key (immune to WARP/Mesa device loss).
+- [x] Adopt shader warm-up on startup in `concat-host/src/preview.rs` (`56cd69a5`).
+- [x] Adopt settings tab separation per shell for mobile/compact views (`d3a1b876`).
 
-### Phase 2: Effects & Transitions Modernization
-- [ ] Import the 4 Shake & Motion effect packages into `src/crates/concat-effects/packages/` and bundle cards in `cards/` (`7f32c970`, `8be07bd3`).
-- [ ] Add `"Shake & Motion"` shelf to `src/crates/concat/ui/workspace/media-pane.slint`.
-- [ ] Update the 17 WGSL transition packages with the motion blur, SDF edge, and clean-room shaders (`c5fba06a`).
-- [ ] Adopt transition & effect CLI testing flags (`--progress`, `--moment`) in `concat-cli` (`4a024283`, `c1aca495`).
+### Phase 2: Effects & Transitions Modernization (Completed - PR #49)
+- [x] Import the 4 Shake & Motion effect packages into `src/crates/concat-effects/packages/` and bundle cards in `cards/` (`7f32c970`, `8be07bd3`, `fa8771ff`).
+- [x] Add `"Shake & Motion"` shelf to `src/crates/concat/ui/workspace/media-pane.slint`.
+- [x] Update the 17 WGSL transition packages with the motion blur, SDF edge, and clean-room shaders (`c5fba06a`).
+- [x] Adopt transition & effect CLI testing flags (`--progress`, `--moment`) in `concat-cli` (`4a024283`, `c1aca495`).
 
-### Phase 3: Advanced Capabilities (Motion System & Mask Stack)
-- [ ] Import motion core models and presets (`concat-core/src/motion.rs`).
-- [ ] Integrate motion picker into Clovercut's clip inspector UI (`clip-inspector.slint`).
+### Phase 3: Advanced Capabilities
+#### Motion System (Completed - PR #50)
+- [x] Import motion core models and presets (`concat-core/src/motion.rs`).
+- [x] Integrate `Clip::motion`, `Clip::pose_at`, `transform_at` and `opacity_at` compositing in `concat-core/src/timeline.rs`.
+- [x] Update project model (`ClipMotion`, `ClipMove`, `ClipLoop`) and command dispatch (`ClipPatch::motion`).
+- [x] Support motion in export flattening (`concat-export`) and title rendering (`concat-host/src/titles.rs`).
+- [x] Integrate interactive motion picker with animated cards (`motion_tiles.rs`, `motion-picker.slint`, `AnimatePanel`).
+- [x] Add phone UI support and complete 25-locale translations.
+
+#### Mask Stack & Multithreaded Painting (Next)
 - [ ] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`).
+- [ ] Multi-threaded title painting on background worker (`997c6ff9`, `7acf1cfa`).
 - [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics.

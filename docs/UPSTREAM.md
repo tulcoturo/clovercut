@@ -10,12 +10,10 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 Reviewed all 47 additional commits through `4e798b30` on 11 November 2026.
 The [comprehensive upstream audit](audits/2026-11-11-upstream-review.md) breaks down
 the full inventory between `9fcd218b` and `4e798b30` (Concat `v0.2.10+`).
-It prioritizes high-impact performance gains (bounded title shadow blur, glance-decoding,
-background shader warm-up), GPU driver crash fixes for Chroma Key on WARP/Mesa, the
-17 rebuilt WGSL transitions with motion blur and depth, the Shake & Motion effect
-suite, the In/Out/Loop motion system, multi-mask stacks, and crash-resilient structured
-logging (`concat-log`). Integration follows a phased model with validation conducted
-strictly via GitHub Actions CI.
+Implementation progress:
+- **Phase 1 & Phase 2 (Merged in PR #49):** Filmstrip glance decoding (`1f0a7494`), background shader warm-up (`56cd69a5`), 4 Shake & Motion effect packages with UI shelf (`7f32c970`, `8be07bd3`, `fa8771ff`), 17 rebuilt native WGSL transitions (`c5fba06a`), CLI preview flags (`4a024283`), and mobile responsive settings tabs (`d3a1b876`).
+- **Phase 3 Motion System (Merged in PR #50):** 14 In/Out entrance/exit moves and 9 Loop cycle animations (`concat-core/src/motion.rs`), timeline compositing over keyframes, project model and commands, export parity, title/shape painting preservation, animated motion tile card picker panel (`motion_tiles.rs`, `motion-picker.slint`), phone UI sheet, and 25-locale translations (#369, `7dbd7512`, `ea03fc04`, `39ef4c70`, `6fea490d`, `d22699f2`).
+- **Upcoming Phases:** Mask stacks multi-layer architecture (`aef7ef66`), multi-threaded title painting (`997c6ff9`), and crash-resilient structured logging (`concat-log`). Integration follows a phased model with validation conducted strictly via GitHub Actions CI.
 
 The previous [0.2.4 release review](audits/2026-11-09-upstream-release-review.md)
 audited commits through `9fcd218b`.
