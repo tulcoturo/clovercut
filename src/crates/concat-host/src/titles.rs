@@ -801,7 +801,8 @@ fn key_of(project: &Project, painting: Painting<'_>, width: u32, height: u32) ->
     // for a per-word reveal effect to read back. 8: expanded title canvases
     // preserve overflow and store the canvas size in the sidecar.
     // 9: per-word looks and variable line metrics.
-    bytes.extend_from_slice(&9u32.to_le_bytes());
+    // 10: cached colour glyphs, COLR gradients and presentation selectors.
+    bytes.extend_from_slice(&10u32.to_le_bytes());
     crate::media::fnv1a(&bytes)
 }
 
