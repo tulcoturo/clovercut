@@ -17061,6 +17061,8 @@ mod title_preview_ui_tests {
         )
         .unwrap();
         studio.open_project(info).unwrap();
+        // Suppress automatic monitor requests while arranging this fixture.
+        studio.on_start = true;
         let id = studio
             .apply(Command::AddTextClip {
                 above: true,
@@ -17083,6 +17085,7 @@ mod title_preview_ui_tests {
                 ease: model::KeyEase::LINEAR,
             });
         }
+        studio.on_start = false;
         studio.flat = None;
         studio.host.titles.clear_live();
         let key = crate::title_preview::Key {

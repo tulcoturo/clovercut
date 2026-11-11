@@ -311,6 +311,12 @@ jobs:
         working-directory: src
         run: cargo nextest run --locked -p concat --lib --no-run --build-jobs 1 --profile ci
 
+      - name: Title painting and cache lifecycle regressions
+        if: inputs.desktop_only
+        timeout-minutes: 10
+        working-directory: src
+        run: cargo test --locked -p concat-host --lib titles::tests:: -- --test-threads=1
+
       - name: Virtual desktop prerequisites (isolated runner only)
         if: (inputs.desktop_qa || inputs.desktop_only || inputs.runtime_probe) && !inputs.connector_only
         run: |
