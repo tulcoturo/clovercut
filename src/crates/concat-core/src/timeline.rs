@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use crate::animate::{Animation, RidingMask};
 use crate::arena::{Arena, Id};
-use crate::mask::{MaskStack, ShapeMask};
+use crate::mask::MaskStack;
 use crate::motion::{Motion, Pose};
 use crate::retime::SpeedCurve;
 use crate::time::{FrameRate, Rational, TimeRange};
