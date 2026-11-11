@@ -1,0 +1,47 @@
+format = 2
+
+[effect]
+id = "concat.face-alien"
+name = "Alien Face"
+kind = "effect"
+category = "Face"
+shelves = ["Featured"]
+order = 13
+intensity = "amount"
+description = "Exaggerates facial features with giant anime eyes and a tapered slim chin, CapCut viral cartoon style."
+
+[[param]]
+key = "amount"
+label = "Intensity"
+min = 0
+max = 200
+default = 85
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "eye_size"
+label = "Eye Bulge"
+min = 50
+max = 200
+default = 120
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "chin_pinch"
+label = "Chin Slim"
+min = 0
+max = 150
+default = 65
+step = 1
+unit = "%"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

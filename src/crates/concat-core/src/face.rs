@@ -3,7 +3,10 @@
 
 /// Whether an effect requires tracked facial landmarks.
 pub fn needs_face(id: &str) -> bool {
-    matches!(id, "concat.face-sunglasses" | "concat.face-dog")
+    matches!(
+        id,
+        "concat.face-sunglasses" | "concat.face-dog" | "concat.big-head" | "concat.face-alien"
+    )
 }
 
 /// Face position and five landmarks: right eye, left eye, nose, mouth corners.

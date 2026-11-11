@@ -6,7 +6,13 @@ use std::sync::Arc;
 
 /// Built-in passes that require a subject matte, independently of background removal.
 pub fn needs_subject(id: &str) -> bool {
-    matches!(id, "concat.subject-neon" | "concat.subject-electric")
+    matches!(
+        id,
+        "concat.subject-neon"
+            | "concat.subject-electric"
+            | "concat.subject-cyber-aura"
+            | "concat.subject-clone-trail"
+    )
 }
 
 /// Effects tied to source geometry run before ordinary picture distortions.
