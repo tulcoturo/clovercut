@@ -2518,7 +2518,7 @@ impl Studio {
                 .log_level
                 .as_deref()
                 .and_then(concat_host::logs::level_named)
-            && level != log::max_level()
+            && level != concat_host::logs::level()
         {
             concat_host::logs::set_level(level);
         }
