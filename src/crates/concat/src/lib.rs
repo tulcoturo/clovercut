@@ -48,6 +48,7 @@ mod ios;
 mod keymap;
 mod media_selection;
 mod meters;
+mod motion_tiles;
 mod platform;
 mod workspace_layout;
 /// What a phone's own crate installs before the window runs: the way to
@@ -356,6 +357,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     let dark = studio.prefs.dark.unwrap_or(true);
     app.global::<Theme>().set_ok_first(cfg!(windows));
     app.global::<Theme>().set_dark(dark);
+    motion_tiles::install(&app);
     // The accent is remembered by name and the names live on the Theme
     // global, so the index is looked up there rather than kept in Rust too.
     // A remembered hex is a colour picked by hand, which is the slot past

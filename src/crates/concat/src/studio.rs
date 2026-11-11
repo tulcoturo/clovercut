@@ -1700,6 +1700,26 @@ fn shown(clip: &Clip, property: model::KeyProperty, at: f64) -> f64 {
     }
 }
 
+/// Where a move or a loop named `kind` sits in its picker's list; -1 for
+/// none or a name the app does not know.
+fn motion_place(kind: Option<&str>, looping: bool) -> i32 {
+    let Some(kind) = kind else { return -1 };
+    let place = if looping {
+        concat_core::motion::Cycle::parse(kind).and_then(|found| {
+            concat_core::motion::Cycle::ALL
+                .iter()
+                .position(|c| *c == found)
+        })
+    } else {
+        concat_core::motion::Move::parse(kind).and_then(|found| {
+            concat_core::motion::Move::ALL
+                .iter()
+                .position(|m| *m == found)
+        })
+    };
+    place.map_or(-1, |place| place as i32)
+}
+
 /// A keyable property's value in the knob's units: the model's, except
 /// the level, which the knob shows in decibels and the clip holds as gain.
 fn knob_value(property: model::KeyProperty, value: f64) -> f64 {
@@ -1924,6 +1944,9 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
     }
     if after.mask != before.mask {
         patch.mask = Some(after.mask);
+    }
+    if after.motion != before.motion {
+        patch.motion = Some(after.motion.clone());
     }
     commands.extend(key_commands(id, before, after));
     if after.text != before.text {
@@ -6852,6 +6875,69 @@ impl Studio {
                     if let Some(mask) = clip.mask.as_mut() {
                         mask.invert = value != 0.0;
                     }
+                }
+                ClipField::MotionIn
+                | ClipField::MotionInSeconds
+                | ClipField::MotionOut
+                | ClipField::MotionOutSeconds
+                | ClipField::MotionLoop
+                | ClipField::MotionLoopSeconds
+                | ClipField::MotionLoopAmount => {
+                    let mut motion = clip.motion.clone().unwrap_or_default();
+                    let place = value.round() as i64;
+                    let moving = |place: i64| {
+                        usize::try_from(place)
+                            .ok()
+                            .and_then(|place| concat_core::motion::Move::ALL.get(place))
+                            .map(|kind| kind.name().to_owned())
+                    };
+                    match field {
+                        ClipField::MotionIn => {
+                            let seconds = motion.enter.as_ref().map_or(0.5, |m| m.seconds);
+                            motion.enter =
+                                moving(place).map(|kind| model::ClipMove { kind, seconds });
+                        }
+                        ClipField::MotionOut => {
+                            let seconds = motion.exit.as_ref().map_or(0.5, |m| m.seconds);
+                            motion.exit =
+                                moving(place).map(|kind| model::ClipMove { kind, seconds });
+                        }
+                        ClipField::MotionLoop => {
+                            let (seconds, amount) = motion
+                                .cycle
+                                .as_ref()
+                                .map_or((1.0, 1.0), |m| (m.seconds, m.amount));
+                            motion.cycle = usize::try_from(place)
+                                .ok()
+                                .and_then(|place| concat_core::motion::Cycle::ALL.get(place))
+                                .map(|kind| model::ClipLoop {
+                                    kind: kind.name().to_owned(),
+                                    seconds,
+                                    amount,
+                                });
+                        }
+                        ClipField::MotionInSeconds => {
+                            if let Some(m) = motion.enter.as_mut() {
+                                m.seconds = value;
+                            }
+                        }
+                        ClipField::MotionOutSeconds => {
+                            if let Some(m) = motion.exit.as_mut() {
+                                m.seconds = value;
+                            }
+                        }
+                        ClipField::MotionLoopSeconds => {
+                            if let Some(m) = motion.cycle.as_mut() {
+                                m.seconds = value;
+                            }
+                        }
+                        _ => {
+                            if let Some(m) = motion.cycle.as_mut() {
+                                m.amount = value;
+                            }
+                        }
+                    }
+                    clip.motion = motion.tidy();
                 }
                 ClipField::MaskX
                 | ClipField::MaskY
@@ -13269,6 +13355,47 @@ impl Studio {
                 .and_then(|mask| model::MaskShape::ALL.iter().position(|s| *s == mask.shape))
                 .map_or(-1, |index| index as i32),
             mask_invert: clip.mask.is_some_and(|mask| mask.invert),
+            motion_in: motion_place(
+                clip.motion
+                    .as_ref()
+                    .and_then(|m| m.enter.as_ref())
+                    .map(|m| m.kind.as_str()),
+                false,
+            ),
+            motion_in_seconds: clip
+                .motion
+                .as_ref()
+                .and_then(|m| m.enter.as_ref())
+                .map_or(0.5, |m| m.seconds) as f32,
+            motion_out: motion_place(
+                clip.motion
+                    .as_ref()
+                    .and_then(|m| m.exit.as_ref())
+                    .map(|m| m.kind.as_str()),
+                false,
+            ),
+            motion_out_seconds: clip
+                .motion
+                .as_ref()
+                .and_then(|m| m.exit.as_ref())
+                .map_or(0.5, |m| m.seconds) as f32,
+            motion_loop: motion_place(
+                clip.motion
+                    .as_ref()
+                    .and_then(|m| m.cycle.as_ref())
+                    .map(|m| m.kind.as_str()),
+                true,
+            ),
+            motion_loop_seconds: clip
+                .motion
+                .as_ref()
+                .and_then(|m| m.cycle.as_ref())
+                .map_or(1.0, |m| m.seconds) as f32,
+            motion_loop_amount: clip
+                .motion
+                .as_ref()
+                .and_then(|m| m.cycle.as_ref())
+                .map_or(1.0, |m| m.amount) as f32,
             mask_x: shown(clip, model::KeyProperty::MaskX, at) as f32,
             mask_y: shown(clip, model::KeyProperty::MaskY, at) as f32,
             mask_width: shown(clip, model::KeyProperty::MaskWidth, at) as f32,
@@ -15939,6 +16066,37 @@ mod tests {
         );
         assert_eq!(place_in(&after, 2.5), 0.25);
         assert_eq!(place_in(&after, 12.0), 1.0, "held to the end");
+    }
+
+    /// The Animate cards write the clip's motion into the echo; a commit
+    /// that had no command for motion dropped the pick, and the card sprang
+    /// back to None. Picked, changed and taken off, each lands.
+    #[test]
+    fn a_motion_picked_in_the_inspector_is_committed() {
+        use concat_project::model::{Clip, ClipKind as Kind, ClipMotion, ClipMove};
+        let before = Clip::blank("c1", "t1", Kind::Video, "m1", 0.0, 4.0);
+        let mut after = before.clone();
+        after.motion = Some(ClipMotion {
+            enter: Some(ClipMove {
+                kind: "pop".to_owned(),
+                seconds: 0.5,
+            }),
+            ..ClipMotion::default()
+        });
+        let patched = |commands: Vec<Command>| {
+            commands.into_iter().find_map(|command| match command {
+                Command::UpdateClip { patch, .. } => patch.motion,
+                _ => None,
+            })
+        };
+        assert_eq!(
+            patched(super::clip_commands("c1", &before, &after, false)),
+            Some(after.motion.clone())
+        );
+        assert_eq!(
+            patched(super::clip_commands("c1", &after, &before, false)),
+            Some(None)
+        );
     }
 
     /// A batch level lands on every clip as the inspector commits it - one
