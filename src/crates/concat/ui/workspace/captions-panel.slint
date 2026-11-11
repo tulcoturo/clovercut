@@ -261,10 +261,10 @@ export component CaptionsPanel inherits Rectangle {
                 clip: true;
 
                 script := TextInput {
-                    x: 8px;
-                    y: 6px;
-                    width: parent.width - 16px;
-                    height: parent.height - 12px;
+                    x: 12px;
+                    y: 8px;
+                    width: parent.width - 24px;
+                    height: parent.height - 16px;
                     text <=> root.draft;
                     color: Theme.fg;
                     font-size: Theme.fs;
@@ -277,8 +277,8 @@ export component CaptionsPanel inherits Rectangle {
                 }
 
                 if root.draft == "" && !script.has-focus: Text {
-                    x: 8px;
-                    y: 6px;
+                    x: 12px;
+                    y: 8px;
                     text: I18n.t("captions.typeWordsPutScreen");
                     color: Theme.fg-dim;
                     font-size: Theme.fs;

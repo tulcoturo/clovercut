@@ -3838,7 +3838,13 @@ impl Studio {
     /// A scrub: the playhead goes to `seconds`, and while a finger is on
     /// the phone's lanes, where it went is a sample of how fast they move.
     pub fn scrub(&mut self, seconds: f64) {
-        self.seek(seconds.max(0.0));
+        let target = if self.lanes.snap && !self.playing {
+            let threshold = 8.0 * f64::from(self.lanes.seconds_per_pixel.max(1e-6));
+            self.snapped(seconds.max(0.0), threshold, "")
+        } else {
+            seconds.max(0.0)
+        };
+        self.seek(target);
         if self.coast.tracking {
             let at = self.coast.clock();
             self.coast.tracker.push(at, self.playhead);
