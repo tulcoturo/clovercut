@@ -60,7 +60,17 @@ jobs:
           cache-on-failure: true
       - name: Software Vulkan adapter
         run: |
-          sudo apt-get update -o Acquire::Retries=3
+          sudo python3 - <<'PYTHON'
+          from pathlib import Path
+          paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), *Path('/etc/apt/sources.list.d').glob('*.sources'), *Path('/etc/apt/sources.list.d').glob('*.list')]
+          for path in paths:
+              if path.is_file():
+                  text = path.read_text()
+                  updated = text.replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu').replace('https://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu')
+                  if updated != text:
+                      path.write_text(updated)
+          PYTHON
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers
           mkdir -p "$RUNNER_TEMP/render-runtime"
           chmod 700 "$RUNNER_TEMP/render-runtime"
