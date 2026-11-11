@@ -315,7 +315,8 @@ jobs:
         if: inputs.desktop_only
         timeout-minutes: 10
         working-directory: src
-        run: cargo test --locked -p concat-host --lib titles::tests:: -- --test-threads=1
+        run: |
+          cargo test --locked -p concat-host --lib titles::tests:: -- --test-threads=1
 
       - name: Virtual desktop prerequisites (isolated runner only)
         if: (inputs.desktop_qa || inputs.desktop_only || inputs.runtime_probe) && !inputs.connector_only

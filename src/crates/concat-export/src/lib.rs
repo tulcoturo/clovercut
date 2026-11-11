@@ -42,9 +42,7 @@ use concat_core::time::{FrameRate, Rational};
 use concat_core::timeline::{Clip, ClipId, MediaRef, Timeline, Track, TrackKind, Transform};
 use concat_effects::Catalogue;
 use concat_media::audio::{self, AudioClip};
-use concat_media::{
-    DecodeOptions, EncodeOptions, Encoder, FrameSink, RateMode, VideoCodec,
-};
+use concat_media::{DecodeOptions, EncodeOptions, Encoder, FrameSink, RateMode, VideoCodec};
 use concat_project::model::{AppliedFilter, ColorSpace, Cutout, Mask};
 use concat_render::{
     Compositor, FramePlan, PlannedLayer, PlannedTreatment, Transition, WgpuCompositor, plan_frame,
@@ -3102,7 +3100,10 @@ mod tests {
             })
             .expect("animates the clip");
         let clips = flatten::flatten_timeline(editor.project(), None);
-        assert!(clips[0].motion.is_some(), "the motion reaches the flattened clip");
+        assert!(
+            clips[0].motion.is_some(),
+            "the motion reaches the flattened clip"
+        );
         let plan = preview_plan(&clips, 64, 36, 30, 1, ColorSpace::default());
         let at = |seconds: f64| {
             let time = Rational::approximate(seconds).expect("a time");
@@ -3122,7 +3123,10 @@ mod tests {
             (start.transform.offset_x - middle.transform.offset_x).abs() > 0.1,
             "Slide Left has the picture off to the side at the start"
         );
-        assert!(end.opacity < 0.5, "Fade out has the picture faded at the end");
+        assert!(
+            end.opacity < 0.5,
+            "Fade out has the picture faded at the end"
+        );
         assert!((middle.opacity - 1.0).abs() < 1e-3, "at rest in the middle");
     }
     #[test]
