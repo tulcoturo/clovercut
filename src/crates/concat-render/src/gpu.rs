@@ -2097,6 +2097,8 @@ impl WgpuCompositor {
             intensity: 1.0,
             lut: None,
             reveal_map: None,
+            face_frame: None,
+            subject_mask: None,
             stages: Vec::new(),
         };
         self.shader(&pass);
@@ -2118,7 +2120,7 @@ impl WgpuCompositor {
         };
         let target = self.claim(width, height);
         let lut_id = self.lut_group(None);
-        let reveal_id = self.reveal_group(None);
+        let reveal_id = self.reveal_group(None, None, None);
         let shader = &self.shaders[MASK_STACK_KEY];
         let frame_block: [f32; 8] = [width as f32, height as f32, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
         let frame_bytes: Vec<u8> = frame_block.iter().flat_map(|v| v.to_le_bytes()).collect();

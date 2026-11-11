@@ -1721,7 +1721,7 @@ export component VideoPanel inherits VerticalLayout {
 
                     if row.shape >= 0 && row.shape < root.mask-glyphs.length: Icon {
                         glyph: root.mask-glyphs[row.shape];
-                        fg: current ? Theme.fg : Theme.fg-dim;
+                        tint: current ? Theme.fg : Theme.fg-dim;
                     }
 
                     Text {
