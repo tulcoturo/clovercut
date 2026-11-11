@@ -309,14 +309,17 @@ jobs:
         if: inputs.desktop_only
         timeout-minutes: 75
         working-directory: src
-        run: cargo nextest run --locked -p concat --lib --no-run --build-jobs 1 --profile ci
+        run: |
+          set -o pipefail
+          cargo nextest run --locked -p concat --lib --no-run --build-jobs 1 --profile ci 2>&1 | tee nextest-build.log
 
       - name: Title painting and cache lifecycle regressions
         if: inputs.desktop_only
         timeout-minutes: 10
         working-directory: src
         run: |
-          cargo test --locked -p concat-host --lib titles::tests:: -- --test-threads=1
+          set -o pipefail
+          cargo test --locked -p concat-host --lib titles::tests:: -- --test-threads=1 2>&1 | tee nextest-title-cache.log
 
       - name: Virtual desktop prerequisites (isolated runner only)
         if: (inputs.desktop_qa || inputs.desktop_only || inputs.runtime_probe) && !inputs.connector_only
