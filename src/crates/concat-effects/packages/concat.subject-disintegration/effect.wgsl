@@ -25,60 +25,38 @@ fn dis_noise(p: vec2<f32>) -> f32 {
 fn effect(uv: vec2<f32>) -> vec4<f32> {
     let base = sample(uv);
     let person = subject_at(uv);
-
-    let progress = params.progress * 0.01;
-    if (progress <= 0.0) { return base; }
-
-    let p = uv * frame.size / frame.size.y;
+    let progress = clamp(params.progress * 0.01, 0.0, 1.0);
+    let aspect = vec2<f32>(frame.size.x / frame.size.y, 1.0);
+    let p = uv * aspect;
     let rad = params.direction * 0.0174532925;
     let wind = vec2<f32>(cos(rad), sin(rad));
-
-    let flight_dist = params.spread * 0.01 * progress;
-    let wind_step = wind * (flight_dist * 0.5);
+    let wind_step = wind * (params.spread * 0.005 * progress) / aspect;
+    // Read both mattes before deciding coverage, including on WARP/FXC.
     let sample_prev = subject_at(uv - wind_step);
 
-    // If no subject here and none upstream, leave original base completely untouched
-    if (person <= 0.001 && sample_prev <= 0.001) {
-        return base;
-    }
-
-    let flow_pos = dot(p, wind) * 1.5;
+    // Normalise the directional sweep across the frame for every wind angle
+    // and aspect ratio, so 0% is untouched and 100% removes the whole person.
+    let low = dot(min(wind, vec2<f32>(0.0)), aspect);
+    let extent = dot(abs(wind), aspect);
+    let flow = clamp((dot(p, wind) - low) / max(extent, 0.0001), 0.0, 1.0);
     let n = dis_noise(p * 22.0 + vec2<f32>(frame.clip_time * 0.4));
-    let dissolve_metric = flow_pos * 0.3 + n * 0.7;
-
-    let threshold = progress * 1.3 - 0.15;
-    let burn = dissolve_metric - threshold;
-
+    let metric = flow * 0.3 + n * 0.7;
+    let burn = metric - (progress * 1.2 - 0.1);
+    let dissolved = 1.0 - smoothstep(-0.035, 0.0, burn);
+    let life = 4.0 * progress * (1.0 - progress);
     let ember_col = ember_tint(params.hue);
+    let edge = (1.0 - smoothstep(0.0, 0.09, abs(burn))) * person * life;
+    let glow = (ember_col * 3.5 + vec3<f32>(1.0, 0.9, 0.7)) * edge;
 
-    var result_rgb = base.rgb;
-    var result_a = base.a;
-
-    if (person > 0.01) {
-        if (burn < 0.0) {
-            result_a = 0.0;
-        } else if (burn < 0.09) {
-            let edge_t = 1.0 - (burn / 0.09);
-            let glow = ember_col * (edge_t * 3.5 + 0.5) + vec3<f32>(1.0, 0.9, 0.7) * (edge_t * edge_t * 2.0);
-            result_rgb = mix(base.rgb, glow, edge_t);
-            result_a = base.a * person;
-        } else {
-            result_a = base.a * person;
-        }
-    } else {
-        result_a = 0.0;
-    }
-
-    if (sample_prev > 0.1 && (1.0 - person) > 0.01) {
-        let p_spark = dis_noise(p * 75.0 - wind * frame.clip_time * 3.0);
-        if (p_spark > 0.88) {
-            let spark_int = (p_spark - 0.88) / 0.12;
-            let spark_col = ember_col * (spark_int * 4.0) + vec3<f32>(1.0, 0.9, 0.6) * spark_int;
-            result_rgb += spark_col * sample_prev * (1.0 - person);
-            result_a = max(result_a, spark_int * sample_prev);
-        }
-    }
-
-    let comp_a = clamp(result_a, 0.0, 1.0);
-    return vec4<f32>(mix(base.rgb, result_rgb, comp_a), base.a);
+    // Remove only the matte-covered share. Outside it, the source retains
+    // its own coverage; a soft matte gives a correspondingly soft cutout.
+    let remaining = base.a * (1.0 - person * dissolved);
+    let spark_noise = dis_noise(p * 75.0 - wind * frame.clip_time * 3.0);
+    let spark = smoothstep(0.88, 1.0, spark_noise) * sample_prev
+        * (1.0 - person) * life * base.a;
+    let spark_col = ember_col * 4.0 + vec3<f32>(1.0, 0.9, 0.6);
+    let alpha = spark + remaining * (1.0 - spark);
+    let premultiplied = spark_col * spark
+        + (base.rgb + glow) * remaining * (1.0 - spark);
+    return vec4<f32>(premultiplied / max(alpha, 0.000001), alpha);
 }

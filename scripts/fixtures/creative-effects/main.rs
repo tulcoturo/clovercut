@@ -83,17 +83,150 @@ fn difference(a: &Frame, b: &Frame) -> f64 {
 }
 
 fn ppm(path: &Path, frame: &Frame) {
-    let mut data = format!("P6\n{} {}\n255\n", W, H).into_bytes();
+    let mut data = format!("P6\n{} {}\n255\n", frame.width(), frame.height()).into_bytes();
     for px in frame.pixels().chunks_exact(4) {
         data.extend_from_slice(&px[..3]);
     }
     std::fs::write(path, data).expect("write preview");
 }
 
+/// Exercise dissolution with an analysed matte, not just the missing-mask probes.
+fn check_disintegration(gpu: &mut WgpuCompositor, catalogue: &Catalogue) {
+    use concat_core::subject::SubjectMask;
+
+    let (w, h) = (96, 64);
+    let mut image = Frame::transparent(w, h);
+    image.fill([100, 80, 60, 192]);
+    let matte = |left: u32, coverage: u8| {
+        let mut gray = vec![0; (w * h) as usize];
+        for y in 12..52 {
+            for x in left..left + 20 {
+                gray[(y * w + x) as usize] = coverage;
+            }
+        }
+        Arc::new(SubjectMask::new(w, h, gray).expect("subject matte"))
+    };
+    let package = catalogue
+        .get("concat.subject-disintegration")
+        .expect("package");
+    let mut draw = |progress: f64, direction: f64, mask, canvas, source: &Frame| {
+        let mut values = package.params_at(At::Default);
+        values.insert("progress".into(), progress);
+        values.insert("direction".into(), direction);
+        let mut pass = package.pass(&values, None).expect("shader");
+        pass.subject_mask = mask;
+        let mut layer = PlannedLayer::picture(detached_clip(), Arc::new(source.clone()));
+        layer.effects = vec![pass];
+        gpu.render(&FramePlan {
+            canvas,
+            layers: vec![layer],
+            ..FramePlan::empty(w, h)
+        })
+    };
+    let clear = [0; 4];
+    let original = draw(0.0, 0.0, Some(matte(20, 255)), clear, &image);
+    for direction in [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0, 360.0] {
+        let untouched = draw(100.0, direction, None, clear, &image);
+        assert_eq!(
+            untouched.pixels(),
+            original.pixels(),
+            "missing matte is idle"
+        );
+        let finished = draw(100.0, direction, Some(matte(20, 255)), clear, &image);
+        assert_eq!(
+            finished.pixel(30, 32).unwrap()[3],
+            0,
+            "subject dissolves at {direction} degrees"
+        );
+        assert_eq!(
+            finished.pixel(2, 2),
+            original.pixel(2, 2),
+            "background stays whole"
+        );
+        assert_eq!(
+            finished.pixel(60, 32),
+            original.pixel(60, 32),
+            "no sparks remain at completion"
+        );
+    }
+    let partial = draw(100.0, 45.0, Some(matte(20, 128)), clear, &image);
+    assert!(
+        partial.pixel(30, 32).unwrap()[3].abs_diff(96) <= 2,
+        "soft matte keeps fractional coverage"
+    );
+    let moved = draw(100.0, 45.0, Some(matte(60, 255)), clear, &image);
+    assert_eq!(
+        moved.pixel(30, 32),
+        original.pixel(30, 32),
+        "old position is restored"
+    );
+    assert_eq!(
+        moved.pixel(70, 32).unwrap()[3],
+        0,
+        "dissolution follows the matte"
+    );
+    let canvas = [20, 120, 180, 255];
+    let composited = draw(100.0, 45.0, Some(matte(20, 255)), canvas, &image);
+    let center = composited.pixel(30, 32).unwrap();
+    assert!(
+        center.iter().zip(canvas).all(|(a, b)| a.abs_diff(b) <= 2),
+        "dissolved pixels reveal the canvas: {center:?}"
+    );
+    let mut transparent = image.clone();
+    transparent.fill([0; 4]);
+    let empty = draw(50.0, 45.0, Some(matte(20, 255)), clear, &transparent);
+    assert!(
+        empty.pixels().chunks_exact(4).all(|p| p[3] == 0),
+        "an empty source cannot emit particles"
+    );
+    let halfway = draw(50.0, 45.0, Some(matte(20, 255)), clear, &image);
+    assert_ne!(
+        halfway.pixels(),
+        original.pixels(),
+        "intermediate dissolve is visible"
+    );
+    let interior_alpha: Vec<_> = (14..50)
+        .flat_map(|y| (22..38).map(move |x| (x, y)))
+        .map(|(x, y)| halfway.pixel(x, y).unwrap()[3])
+        .collect();
+    assert!(interior_alpha.contains(&0), "halfway has dissolved pixels");
+    assert!(
+        interior_alpha.iter().any(|a| *a > 150),
+        "halfway still has subject pixels"
+    );
+    if let Some(dir) = std::env::var_os("CLOVERCUT_EFFECTS_QA_OUTPUT") {
+        let dir = std::path::PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).expect("probe folder");
+        for progress in [0, 50, 100] {
+            let frame = draw(progress as f64, 45.0, Some(matte(20, 255)), canvas, &image);
+            ppm(
+                &dir.join(format!("subject-disintegration-{progress}.ppm")),
+                &frame,
+            );
+            let alpha = draw(progress as f64, 45.0, Some(matte(20, 255)), clear, &image);
+            let mut coverage = Frame::transparent(w, h);
+            for y in 0..h {
+                for x in 0..w {
+                    let a = alpha.pixel(x, y).unwrap()[3];
+                    coverage.set_pixel(x, y, [a, a, a, 255]);
+                }
+            }
+            ppm(
+                &dir.join(format!("subject-disintegration-alpha-{progress}.ppm")),
+                &coverage,
+            );
+        }
+    }
+    println!(
+        "Subject disintegration: endpoints, directions, soft/moved matte, canvas and transparency passed"
+    );
+}
+
 fn main() {
     let catalogue = Catalogue::builtin();
     let mut gpu = WgpuCompositor::new().expect("a real GPU or software adapter is required");
     println!("Adapter: {:?}", gpu.adapter_info());
+    check_disintegration(&mut gpu, catalogue);
     // Build every builtin pipeline on this adapter, including WARP/FXC. A
     // canary after each package attributes a device loss to its actual cause.
     let canary = catalogue
