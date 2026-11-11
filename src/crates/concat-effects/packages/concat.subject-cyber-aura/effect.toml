@@ -1,0 +1,56 @@
+format = 2
+
+[effect]
+id = "concat.subject-cyber-aura"
+name = "Cyber Aura"
+kind = "effect"
+category = "Subject"
+shelves = ["Featured"]
+order = 11
+intensity = "amount"
+description = "Radiant pulsing energy aura with directional light beams hugging the full body silhouette."
+
+[[param]]
+key = "amount"
+label = "Amount"
+min = 0
+max = 200
+default = 90
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "width"
+label = "Width"
+min = 0.5
+max = 6
+default = 2.2
+step = 0.1
+unit = "%"
+animate = true
+
+[[param]]
+key = "hue"
+label = "Hue"
+min = 0
+max = 360
+default = 175
+step = 1
+unit = "°"
+animate = true
+
+[[param]]
+key = "speed"
+label = "Speed"
+min = 0
+max = 4
+default = 1.3
+step = 0.1
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7

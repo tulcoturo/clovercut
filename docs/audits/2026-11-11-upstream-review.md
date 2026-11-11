@@ -174,7 +174,7 @@ To preserve system stability and keep user machine resources free (no heavy loca
 - [x] Clean test-scoped `Decoder` and `FrameSource` imports (`da2fd371`).
 - [x] Resilient IPv4 and DNS fallback configuration in GitHub Actions CI workflows.
 
-#### Multi-Mask Stack Architecture (Completed - PR feat/upstream-mask-stack)
+#### Multi-Mask Stack Architecture (Completed - PR #53)
 - [x] Integrate mask stack multi-layer architecture and keyframing into `concat-core`, `concat-project`, and UI (`aef7ef66`, `ab16bf42`, `31193bc0`, `bb0e7c44`):
   - `concat-core`: `mask.rs` implements `MaskStack`, `MaskMode` (Add, Subtract, Intersect, None), `ShapeMask` with `expand` and `opacity`; `animate.rs` and `timeline.rs` keyframe each mask individually.
   - `concat-render`: WGSL mask shader `MASK_STACK_WGSL` compiles uniform buffers supporting up to 8 combined masks; reference CPU evaluation and GPU integration tests.
@@ -182,6 +182,22 @@ To preserve system stability and keep user machine resources free (no heavy loca
   - `concat-export` & `concat-host`: Pipeline resolves and renders mask stacks per clip across export and preview pipelines.
   - `concat-mcp`: Updated `clip_masks` and `mask_key_set` tools with matching JSON schemas.
   - `concat` UI (Slint & Rust): Added `studio/masks.rs`, updated `masking.rs` (`MaskAt`), inspector UI with mask list reordering, mode pickers, expand, opacity, and full keyframe cluster support. All 26 locales updated.
+  - CI verification: 100% green across visual effect, GPU render, and headless quality checks. Merged into `main`.
+
+#### Creative CapCut-Style Face Distortion & Full-Body Effects (Completed - PR feat/creative-face-body-effects)
+- [x] **Big Head (`concat.big-head`)**:
+  - Exaggerated head/face enlargement with spherical radial bulge centered on detected facial landmarks (`needs_face: true`).
+  - Configurable `amount`, `radius`, and edge `feather` with zero artifacts on the torso or background.
+- [x] **Alien Face (`concat.face-alien`)**:
+  - Exaggerated manga/alien eyes with localized bilateral eye bulge and a tapered slim jaw/chin pinch.
+  - Configurable `amount`, `eye_size`, and `chin_pinch`.
+- [x] **Cyber Aura (`concat.subject-cyber-aura`)**:
+  - Radiant animated cyber aura and directional ray bursts hugging the full-body silhouette (`needs_subject: true`).
+  - Multi-harmonic energy expansion waves with two-tone cyberpunk gradient lighting.
+- [x] **Clone Trail (`concat.subject-clone-trail`)**:
+  - Chromatic RGB ghost clones oscillating behind the moving subject, CapCut viral phantom dance style.
+  - Configurable `amount`, `spread`, `speed`, and `glow`.
+- [x] Verified zero-overhead pass-through when subject or face is absent (fully compliant with probe tests and FXC/WARP drivers).
 
 #### Next Priorities
 - [ ] Evaluate migration to `concat-log` / `clovercut-log` for robust crash diagnostics (`a42e6963`).

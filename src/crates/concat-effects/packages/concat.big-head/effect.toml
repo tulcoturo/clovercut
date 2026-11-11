@@ -1,0 +1,47 @@
+format = 2
+
+[effect]
+id = "concat.big-head"
+name = "Big Head"
+kind = "effect"
+category = "Face"
+shelves = ["Featured"]
+order = 12
+intensity = "amount"
+description = "Enlarges and inflates the head and face with a smooth radial distortion, CapCut bobblehead style."
+
+[[param]]
+key = "amount"
+label = "Enlarge"
+min = 0
+max = 200
+default = 85
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "radius"
+label = "Head Size"
+min = 50
+max = 200
+default = 115
+step = 1
+unit = "%"
+animate = true
+
+[[param]]
+key = "feather"
+label = "Feather"
+min = 10
+max = 100
+default = 45
+step = 1
+unit = "%"
+animate = true
+
+[wgsl]
+entry = "effect.wgsl"
+
+[card]
+moment = 0.7
