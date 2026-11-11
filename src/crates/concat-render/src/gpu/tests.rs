@@ -2473,11 +2473,13 @@ fn transparent_filter_stacks_do_not_accumulate_coverage() {
                         1.0,
                     )],
                     strength,
+                    start: 0.0,
                 },
                 PlannedTreatment {
                     track: 2,
                     effects: vec![],
                     strength: 1.0,
+                    start: 0.0,
                 },
             ];
             let after = gpu.render(&source);
@@ -2565,6 +2567,7 @@ fn a_filter_on_transparency_reads_straight_colour_and_keeps_coverage() {
             track: 1,
             effects: vec![package("concat.invert", INVERT, "", &[], 1.0)],
             strength: 1.0,
+            start: 0.0,
         }],
         ..plan(8, 8, vec![picture])
     };
