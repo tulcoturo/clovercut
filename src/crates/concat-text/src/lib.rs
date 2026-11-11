@@ -1836,9 +1836,7 @@ pub fn render(
     height: u32,
 ) -> Result<Rendered, Error> {
     let (canvas, block, words) = paint(fonts, style, width, height)?;
-    let png = canvas
-        .encode_png()
-        .map_err(|error| Error::Encode(error.to_string()))?;
+    let png = encode_png(&canvas)?;
     Ok(Rendered {
         png,
         width: canvas.width(),
@@ -2523,9 +2521,7 @@ pub struct ShapeStyle {
 /// [`render`] for a shape.
 pub fn render_shape(style: &ShapeStyle, width: u32, height: u32) -> Result<Rendered, Error> {
     let (canvas, block) = paint_shape(style, width, height)?;
-    let png = canvas
-        .encode_png()
-        .map_err(|error| Error::Encode(error.to_string()))?;
+    let png = encode_png(&canvas)?;
     Ok(Rendered {
         png,
         width,
@@ -2538,6 +2534,41 @@ pub fn render_shape(style: &ShapeStyle, width: u32, height: u32) -> Result<Rende
         block_dy: block.3,
         words: Vec::new(),
     })
+}
+
+/// tiny-skia keeps premultiplied pixels; a frame carries straight alpha.
+/// `canvas` as a PNG, straight alpha, compressed the fast way.
+///
+/// A title's canvas is a frame or more of mostly clear pixels, and
+/// tiny-skia's own encoder deflates it at the default level: measured on
+/// an M5, that was over half of the time a 1080p title took to paint.
+/// The PNG holds the same pixels either way; this one is a little larger.
+fn encode_png(canvas: &Pixmap) -> Result<Vec<u8>, Error> {
+    let rgba = straight_rgba(canvas);
+    let mut png = Vec::new();
+    let mut encoder = png::Encoder::new(&mut png, canvas.width(), canvas.height());
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_compression(png::Compression::Fast);
+    encoder
+        .write_header()
+        .and_then(|mut writer| writer.write_image_data(&rgba))
+        .map_err(|error| Error::Encode(error.to_string()))?;
+    Ok(png)
+}
+
+fn straight_rgba(canvas: &Pixmap) -> Vec<u8> {
+    let mut rgba = Vec::with_capacity(canvas.pixels().len() * 4);
+    for pixel in canvas.pixels() {
+        let straight = pixel.demultiply();
+        rgba.extend_from_slice(&[
+            straight.red(),
+            straight.green(),
+            straight.blue(),
+            straight.alpha(),
+        ]);
+    }
+    rgba
 }
 
 /// [`render_shape`], but the pixels rather than a PNG of them; the
@@ -2821,6 +2852,22 @@ mod tests {
             max_height: 0.0,
             runs: Vec::new(),
         }
+    }
+
+    /// A title's PNG holds exactly the pixels painted for it.
+    #[test]
+    fn the_png_holds_the_painted_pixels() {
+        let fonts = Fonts::new();
+        let look = style("Kept on disk");
+        let painted = render_frame(&fonts, &look, 640, 360).unwrap();
+        let written = render(&fonts, &look, 640, 360).unwrap();
+        let mut reader = png::Decoder::new(std::io::Cursor::new(&written.png))
+            .read_info()
+            .expect("a PNG");
+        let mut pixels = vec![0; reader.output_buffer_size().expect("a size")];
+        let info = reader.next_frame(&mut pixels).expect("decodes");
+        assert_eq!((info.width, info.height), (written.width, written.height));
+        assert!(pixels[..info.buffer_size()] == painted.rgba[..]);
     }
 
     #[test]
