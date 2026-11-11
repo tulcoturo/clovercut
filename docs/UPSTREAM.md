@@ -7,6 +7,19 @@ media ownership, cancellation, atomic exports and Clovercut's existing UI.
 
 ## Current review
 
+Reviewed all 47 additional commits through `4e798b30` on 11 November 2026.
+The [comprehensive upstream audit](audits/2026-11-11-upstream-review.md) breaks down
+the full inventory between `9fcd218b` and `4e798b30` (Concat `v0.2.10+`).
+It prioritizes high-impact performance gains (bounded title shadow blur, glance-decoding,
+background shader warm-up), GPU driver crash fixes for Chroma Key on WARP/Mesa, the
+17 rebuilt WGSL transitions with motion blur and depth, the Shake & Motion effect
+suite, the In/Out/Loop motion system, multi-mask stacks, and crash-resilient structured
+logging (`concat-log`). Integration follows a phased model with validation conducted
+strictly via GitHub Actions CI.
+
+The previous [0.2.4 release review](audits/2026-11-09-upstream-release-review.md)
+audited commits through `9fcd218b`.
+
 The [media-selection follow-up](audits/2026-11-08-media-selection.md) checks
 Concat #696 against Clovercut, adapts focused Select All and visible-order range
 selection, and records the additional cosmetic commit through `9d7f61b3`.
