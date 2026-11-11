@@ -1706,8 +1706,8 @@ export component VideoPanel inherits VerticalLayout {
             // below work on, its buttons moving and removing it.
             for row[index] in root.selected.masks: Rectangle {
                 property <bool> current: index == root.selected.mask-index;
-                background: current ? Theme.hover : touch.has-hover ? Theme.hover.transparentize(0.5) : @linear-gradient(0deg, #0000 0%, #0000 100%);
-                border-radius: Theme.radius;
+                background: current ? Theme.field-active : touch.has-hover ? Theme.field-hover : Colors.transparent;
+                border-radius: Theme.r-sm;
 
                 touch := TouchArea {
                     clicked => { root.set(ClipField.mask-select, index); root.commit(); }
