@@ -1248,6 +1248,7 @@ dependencies = [
  "concat-core",
  "concat-effects",
  "concat-export",
+ "concat-log",
  "concat-media",
  "concat-project",
  "concat-render",
@@ -1268,6 +1269,14 @@ dependencies = [
  "ureq 2.12.1",
  "url",
  "webpki-roots 0.26.11",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "concat-log"
+version = "0.2.4"
+dependencies = [
+ "log",
  "windows-sys 0.61.2",
 ]
 
