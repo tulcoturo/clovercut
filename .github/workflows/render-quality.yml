@@ -60,6 +60,7 @@ jobs:
           cache-on-failure: true
       - name: Software Vulkan adapter
         run: |
+          echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
           sudo python3 - <<'PYTHON'
           from pathlib import Path
           paths = [Path('/etc/apt/sources.list'), Path('/etc/apt/apt-mirrors.txt'), *Path('/etc/apt/sources.list.d').glob('*.sources'), *Path('/etc/apt/sources.list.d').glob('*.list')]
