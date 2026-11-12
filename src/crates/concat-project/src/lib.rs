@@ -3416,7 +3416,11 @@ mod tests {
         let written = &document["timelines"][0]["clips"][0];
         assert_eq!(written["masks"][0]["source"]["shape"], "rectangle");
         assert_eq!(written["masks"][0]["invert"], true);
-        assert!(written["masks"][0]["keys"].as_object().is_some_and(|keys| keys.contains_key("x")));
+        assert!(
+            written["masks"][0]["keys"]
+                .as_object()
+                .is_some_and(|keys| keys.contains_key("x"))
+        );
         let restored = Editor::from_document(&document).expect("loads");
         assert_eq!(restored.project(), editor.project());
 

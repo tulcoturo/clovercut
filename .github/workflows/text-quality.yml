@@ -1,0 +1,81 @@
+name: Title and colour glyph checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        default: ''
+  pull_request:
+    paths:
+      - '.github/workflows/text-quality.yml'
+      - 'src/crates/concat-text/**'
+      - 'src/crates/concat-host/src/titles.rs'
+      - 'src/Cargo.toml'
+      - 'src/Cargo.lock'
+      - 'src/rust-toolchain.toml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/text-quality.yml'
+      - 'src/crates/concat-text/**'
+      - 'src/crates/concat-host/src/titles.rs'
+      - 'src/Cargo.toml'
+      - 'src/Cargo.lock'
+      - 'src/rust-toolchain.toml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: text-${{ github.event_name }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  text:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: src
+    env:
+      CARGO_BUILD_JOBS: '1'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_PROFILE_DEV_CODEGEN_UNITS: '16'
+      CARGO_PROFILE_TEST_CODEGEN_UNITS: '16'
+      CLOVERCUT_TEXT_PROBES: '${{ github.workspace }}/text-probes'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - name: Pinned toolchain
+        id: toolchain
+        run: echo "channel=$(sed -n 's/^channel = \"\(.*\)\"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: src
+          shared-key: title-text
+          cache-on-failure: true
+      - name: Strict text checks
+        run: cargo clippy --locked -p concat-text --all-targets -- -D warnings
+      - name: Typography, colour glyphs and shared-cache regressions
+        run: cargo test --locked -p concat-text -- --test-threads=2
+      - name: Keep actual glyph renders
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: text-render-probes-${{ runner.os }}
+          path: text-probes/*.png
+          retention-days: 7
+          if-no-files-found: warn

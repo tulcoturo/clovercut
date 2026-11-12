@@ -56,6 +56,9 @@ on:
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
       - 'src/crates/concat/src/request_owner.rs'
+      - 'src/crates/concat/src/title_preview.rs'
+      - 'src/crates/concat/src/panes/monitor.rs'
+      - 'scripts/fixtures/title-preview/**'
       - 'src/crates/concat/src/panes/captions.rs'
       - 'src/crates/concat/src/panes/speech.rs'
       - 'src/crates/concat/src/panes/sounds.rs'
@@ -105,6 +108,9 @@ on:
       - 'src/crates/concat/src/relink_search.rs'
       - 'src/crates/concat/src/owned_audio.rs'
       - 'src/crates/concat/src/request_owner.rs'
+      - 'src/crates/concat/src/title_preview.rs'
+      - 'src/crates/concat/src/panes/monitor.rs'
+      - 'scripts/fixtures/title-preview/**'
       - 'src/crates/concat/src/panes/captions.rs'
       - 'src/crates/concat/src/panes/speech.rs'
       - 'src/crates/concat/src/panes/sounds.rs'
@@ -180,6 +186,10 @@ jobs:
         run: |
           clippy-driver --edition 2024 --test -D warnings crates/concat/src/request_owner.rs -o /tmp/clovercut-request-owner-tests
           /tmp/clovercut-request-owner-tests
+      - name: Background title ownership and cache regressions
+        run: |
+          clippy-driver --edition 2024 --test -D warnings scripts/fixtures/title-preview/main.rs -o /tmp/clovercut-title-preview-tests
+          /tmp/clovercut-title-preview-tests
       - name: Caption language policy without native speech libraries
         working-directory: src
         run: |

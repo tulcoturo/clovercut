@@ -1111,6 +1111,8 @@ pub struct Studio {
         std::sync::Arc<Vec<concat_export::ExportClip>>,
         Vec<String>,
     )>,
+    /// The visible titles prepared off the event loop, with one worker at a time.
+    title_preview: crate::title_preview::Preview<concat_host::titles::TitleClip>,
     /// An inspector commit waiting to land: a knob being dragged commits
     /// on every move, and each commit was a command, an undo of the last,
     /// a rebuild of the mix and a full publish. The commit is held until
@@ -2602,6 +2604,7 @@ impl Studio {
             revision: 0,
             flat_base: None,
             flat: None,
+            title_preview: Default::default(),
             commit_pending: false,
             fade_drag: None,
             commit_targets: Vec::new(),
@@ -2737,6 +2740,7 @@ impl Studio {
         self.media.thumbs.clear();
         self.title_blocks.clear();
         self.host.titles.clear_live();
+        self.title_preview.clear();
         self.flat_base = None;
         self.flat = None;
     }
@@ -3556,6 +3560,33 @@ impl Studio {
         std::sync::Arc<Vec<concat_export::ExportClip>>,
         concat_project::DocumentSettings,
     )> {
+        self.preview_clips_with(shown_w, shown_h, time, false)
+    }
+
+    /// The interactive monitor may show footage while a worker prepares
+    /// missing titles. Saved frames still use the complete `preview_clips`.
+    pub fn preview_clips_ready(
+        &mut self,
+        shown_w: u32,
+        shown_h: u32,
+        time: f64,
+    ) -> Option<(
+        std::sync::Arc<Vec<concat_export::ExportClip>>,
+        concat_project::DocumentSettings,
+    )> {
+        self.preview_clips_with(shown_w, shown_h, time, true)
+    }
+
+    fn preview_clips_with(
+        &mut self,
+        shown_w: u32,
+        shown_h: u32,
+        time: f64,
+        background: bool,
+    ) -> Option<(
+        std::sync::Arc<Vec<concat_export::ExportClip>>,
+        concat_project::DocumentSettings,
+    )> {
         let session = self.session.as_ref()?;
         // A library file on the monitor: its clip alone, flattened once.
         if let Some(source) = self.source.as_ref() {
@@ -3573,6 +3604,14 @@ impl Studio {
         // playback and scrubbing neither flatten nor plan again. A gesture
         // in flight - the echo - is not the document, and flattens fresh.
         let visible_titles = concat_host::titles::Titles::preview_ids(self.project(), time);
+        let title_key = crate::title_preview::Key {
+            timeline: self.project().active_timeline_id.clone(),
+            revision: self.revision,
+            width: shown_w,
+            height: shown_h,
+            visible: visible_titles.clone(),
+        };
+        let mut titles_missing = false;
         let cached = self.echo.is_none()
             && self.flat.as_ref().is_some_and(|(at, w, h, _, titles)| {
                 *at == self.revision && *w == shown_w && *h == shown_h && *titles == visible_titles
@@ -3609,11 +3648,22 @@ impl Studio {
             let scale = f64::from(shown_w) / f64::from(width);
             let up = |px: u32| (f64::from(px) / scale).round() as u32;
             let up_off = |px: i32| (f64::from(px) / scale).round() as i32;
-            for title in self
-                .host
-                .titles
-                .clips_live_at(self.project(), shown_w, shown_h, time)
-            {
+            let titles = if background && self.echo.is_none() {
+                match self.title_preview.ready(&title_key) {
+                    Some(titles) => titles.to_vec(),
+                    None => {
+                        titles_missing = !visible_titles.is_empty();
+                        Vec::new()
+                    }
+                }
+            } else {
+                // A direct manipulation stays live; saved-frame callers also
+                // require a complete set rather than an intermediate frame.
+                self.host
+                    .titles
+                    .clips_live_at(self.project(), shown_w, shown_h, time)
+            };
+            for title in titles {
                 self.title_blocks.insert(
                     title.clip_id,
                     (
@@ -3629,7 +3679,7 @@ impl Studio {
                 clips.push(title.clip);
             }
             let clips = std::sync::Arc::new(clips);
-            if self.echo.is_none() {
+            if self.echo.is_none() && !titles_missing {
                 self.flat = Some((
                     self.revision,
                     shown_w,
@@ -3684,7 +3734,33 @@ impl Studio {
             }
         }
         let clips = own.map(std::sync::Arc::new).unwrap_or(clips);
-        Some((clips, session.settings()))
+        let settings = session.settings();
+        if titles_missing {
+            self.paint_preview_titles(title_key, time);
+        }
+        Some((clips, settings))
+    }
+
+    /// Prepare just the visible cues, in memory at monitor resolution.
+    /// Completion ownership is project/timeline scoped; a slow job cannot
+    /// overwrite a newer project's titles or queue up every scrub position.
+    fn paint_preview_titles(&mut self, key: crate::title_preview::Key, time: f64) {
+        let Some(id) = self.title_preview.begin(key.clone()) else {
+            return;
+        };
+        let titles = self.host.titles.preview_painter();
+        let project = self.project().clone();
+        crate::host::spawn_in_project_publishing(
+            move || titles.clips_live_at(&project, key.width, key.height, time),
+            move |studio, _, _, result| {
+                let timeline = studio.project().active_timeline_id.clone();
+                if studio.title_preview.finish(id, &timeline, result) {
+                    studio.flat = None;
+                    studio.request_preview();
+                }
+            },
+            |_, _, _| {},
+        );
     }
 
     // ── playback ──
@@ -16943,3 +17019,143 @@ mod clipboard_tests;
 #[cfg(all(test, target_os = "linux"))]
 #[path = "editor_workflow_tests.rs"]
 mod editor_workflow_tests;
+
+#[cfg(all(test, target_os = "linux"))]
+mod title_preview_ui_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires an isolated graphical/audio session"]
+    fn title_preview_stays_nonblocking_and_saved_frames_keep_titles() {
+        const CHILD: &str = "CLOVERCUT_TITLE_PREVIEW_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let root = std::env::temp_dir()
+                .join(format!("clovercut-title-preview-{}", std::process::id()));
+            std::fs::create_dir(&root).unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["studio::title_preview_ui_tests::title_preview_stays_nonblocking_and_saved_frames_keep_titles", "--exact", "--ignored", "--nocapture", "--test-threads=1"])
+                .env(CHILD, "1").env("TMPDIR", &root)
+                .env("XDG_CONFIG_HOME", root.join("config"))
+                .env("XDG_DATA_HOME", root.join("data"))
+                .env("XDG_CACHE_HOME", root.join("cache"))
+                .env("XDG_STATE_HOME", root.join("state"))
+                .output().unwrap();
+            std::fs::remove_dir_all(&root).unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let gpu = crate::platform::select_backend(|_| {}, || {}, || {}, || {}).unwrap();
+        let mut studio = Studio::new(crate::host::Host::start(gpu).unwrap());
+        let info = projects::create(
+            std::env::temp_dir().to_str().unwrap(),
+            "Title preview",
+            320,
+            180,
+            30,
+            1,
+        )
+        .unwrap();
+        studio.open_project(info).unwrap();
+        // Suppress automatic monitor requests while arranging this fixture.
+        studio.on_start = true;
+        let id = studio
+            .apply(Command::AddTextClip {
+                above: true,
+                track_id: None,
+                start: 0.0,
+                style: Some(TextStyle {
+                    content: "Animated title".into(),
+                    ..Default::default()
+                }),
+                duration: Some(2.0),
+                offset_y: None,
+            })
+            .unwrap();
+        for (at, value) in [(0.0, 0.0), (1.0, 1.0)] {
+            studio.apply(Command::SetClipKey {
+                clip_id: id.clone(),
+                property: model::KeyProperty::TextRed,
+                at,
+                value,
+                ease: model::KeyEase::LINEAR,
+            });
+        }
+        studio.on_start = false;
+        studio.flat = None;
+        studio.host.titles.clear_live();
+        let key = crate::title_preview::Key {
+            timeline: studio.project().active_timeline_id.clone(),
+            revision: studio.revision,
+            width: 320,
+            height: 180,
+            visible: concat_host::Titles::preview_ids(studio.project(), 0.5),
+        };
+        // Hold the worker ownership without running it: neither an initial
+        // nor a repeated interactive request may rasterize the missing title.
+        let request = studio.title_preview.begin(key.clone()).unwrap();
+        for _ in 0..2 {
+            let (clips, _) = studio.preview_clips_ready(320, 180, 0.5).unwrap();
+            assert!(clips.iter().all(|clip| clip.generated.is_none()));
+            assert_eq!(studio.host.titles.live_count(), 0, "the UI must not paint");
+            assert!(studio.flat.is_none(), "incomplete lists must not be cached");
+        }
+        let titles = studio.host.titles.preview_painter();
+        let project = studio.project().clone();
+        let prepared = std::thread::spawn(move || titles.clips_live_at(&project, 320, 180, 0.5))
+            .join()
+            .unwrap();
+        assert_eq!(prepared.len(), 1);
+        assert!(
+            studio
+                .title_preview
+                .finish(request, &key.timeline, prepared)
+        );
+        let (ready, _) = studio.preview_clips_ready(320, 180, 0.5).unwrap();
+        let animated = ready
+            .iter()
+            .find_map(|clip| clip.generated.as_ref())
+            .expect("animation retained");
+        let first = animated.0.frame(0.0, 320, 180).unwrap();
+        let last = animated.0.frame(1.0, 320, 180).unwrap();
+        assert_ne!(
+            first.pixels(),
+            last.pixels(),
+            "render worker still evaluates paint keys"
+        );
+        let (again, _) = studio.preview_clips_ready(320, 180, 1.0).unwrap();
+        assert!(
+            std::sync::Arc::ptr_eq(&ready, &again),
+            "unchanged cue reuses flattening"
+        );
+        studio
+            .apply(Command::AddTextClip {
+                above: true,
+                track_id: None,
+                start: 3.0,
+                style: Some(TextStyle {
+                    content: "Saved frame title".into(),
+                    ..Default::default()
+                }),
+                duration: Some(2.0),
+                offset_y: None,
+            })
+            .unwrap();
+        let (saved, _) = studio.preview_clips(320, 180, 3.5).unwrap();
+        assert!(
+            saved
+                .iter()
+                .any(|clip| clip.kind == concat_export::ClipKind::Image && clip.start == 3.0),
+            "saved-frame preparation must include an uncached title"
+        );
+        studio.title_preview.clear();
+        assert!(studio.title_preview.ready(&key).is_none());
+        println!(
+            "Nonblocking title preview, animated paint, cache reuse and saved-frame coverage passed"
+        );
+    }
+}

@@ -76,6 +76,7 @@ mod speed_ramp;
 mod studio;
 mod sysinfo;
 mod timeline_time;
+mod title_preview;
 /// Native Wayland file drops, which winit does not report; see the module.
 #[cfg(target_os = "linux")]
 mod wayland_drop;

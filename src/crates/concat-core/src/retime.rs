@@ -31,6 +31,8 @@ pub struct SpeedCurve {
     /// A slope per point, speed per unit of `x`, for a smooth curve; None
     /// joins the points with straight lines.
     slopes: Option<Vec<f64>>,
+    /// Integrated source time at each point, prepared once rather than per frame.
+    consumed_to: Vec<f64>,
 }
 
 impl SpeedCurve {
@@ -83,10 +85,17 @@ impl SpeedCurve {
         if smooth {
             monotone(&mut knots);
         }
-        Some(SpeedCurve {
+        let mut curve = SpeedCurve {
             points: knots.iter().map(|&(x, speed, _)| (x, speed)).collect(),
             slopes: smooth.then(|| knots.iter().map(|&(_, _, slope)| slope).collect()),
-        })
+            consumed_to: Vec::with_capacity(knots.len()),
+        };
+        curve.consumed_to.push(0.0);
+        for index in 0..curve.points.len() - 1 {
+            let consumed = curve.consumed_to[index] + curve.area(index, 1.0);
+            curve.consumed_to.push(consumed);
+        }
+        Some(curve)
     }
 
     /// The points, as tidied.
@@ -104,17 +113,18 @@ impl SpeedCurve {
     /// and how far along it `x` is, `0..=1`. Points sharing an `x` make a
     /// step, whose stretch has no width.
     fn stretch(&self, x: f64) -> (usize, f64) {
+        // Keep the existing arriving-side rule at shared/duplicate points:
+        // choose the first stretch whose end is at or beyond x.
         let last = self.points.len() - 1;
-        for index in 0..last {
-            let (x0, x1) = (self.points[index].0, self.points[index + 1].0);
-            if x <= x1 {
-                if x1 <= x0 {
-                    return (index, 1.0);
-                }
-                return (index, (x - x0) / (x1 - x0));
-            }
+        if x.is_nan() {
+            return (last.saturating_sub(1), 1.0);
         }
-        (last.saturating_sub(1), 1.0)
+        let index = self.points[1..]
+            .partition_point(|point| point.0 < x)
+            .min(last.saturating_sub(1));
+        let (x0, x1) = (self.points[index].0, self.points[index + 1].0);
+        let along = if x1 <= x0 { 1.0 } else { (x - x0) / (x1 - x0) };
+        (index, along)
     }
 
     /// The ends of stretch `index`: width, speeds and, for a smooth curve,
@@ -198,29 +208,16 @@ impl SpeedCurve {
     /// by then. Exact for both joins: a trapezoid a straight stretch, the
     /// cubic's integral a smooth one.
     pub fn consumed(&self, x: f64) -> f64 {
-        let x = x.clamp(0.0, 1.0);
-        let mut total = 0.0;
-        for index in 0..self.points.len().saturating_sub(1) {
-            let (x0, x1) = (self.points[index].0, self.points[index + 1].0);
-            if x <= x0 {
-                break;
-            }
-            if x1 <= x0 {
-                continue;
-            }
-            let u = ((x - x0) / (x1 - x0)).min(1.0);
-            total += self.area(index, u);
-            if x <= x1 {
-                break;
-            }
-        }
-        total
+        // Preserve the previous end-of-curve result for a NaN query.
+        let x = if x.is_nan() { 1.0 } else { x.clamp(0.0, 1.0) };
+        let (index, along) = self.stretch(x);
+        self.consumed_to[index] + self.area(index, along)
     }
 
     /// The average speed: source seconds consumed per timeline second over
     /// the whole clip.
     pub fn mean(&self) -> f64 {
-        self.consumed(1.0).max(Self::MIN_SPEED)
+        self.consumed_to[self.consumed_to.len() - 1].max(Self::MIN_SPEED)
     }
 
     /// The clip cut into `count` equal timeline pieces, each `(x0, x1,
@@ -228,13 +225,15 @@ impl SpeedCurve {
     /// sound path that can only change tempo in steps needs.
     pub fn pieces(&self, count: usize) -> Vec<(f64, f64, f64, f64)> {
         let count = count.max(1);
+        let mut from = 0.0;
         (0..count)
             .map(|index| {
                 let x0 = index as f64 / count as f64;
                 let x1 = (index + 1) as f64 / count as f64;
-                let from = self.consumed(x0);
                 let to = self.consumed(x1);
-                (x0, x1, from, ((to - from) / (x1 - x0)).max(Self::MIN_SPEED))
+                let piece = (x0, x1, from, ((to - from) / (x1 - x0)).max(Self::MIN_SPEED));
+                from = to;
+                piece
             })
             .collect()
     }
@@ -270,6 +269,50 @@ fn monotone(knots: &mut [(f64, f64, f64)]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_areas_agree_with_integration_for_linear_and_smooth_curves() {
+        let points: Vec<_> = (0..=16)
+            .map(|i| (i as f64 / 16.0, 0.5 + (i % 5) as f64))
+            .collect();
+        let slopes = vec![0.0; points.len()];
+        for curve in [
+            SpeedCurve::new(&points).unwrap(),
+            SpeedCurve::with_slopes(&points, Some(&slopes)).unwrap(),
+        ] {
+            let mut integral = 0.0;
+            let steps = 32_000;
+            for i in 0..steps {
+                integral += curve.speed_at((i as f64 + 0.5) / steps as f64) / steps as f64;
+                if (i + 1) % 1000 == 0 {
+                    let x = (i + 1) as f64 / steps as f64;
+                    assert!(
+                        (curve.consumed(x) - integral).abs() < 1e-7,
+                        "source time at {x}"
+                    );
+                }
+            }
+            assert!((curve.mean() - integral).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn shared_points_keep_arriving_speed_and_continuous_source_time() {
+        let curve = SpeedCurve::new(&[(0.0, 1.0), (0.5, 1.0), (0.5, 4.0), (1.0, 4.0)]).unwrap();
+        assert_eq!(curve.speed_at(0.5), 1.0);
+        assert_eq!(curve.speed_at(0.5 + 1e-9), 4.0);
+        assert_eq!(curve.consumed(0.5), 0.5);
+        assert!((curve.consumed(0.75) - 1.5).abs() < 1e-12);
+        for (x, area) in [
+            (f64::NEG_INFINITY, 0.0),
+            (f64::INFINITY, 2.5),
+            (f64::NAN, 2.5),
+        ] {
+            assert_eq!(curve.consumed(x), area);
+        }
+        assert_eq!(curve.speed_at(f64::NAN), 4.0);
+        assert_eq!(curve.clone(), curve);
+    }
 
     #[test]
     fn a_flat_curve_is_a_constant_speed() {
