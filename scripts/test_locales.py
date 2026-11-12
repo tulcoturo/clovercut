@@ -10,6 +10,20 @@ import locales
 
 
 class TranslationChecks(unittest.TestCase):
+    def test_shared_preset_labels_are_kept_in_the_translation_inventory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            crates = pathlib.Path(directory)
+            app = crates / "concat"
+            (app / "src").mkdir(parents=True)
+            (app / "ui").mkdir()
+            project = crates / "concat-project" / "src"
+            project.mkdir(parents=True)
+            (project / "speed.rs").write_text(
+                'label: "speedRamp.hero",\n// label: "test.comment"\n'
+                '#[cfg(test)]\nlabel: "test.fake",\n', encoding="utf-8")
+            with patch.object(locales, "CRATE", app):
+                self.assertEqual(locales.code_keys(), {"speedRamp.hero"})
+
     def check_translation(self, english, translated, strict=True):
         with tempfile.TemporaryDirectory() as directory:
             folder = pathlib.Path(directory)

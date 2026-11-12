@@ -53,6 +53,7 @@ I18N = CRATE / "src" / "i18n.rs"
 LITERAL = r'"((?:[^"\\]|\\.)*)"'
 SLINT_CALL = re.compile(r"I18n\.(?:t[12]?|upper)\(\s*" + LITERAL)
 RUST_CALL = re.compile(r"(?<![A-Za-z_])(?:i18n::)?tf?\(\s*" + LITERAL)
+PRESET_LABEL = re.compile(r"\blabel:\s*" + LITERAL)
 KEY = re.compile(r"^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$")
 # One entry of i18n.rs's BUILT_IN: `("pt-BR", include_str!("../locales/pt-BR.json")),`.
 BUILT_IN_ENTRY = re.compile(r'\(\s*"([^"]+)",\s*include_str!\("\.\./locales/([^"]+)\.json"\)\s*\)')
@@ -117,6 +118,9 @@ def code_keys() -> set[str]:
         out.update(unescape(m.group(1)) for m in SLINT_CALL.finditer(live(path.read_text(encoding="utf-8"), False)))
     for path in (CRATE / "src").rglob("*.rs"):
         out.update(unescape(m.group(1)) for m in RUST_CALL.finditer(live(path.read_text(encoding="utf-8"), True)))
+    # The inspector translates the shared project's preset table by key.
+    presets = CRATE.parent / "concat-project" / "src" / "speed.rs"
+    out.update(unescape(m.group(1)) for m in PRESET_LABEL.finditer(live(presets.read_text(encoding="utf-8"), True)))
     # A literal that is only a place to fill - `I18n.t1("{0}", ...)` - is
     # passed through and is not a string to translate.
     return {key for key in out if key.strip("{}0123456789 ")}
