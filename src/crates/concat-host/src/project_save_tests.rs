@@ -386,7 +386,7 @@ fn a_failed_write_does_not_count_as_written() {
 #[test]
 fn a_capture_is_a_value_that_later_edits_do_not_reach() {
     let scratch = tempfile::tempdir().expect("scratch");
-    let info = projects::create(
+    let info = projects::create_with_canvas(
         &text(scratch.path()),
         "Snapshot",
         1280,
@@ -416,7 +416,7 @@ fn a_capture_is_a_value_that_later_edits_do_not_reach() {
 #[test]
 fn autosaves_queued_before_a_close_never_land_after_it() {
     let scratch = tempfile::tempdir().expect("scratch");
-    let info = projects::create(
+    let info = projects::create_with_canvas(
         &text(scratch.path()),
         "Queued",
         1280,
@@ -551,7 +551,7 @@ fn opening_never_mistakes_a_broken_manifest_for_an_empty_project() {
     assert!(projects::read_document(&text(&broken)).is_err());
     assert!(Session::open_info(&info_for(&broken)).is_err());
 
-    let fresh = projects::create(
+    let fresh = projects::create_with_canvas(
         &text(scratch.path()),
         "Fresh",
         1280,
