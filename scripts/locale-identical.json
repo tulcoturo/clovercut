@@ -1,4 +1,14 @@
 {
+  "az": {
+    "common.media": "Media",
+    "common.model": "Model",
+    "common.video": "Video",
+    "export.format": "Format",
+    "studio.mono": "mono",
+    "studio.stereo": "stereo",
+    "voices.styleRadio": "Radio",
+    "voices.styleRobot": "Robot"
+  },
   "de": {
     "captions.horizontalWriting": "Horizontal",
     "clipInspector.normal": "Normal",
