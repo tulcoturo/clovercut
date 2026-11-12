@@ -74,7 +74,7 @@ impl Schemas {
         let inlined = inline(def, &self.defs, &mut vec![name.to_owned()], &mut kept);
         // A type that nests itself would need its definitions carried; none
         // a tool builds around does, and `finish` is for whole schemas.
-        Some(inlined)
+        Some(compact(inlined))
     }
 
     /// Every edit command's alternative.
@@ -124,7 +124,7 @@ impl Schemas {
             }
             schema["$defs"] = Value::Object(defs);
         }
-        schema
+        compact(schema)
     }
 }
 
@@ -149,28 +149,67 @@ fn references(schema: &Value) -> BTreeSet<String> {
     found
 }
 
-/// A definition made short: descriptions to their first sentence, and the
-/// defaults that are whole objects - a style's every field - left out,
-/// the field's own description saying what absent means.
+/// Shorten schema annotations without changing validation or literal data.
 fn compact(schema: Value) -> Value {
-    match schema {
-        Value::Object(object) => Value::Object(
-            object
-                .into_iter()
-                .filter(|(key, value)| {
-                    !(key == "default" && (value.is_object() || value.is_array()))
-                })
-                .map(|(key, value)| match (key.as_str(), value) {
-                    ("description", Value::String(text)) => {
-                        (key, Value::String(first_sentence(&text)))
+    let Value::Object(object) = schema else {
+        return schema;
+    };
+    Value::Object(
+        object
+            .into_iter()
+            .filter_map(|(key, value)| {
+                let value = match key.as_str() {
+                    "default" if value.is_object() || value.is_array() || value.is_null() => {
+                        return None;
                     }
-                    (_, value) => (key, compact(value)),
-                })
-                .collect(),
-        ),
-        Value::Array(items) => Value::Array(items.into_iter().map(compact).collect()),
-        other => other,
-    }
+                    "description" => match value {
+                        Value::String(text) => Value::String(first_sentence(&text)),
+                        other => other,
+                    },
+                    "properties" | "$defs" | "definitions" | "patternProperties"
+                    | "dependentSchemas" | "dependencies" => match value {
+                        Value::Object(entries) => Value::Object(
+                            entries
+                                .into_iter()
+                                .map(|(name, body)| (name, compact(body)))
+                                .collect(),
+                        ),
+                        other => other,
+                    },
+                    "allOf" | "anyOf" | "oneOf" | "prefixItems" => match value {
+                        Value::Array(items) => {
+                            Value::Array(items.into_iter().map(compact).collect())
+                        }
+                        other => other,
+                    },
+                    "items" if value.is_array() => Value::Array(
+                        value
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .cloned()
+                            .map(compact)
+                            .collect(),
+                    ),
+                    "items"
+                    | "additionalItems"
+                    | "additionalProperties"
+                    | "contains"
+                    | "propertyNames"
+                    | "not"
+                    | "if"
+                    | "then"
+                    | "else"
+                    | "unevaluatedItems"
+                    | "unevaluatedProperties" => compact(value),
+                    // enum/const/examples and extension keywords contain instance
+                    // data, where names such as `description` are not annotations.
+                    _ => value,
+                };
+                Some((key, value))
+            })
+            .collect(),
+    )
 }
 
 /// The first sentence of a doc comment, on one line.
@@ -423,6 +462,38 @@ pub(crate) fn check(schema: &Value, value: &Value, root: &Value, at: &str) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compaction_preserves_validation_and_literal_property_names() {
+        let literal = json!({"description": "Keep both. Sentences.", "default": {"a": 1}});
+        let schema = json!({
+            "type": "object", "required": ["default", "description"],
+            "description": "First sentence. More detail.", "default": {},
+            "properties": {
+                "default": {"type": "integer", "minimum": 2, "default": 3},
+                "description": {"const": literal, "enum": [literal], "default": null},
+                "nested": {"items": {"description": "Item. More.", "default": []}}
+            }
+        });
+        let result = compact(schema.clone());
+        assert_eq!(result["description"], "First sentence.");
+        assert!(result.get("default").is_none());
+        assert_eq!(result["required"], schema["required"]);
+        assert_eq!(
+            result["properties"]["default"],
+            schema["properties"]["default"]
+        );
+        assert_eq!(result["properties"]["description"]["const"], literal);
+        assert_eq!(
+            result["properties"]["description"]["enum"],
+            json!([literal])
+        );
+        assert!(result["properties"]["description"].get("default").is_none());
+        assert_eq!(
+            result["properties"]["nested"]["items"]["description"],
+            "Item."
+        );
+    }
 
     #[test]
     fn a_method_is_cut_out_without_its_tag_and_with_its_references_inlined() {
