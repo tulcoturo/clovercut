@@ -24,6 +24,9 @@ on:
       - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
+      - 'scripts/check_bundled_cards.py'
+      - 'src/crates/concat/cards/**'
+      - 'src/crates/concat-effects/packages/**'
       - 'scripts/check_home_ui.py'
       - 'scripts/fixtures/home-ui/**'
       - 'scripts/fixtures/timeline-ui/**'
@@ -78,6 +81,9 @@ on:
       - 'scripts/test_macos_packaging.py'
       - 'scripts/ci_timings.py'
       - 'scripts/check_project_io.py'
+      - 'scripts/check_bundled_cards.py'
+      - 'src/crates/concat/cards/**'
+      - 'src/crates/concat-effects/packages/**'
       - 'scripts/check_home_ui.py'
       - 'scripts/fixtures/home-ui/**'
       - 'scripts/fixtures/timeline-ui/**'
@@ -143,6 +149,8 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
+      - name: Bundled effect card coverage
+        run: python3 scripts/check_bundled_cards.py
       - name: Structured report regressions
         run: |
           python3 -m unittest discover -s scripts -p test_macos_packaging.py -v

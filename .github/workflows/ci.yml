@@ -254,6 +254,7 @@ jobs:
       # repository; models/manifest.toml is what fills that mirror and the
       # engine's tables are what a download is checked against. This keeps
       # the two saying the same thing. See models/manifest.toml.
+      - run: python3 scripts/check_bundled_cards.py
       - run: python3 scripts/models.py --check
       # -D warnings covers rustc lints too (missing_docs among them), so a
       # public item without documentation fails here, not in review. Lints
