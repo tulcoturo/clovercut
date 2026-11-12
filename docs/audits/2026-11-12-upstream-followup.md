@@ -66,3 +66,10 @@ The effects workflow additionally exercises queued RGBA/YUV readback, loss
 reporting, repeated software-adapter frames and the recovery ladder on Vulkan
 and Windows WARP. Platform-specific behavior still requires its corresponding
 platform; Linux checks do not establish Intel Mac or Android device results.
+
+The manual CI `tests_only` mode resumes workspace tests, documentation examples,
+gRPC checks and optional desktop journeys after a separately recorded lint pass.
+It does not replace release validation: the default and workflow-call paths
+still lint all production crates. The still-image regression identifies its
+fixture sources by media identity because Clovercut reserves internal lanes
+for transitions.

@@ -1,5 +1,5 @@
 name: CI
-run-name: ${{ inputs.macos_toolchain_probe && 'macOS toolchain probe' || inputs.desktop_only && 'Selected desktop functional checks' || inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.macos_toolchain_probe && 'macOS toolchain probe' || inputs.desktop_only && 'Selected desktop functional checks' || inputs.tests_only && 'Native runtime checks' || inputs.connector_only && 'Audio connector checks' || inputs.desktop_qa && 'Full CI with virtual desktop checks' || 'Full CI' }} · ${{ inputs.ref || github.ref_name }}
 
 # Run the full engine checks manually or when preparing a release.
 # Ordinary pushes and pull requests do not start this graphical build.
@@ -29,6 +29,10 @@ on:
         description: Run only the selected virtual desktop regressions (not release validation)
         type: boolean
         default: false
+      tests_only:
+        description: Run workspace, documentation and gRPC tests after a recorded lint pass (not release validation)
+        type: boolean
+        default: false
       runtime_probe:
         description: Also collect observational runtime timings on the virtual software adapter
         type: boolean
@@ -53,7 +57,7 @@ on:
 
 # Manual checks and release checks keep independent source refs.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ inputs.macos_toolchain_probe && 'macos-probe' || inputs.desktop_only && 'desktop' || inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
+  group: ci-${{ github.event_name }}-${{ inputs.macos_toolchain_probe && 'macos-probe' || inputs.desktop_only && 'desktop' || inputs.tests_only && 'tests' || inputs.connector_only && 'connector' || 'full' }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -65,6 +69,7 @@ jobs:
       CONNECTOR_ONLY: ${{ inputs.connector_only }}
       MACOS_PROBE: ${{ inputs.macos_toolchain_probe }}
       DESKTOP_ONLY: ${{ inputs.desktop_only }}
+      TESTS_ONLY: ${{ inputs.tests_only }}
       DESKTOP_QA: ${{ inputs.desktop_qa }}
       RUNTIME_PROBE: ${{ inputs.runtime_probe }}
     steps:
@@ -72,7 +77,7 @@ jobs:
         shell: bash
         run: |
           modes=0
-          for value in "$CONNECTOR_ONLY" "$MACOS_PROBE" "$DESKTOP_ONLY"; do
+          for value in "$CONNECTOR_ONLY" "$MACOS_PROBE" "$DESKTOP_ONLY" "$TESTS_ONLY"; do
             if [ "$value" = true ]; then modes=$((modes + 1)); fi
           done
           if [ "$modes" -gt 1 ] || { { [ "$DESKTOP_QA" = true ] || [ "$RUNTIME_PROBE" = true ]; } && { [ "$CONNECTOR_ONLY" = true ] || [ "$MACOS_PROBE" = true ]; }; }; then
@@ -106,7 +111,7 @@ jobs:
     # This selector is dispatch-only: reusable release calls cannot pass it.
     # They always run the engine as well as the connector.
     if: inputs.connector_only != true && inputs.macos_toolchain_probe != true
-    name: ${{ inputs.desktop_only && 'Selected desktop functional checks' || 'Engine tests and lints' }}
+    name: ${{ inputs.desktop_only && 'Selected desktop functional checks' || inputs.tests_only && 'Native runtime checks' || 'Engine tests and lints' }}
     runs-on: ubuntu-24.04
     # A cold native + Slint test build needs more than 25 minutes on a hosted runner.
     # Keep separate compile and execution budgets so a slow build is identifiable.
@@ -264,11 +269,12 @@ jobs:
       # execution limits and the single-job memory cap remain unchanged.
       - name: Lint engine crates
         run: cargo clippy --workspace --exclude concat --exclude concat-android --all-targets --keep-going -- -D warnings
-        if: inputs.desktop_only != true
+        if: inputs.desktop_only != true && inputs.tests_only != true
         timeout-minutes: 75
         working-directory: src
 
       - name: Speed inspector callbacks without native window
+        if: inputs.tests_only != true
         timeout-minutes: 15
         run: python3 scripts/check_home_ui.py --suite speed
 
@@ -276,13 +282,13 @@ jobs:
       # library and its tests together, avoiding two full Clippy passes.
       - name: Lint window once in test mode
         run: cargo clippy -p concat --lib --profile test --features ui-walkthrough -- -D warnings
-        if: inputs.desktop_only != true
+        if: inputs.desktop_only != true && inputs.tests_only != true
         timeout-minutes: 75
         working-directory: src
 
       - name: Lint Android shell
         run: cargo clippy -p concat-android --all-targets --no-deps -- -D warnings
-        if: inputs.desktop_only != true
+        if: inputs.desktop_only != true && inputs.tests_only != true
         timeout-minutes: 30
         working-directory: src
 

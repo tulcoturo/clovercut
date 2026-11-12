@@ -3889,8 +3889,17 @@ mod tests {
         for seconds in [0.1, 1.0, 1.9] {
             let time = Rational::approximate(seconds).expect("a time");
             let frame = concat_render::plan::plan_frame(&plan.built.timeline, time);
-            let footage = frame.layers.iter().find(|layer| layer.track == 0);
-            let still = frame.layers.iter().find(|layer| layer.track == 1);
+            assert_eq!(frame.layers.len(), 2, "both fixture pictures are present");
+            // Transition resolution reserves internal lanes; source identity
+            // remains stable when those lanes are spread apart.
+            let footage = frame
+                .layers
+                .iter()
+                .find(|layer| layer.media == Path::new(&clips[0].path));
+            let still = frame
+                .layers
+                .iter()
+                .find(|layer| layer.media == Path::new(&clips[1].path));
             assert!(
                 footage.expect("the footage is on").paced,
                 "footage is paced"
