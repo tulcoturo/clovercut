@@ -1001,7 +1001,9 @@ pub struct Studio {
     /// about a track that the document does not.
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
+    /// The current project's chosen curve points, scoped to their clip.
     curve_selected: (String, Vec<usize>),
+    /// The curve at the start of a group drag, discarded on project changes.
     speed_grabbed: Option<Vec<model::SpeedPoint>>,
     pub last_active_track: Option<String>,
     pub last_inspector_selection: std::cell::RefCell<Option<Vec<String>>>,
@@ -6016,7 +6018,11 @@ impl Studio {
 
     /// The chosen points taken off; the two ends stay.
     pub fn speed_remove_chosen(&mut self) {
-        let chosen = std::mem::take(&mut self.curve_selected.1);
+        let chosen = self.speed_chosen_now().to_vec();
+        self.curve_selected.1.clear();
+        if chosen.is_empty() {
+            return;
+        }
         self.edit_speed_curve(|points, _| {
             if let Some(points) = points.as_mut() {
                 for index in chosen.iter().rev() {
@@ -10660,6 +10666,8 @@ impl Studio {
                 self.project_name = info.name.clone();
                 self.export.name = projects::folder_name(&info.name);
                 self.selection.clear();
+                self.curve_selected = Default::default();
+                self.speed_grabbed = None;
                 self.transition_selected = None;
                 self.media.selected.clear();
                 self.playhead = 0.0;
@@ -10933,6 +10941,8 @@ impl Studio {
         self.echo = None;
         self.dirty = false;
         self.selection.clear();
+        self.curve_selected = Default::default();
+        self.speed_grabbed = None;
         self.transition_selected = None;
         self.gesture = Gesture::None;
         self.handle(crate::panes::Msg::Monitor(

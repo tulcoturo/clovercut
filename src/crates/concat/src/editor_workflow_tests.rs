@@ -202,6 +202,7 @@ fn import_edit_reopen_relink_export() {
                     drop(studio);
                     check_media_selection(&shell);
                     studio = shell.studio.borrow_mut();
+                    check_speed_selection(&mut studio);
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -560,4 +561,87 @@ fn check_media_selection(shell: &Rc<Shell>) {
         state.prefs.keybinds = bindings;
         state.media.selected.clear();
     }
+}
+
+// A graph selection belongs to its clip, including when Delete arrives after
+// a different clip became current. The actual echo/commit/undo path is used.
+fn check_speed_selection(state: &mut Studio) {
+    use concat_project::model::SpeedPoint;
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let first = state.timeline().clips[0].id.clone();
+    let source = state.timeline().clips[0].media_id.clone();
+    let track = state.timeline().clips[0].track_id.clone();
+    let second = state
+        .apply(Command::AddClip {
+            media_id: source,
+            track_id: track,
+            start: 3.0,
+            ripple: false,
+        })
+        .unwrap();
+    let curve: Vec<_> = [(0.0, 1.0), (0.5, 2.0), (1.0, 1.0)]
+        .into_iter()
+        .map(|(at, speed)| SpeedPoint {
+            at,
+            speed,
+            slope: None,
+        })
+        .collect();
+    for id in [&first, &second] {
+        state.apply(Command::SetClipSpeedCurve {
+            clip_id: id.clone(),
+            curve: Some(curve.clone()),
+            ripple: false,
+        });
+    }
+    let curved = state.project().clone();
+    state.selection = vec![first.clone()];
+    state.speed_choose(1, false);
+    state.selection = vec![second.clone()];
+    state.speed_remove_chosen();
+    state.clip_commit();
+    state.flush_commit();
+    assert_eq!(
+        state.project(),
+        &curved,
+        "a former clip's chosen points cannot edit the current clip"
+    );
+    state.speed_choose(1, false);
+    state.speed_remove_chosen();
+    state.clip_commit();
+    state.flush_commit();
+    assert_eq!(
+        state
+            .clip(&first)
+            .unwrap()
+            .speed_curve
+            .as_ref()
+            .unwrap()
+            .len(),
+        3
+    );
+    assert_eq!(
+        state
+            .clip(&second)
+            .unwrap()
+            .speed_curve
+            .as_ref()
+            .unwrap()
+            .len(),
+        2
+    );
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &curved,
+        "one undo restores the chosen-point edit"
+    );
+    // Restore the journey's exact project after the three setup commands.
+    for _ in 0..3 {
+        state.undo();
+    }
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
+    state.speed_choose(-1, false);
 }
