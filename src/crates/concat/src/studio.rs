@@ -17186,6 +17186,7 @@ mod title_preview_ui_tests {
     #[ignore = "requires an isolated graphical/audio session"]
     fn title_preview_stays_nonblocking_and_saved_frames_keep_titles() {
         const CHILD: &str = "CLOVERCUT_TITLE_PREVIEW_CHILD";
+        const PASSED: &str = "Nonblocking title preview, animated paint, cache reuse and saved-frame coverage passed";
         if std::env::var_os(CHILD).is_none() {
             let root = std::env::temp_dir()
                 .join(format!("clovercut-title-preview-{}", std::process::id()));
@@ -17198,11 +17199,17 @@ mod title_preview_ui_tests {
                 .env("XDG_CACHE_HOME", root.join("cache"))
                 .env("XDG_STATE_HOME", root.join("state"))
                 .output().unwrap();
-            std::fs::remove_dir_all(&root).unwrap();
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let success = output.status.success() && stdout.contains(PASSED);
+            if success {
+                std::fs::remove_dir_all(&root).unwrap();
+            }
             assert!(
-                output.status.success(),
-                "{}\n{}",
-                String::from_utf8_lossy(&output.stdout),
+                success,
+                "title preview child {}; fixtures: {}\n{}\n{}",
+                output.status,
+                root.display(),
+                stdout,
                 String::from_utf8_lossy(&output.stderr)
             );
             return;
@@ -17312,8 +17319,10 @@ mod title_preview_ui_tests {
         );
         studio.title_preview.clear();
         assert!(studio.title_preview.ready(&key).is_none());
-        println!(
-            "Nonblocking title preview, animated paint, cache reuse and saved-frame coverage passed"
-        );
+        println!("{PASSED}");
+        // Match production shutdown and the other isolated GPU journeys:
+        // Linux C exit handlers can tear down LLVM under renderer threads.
+        // Every behavior assertion must finish before the success exit.
+        crate::leave(0);
     }
 }
