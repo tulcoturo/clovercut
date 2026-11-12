@@ -33,6 +33,8 @@ on:
       - 'scripts/fixtures/scroll-ui/**'
       - 'scripts/fixtures/text-ui/**'
       - 'scripts/fixtures/media-ui/**'
+      - 'scripts/fixtures/speed-ui/**'
+      - 'src/crates/concat/src/speed_ramp.rs'
       - 'src/crates/concat/src/media_selection.rs'
       - 'src/crates/concat/src/panes/media_bin.rs'
       - 'src/crates/concat/src/lib.rs'
@@ -85,6 +87,8 @@ on:
       - 'scripts/fixtures/scroll-ui/**'
       - 'scripts/fixtures/text-ui/**'
       - 'scripts/fixtures/media-ui/**'
+      - 'scripts/fixtures/speed-ui/**'
+      - 'src/crates/concat/src/speed_ramp.rs'
       - 'src/crates/concat/src/media_selection.rs'
       - 'src/crates/concat/src/panes/media_bin.rs'
       - 'src/crates/concat/src/lib.rs'
@@ -239,6 +243,8 @@ jobs:
         run: python3 scripts/check_home_ui.py --suite media
       - name: Timeline edge bounds and scrollbar wheel without native window
         run: python3 scripts/check_home_ui.py --suite scroll
+      - name: Speed inspector point removal and host callbacks without native window
+        run: python3 scripts/check_home_ui.py --suite speed
       - name: Editing and document regressions
         working-directory: src
         run: cargo test --locked -p concat-core -p concat-project

@@ -267,6 +267,10 @@ jobs:
         timeout-minutes: 75
         working-directory: src
 
+      - name: Speed inspector callbacks without native window
+        timeout-minutes: 15
+        run: python3 scripts/check_home_ui.py --suite speed
+
       # The generated UI takes several GB per rustc. Test mode checks the
       # library and its tests together, avoiding two full Clippy passes.
       - name: Lint window once in test mode

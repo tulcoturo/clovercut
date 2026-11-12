@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Clovercut contributors
+import { SpeedPanel } from "__SPEED_PANEL__";
+export { SpeedRamp, SpeedPointData } from "__SPEED_GRAPH__";
+export component SpeedProbe inherits Window {
+    width: 640px;
+    height: 800px;
+    in-out property <int> commits;
+    VerticalLayout {
+        SpeedPanel { commit => { root.commits += 1; } }
+    }
+}

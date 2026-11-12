@@ -56,7 +56,7 @@ export global SpeedRamp {
     /// when `index` is -1.
     callback point(index: int, x: float, y: float);
     /// A point taken off; the ends stay.
-    callback repoint(index: int);
+    callback remove(index: int);
     /// Every point smooth (true) or straight.
     callback smoothness(smooth: bool);
     /// The Fastest slider (`faster`) or the Slowest, moved to `target`.

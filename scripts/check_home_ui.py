@@ -19,7 +19,7 @@ import tomllib
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll", "text", "media"), default="home")
+    parser.add_argument("--suite", choices=("home", "timeline", "captions", "effects", "publish", "scroll", "text", "media", "speed"), default="home")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     workspace = root / "src"
@@ -67,6 +67,8 @@ def main():
         probe = (fixtures / "probe.slint").read_text().replace(
             "__FONTS__", json.dumps(str(workspace / "crates/concat-text/fonts"))[1:-1])
         for marker, relative in {
+                "__SPEED_PANEL__": "inspector/clip-inspector.slint",
+                "__SPEED_GRAPH__": "inspector/speed-ramp.slint",
                 "__INSPECTOR__": "inspector/clip-inspector.slint",
                 "__EXPORT__": "dialogs/export.slint",
                 "__SETTINGS__": "dialogs/settings.slint",
