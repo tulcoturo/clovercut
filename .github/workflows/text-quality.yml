@@ -70,7 +70,12 @@ jobs:
       - name: Strict text checks
         run: cargo clippy --locked -p concat-text --all-targets -- -D warnings
       - name: Typography, colour glyphs and shared-cache regressions
-        run: cargo test --locked -p concat-text -- --test-threads=2
+        run: |
+          set -o pipefail
+          cargo test --locked -p concat-text -- --test-threads=2 2>&1 | tee text-tests.log
+      - name: Annotate text failures
+        if: failure()
+        run: python3 ../scripts/ci/annotate.py text-tests.log
       - name: Keep actual glyph renders
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

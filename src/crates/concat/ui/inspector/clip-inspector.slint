@@ -2830,6 +2830,9 @@ export component AdjustPanel inherits VerticalLayout {
 /// where it is placed, over its keys.
 export component AnimatePanel inherits VerticalLayout {
     in property <SelectedClipData> selected;
+    in property <bool> caption-scope;
+    in property <bool> apply-all;
+    callback scope-changed(bool);
 
     callback set(field: ClipField, value: float);
     callback commit();
@@ -2876,6 +2879,19 @@ export component AnimatePanel inherits VerticalLayout {
     padding-top: 12px;
     padding-bottom: 14px;
     spacing: 12px;
+
+    if root.caption-scope: Section {
+        first: true;
+        SectionBody {
+            padding-left: Theme.pad;
+            padding-right: Theme.pad;
+            HorizontalLayout {
+                spacing: 8px;
+                Check { checked: root.apply-all; toggled(on) => { root.scope-changed(on); } }
+                Text { text: I18n.t("captions.applyAll"); color: Theme.fg; font-size: Theme.fs; }
+            }
+        }
+    }
 
     SegmentedControl {
         options: [I18n.t("motion.in"), I18n.t("motion.out"), I18n.t("motion.loop")];

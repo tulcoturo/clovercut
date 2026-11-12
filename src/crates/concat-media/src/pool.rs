@@ -690,6 +690,9 @@ pub struct ReaderPool {
     // indexed choice must use exact decoding until this pool is cleared.
     approximate_failed: Mutex<std::collections::HashSet<PathBuf>>,
     counters: Counters,
+    /// How many readers each way of decoding opened; see
+    /// [`ReaderPool::readers_opened`].
+    ways: Mutex<std::collections::BTreeMap<String, u64>>,
 }
 
 /// How long a scrub may wait for the exact frame before it is shown the
@@ -729,6 +732,7 @@ impl ReaderPool {
             pace: Mutex::new(HashMap::new()),
             approximate_failed: Mutex::new(std::collections::HashSet::new()),
             counters: Counters::default(),
+            ways: Mutex::new(std::collections::BTreeMap::new()),
         }
     }
 
@@ -864,6 +868,19 @@ impl ReaderPool {
         let sources = self.sources.lock().map(|cache| cache.held()).unwrap_or(0);
         let treated = self.treated.lock().map(|cache| cache.held()).unwrap_or(0);
         sources + treated
+    }
+
+    /// Each way the pool's readers decoded - which decoder, and on which
+    /// device or in software, as each opened - and how many opened so.
+    pub fn readers_opened(&self) -> Vec<(String, u64)> {
+        self.ways
+            .lock()
+            .map(|ways| {
+                ways.iter()
+                    .map(|(way, count)| (way.clone(), *count))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// What the pool has done so far.
@@ -1605,7 +1622,7 @@ impl ReaderPool {
         // Opened outside the lock: opening a file and seeking it is the slow
         // part, and nobody else needs to wait for it. A decode in flight on
         // an evicted reader finishes on its own handle.
-        let opened = Arc::new(Mutex::new(Reader::open(
+        let reader = Reader::open(
             path,
             width,
             height,
@@ -1617,7 +1634,16 @@ impl ReaderPool {
             facts.still,
             target,
             keyframes,
-        )?));
+        )?;
+        if let Ok(mut ways) = self.ways.lock() {
+            let decoder = &reader.decoder;
+            let way = match decoder.hardware() {
+                Some(device) => format!("{} on {}", decoder.codec_name(), device.label()),
+                None => format!("{} in software", decoder.codec_name()),
+            };
+            *ways.entry(way).or_default() += 1;
+        }
+        let opened = Arc::new(Mutex::new(reader));
         let mut readers = self
             .readers
             .lock()

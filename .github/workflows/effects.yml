@@ -98,6 +98,15 @@ jobs:
           set -o pipefail
           if [ "$RUNNER_OS" = Linux ]; then export XDG_RUNTIME_DIR=$(mktemp -d); fi
           python3 scripts/check_creative_effects.py --output effect-previews 2>&1 | tee effect-checks.log
+      - name: Device loss and recovery regressions on Vulkan and WARP
+        working-directory: src
+        run: |
+          set -o pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export XDG_RUNTIME_DIR=$(mktemp -d); fi
+          cargo test --locked -p concat-render --lib queued_ -- --test-threads=1
+          cargo test --locked -p concat-render --lib a_lost_device_says_why -- --test-threads=1
+          cargo test --locked -p concat-render --lib the_709_frame -- --test-threads=1
+          cargo test --locked -p concat-render --lib ladder::tests:: -- --test-threads=1
       - name: Keep actual shader renders and check results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -27,10 +27,12 @@ import { Editor } from "editor.slint";
 component WindowButton inherits Rectangle {
     in property <Glyph> glyph;
     in property <bool> danger;
+    in property <bool> enabled: true;
 
     callback clicked();
 
     width: 46px;
+    opacity: root.enabled ? 1.0 : 0.4;
     background: touch.has-hover
         ? (root.danger ? Theme.danger : Theme.field)
         : Colors.transparent;
@@ -49,6 +51,7 @@ component WindowButton inherits Rectangle {
     }
 
     touch := TouchArea {
+        enabled: root.enabled;
         clicked => { root.clicked(); }
     }
 }
@@ -305,6 +308,14 @@ export component TitleBar inherits Rectangle {
     /// Draw the window buttons at the right: true wherever the platform's
     /// decorations were taken off, which is everywhere but macOS.
     in property <bool> own-buttons;
+    /// A sheet is up, over everything under the strip. The strip keeps its
+    /// window buttons and its drag, which are the window's, and shows
+    /// nothing that acts on what the sheet covers: the menus, the panel
+    /// picker, Settings and Export would open over the sheet or under it.
+    in property <bool> covered;
+    /// Close can be pressed. False while an export runs: a close cancels
+    /// it, and a click in the corner should not end a long export.
+    in property <bool> can-close: true;
     /// The window is maximised, so the middle button restores rather than
     /// maximises and shows the two-squares glyph.
     in property <bool> maximized;
@@ -416,7 +427,7 @@ export component TitleBar inherits Rectangle {
         // Each label reports its own position rather than a fixed one: they
         // are sized from their text, so where "View" starts depends on how
         // long "File" and "Edit" are.
-        if !root.minimal: file := MenuLabel {
+        if !root.minimal && !root.covered: file := MenuLabel {
             label: I18n.t("titleBar.file");
             current: root.menu == 0;
             clicked => {
@@ -429,7 +440,7 @@ export component TitleBar inherits Rectangle {
                 }
             }
         }
-        if !root.minimal: edit := MenuLabel {
+        if !root.minimal && !root.covered: edit := MenuLabel {
             label: I18n.t("titleBar.edit");
             current: root.menu == 1;
             clicked => {
@@ -442,7 +453,7 @@ export component TitleBar inherits Rectangle {
                 }
             }
         }
-        if !root.minimal: view := MenuLabel {
+        if !root.minimal && !root.covered: view := MenuLabel {
             label: I18n.t("titleBar.view");
             current: root.menu == 2;
             clicked => {
@@ -460,12 +471,12 @@ export component TitleBar inherits Rectangle {
 
         // CapCut-style top-right header actions:
         // Layout Switcher | Keyboard Shortcuts | Settings | Export
-        if !root.minimal: VerticalLayout {
+        if !root.minimal && !root.covered: VerticalLayout {
             alignment: center;
             LayoutSwitcherButton {}
         }
 
-        if !root.minimal: VerticalLayout {
+        if !root.minimal && !root.covered: VerticalLayout {
             alignment: center;
             HeaderIconButton {
                 glyph: Glyph.keyboard;
@@ -474,7 +485,14 @@ export component TitleBar inherits Rectangle {
             }
         }
 
-        VerticalLayout {
+        // The one control that is on both screens, and the theme's sun and
+        // moon gave it the job when they moved into Settings > Appearance.
+        // Nothing behind this gear needs a project — a theme, a transcriber
+        // model, a voice, a version number are all facts about the
+        // application — so the launch screen has no reason to be shut out of
+        // it, and every reason not to be: it is now the only way through to
+        // the theme.
+        if !root.covered: VerticalLayout {
             alignment: center;
             HeaderIconButton {
                 glyph: Glyph.settings;
@@ -483,7 +501,7 @@ export component TitleBar inherits Rectangle {
             }
         }
 
-        if !root.minimal: VerticalLayout {
+        if !root.minimal && !root.covered: VerticalLayout {
             alignment: center;
             padding-left: 4px;
 
@@ -540,6 +558,7 @@ export component TitleBar inherits Rectangle {
             WindowButton {
                 glyph: Glyph.close;
                 danger: true;
+                enabled: root.can-close;
                 clicked => { root.close(); }
             }
         }

@@ -1233,6 +1233,7 @@ version = "0.2.4"
 dependencies = [
  "concat-core",
  "concat-effects",
+ "concat-log",
  "concat-media",
  "concat-project",
  "concat-render",

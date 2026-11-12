@@ -2498,7 +2498,7 @@ fn cuts_between_frames_leave_no_black_frame() {
                         false,
                     )
                     .unwrap_or_else(|error| panic!("{label}: frame {index}: {error}"));
-                    let pixels = sources.pixels().expect("the monitor draws the frame");
+                    let pixels = sources.pixels(true).expect("the monitor draws the frame");
                     let at = ((HEIGHT / 2 * WIDTH + WIDTH / 2) * 4) as usize;
                     second_of_colour([pixels[at], pixels[at + 1], pixels[at + 2]]).is_none()
                 })
@@ -3096,5 +3096,173 @@ fn consolidation_keeps_the_global_frame_grid_at_fractional_starts() {
                 .all(|(got, expected)| got.abs_diff(expected) <= 3),
             "frame {frame}: expected {expected:?}, got {got:?}"
         );
+    }
+}
+
+mod consolidation_between_frames {
+    use super::*;
+    use concat_host::consolidate::Consolidation;
+    /// The clip that starts at `start` seconds.
+    fn starting_at(studio: &Studio, start: f64) -> String {
+        studio
+            .project()
+            .active()
+            .clips
+            .iter()
+            .find(|clip| (clip.start - start).abs() < 1e-6)
+            .unwrap_or_else(|| panic!("a clip starts at {start}s"))
+            .id
+            .clone()
+    }
+
+    /// Puts the rendered file in place of the clips; returns the merged clip.
+    fn adopt(studio: &mut Studio, plan: &Consolidation, output: &Path) -> String {
+        let mut item = media::probe(output.to_str().expect("utf-8"))
+            .expect("the render probes")
+            .to_new_media();
+        item.name = "Merged clips".to_owned();
+        let command = plan
+            .replacement(studio.project(), item)
+            .expect("nothing changed while rendering");
+        studio
+            .apply(command)
+            .expect("the merged clip keeps the first clip's id")
+    }
+
+    fn near(got: impl IntoIterator<Item = u8>, want: impl IntoIterator<Item = u8>) -> bool {
+        got.into_iter()
+            .zip(want)
+            .all(|(got, want)| got.abs_diff(want) <= 3)
+    }
+
+    /// Forty-eight frames at 30 fps, each its own red, four levels apart, so
+    /// a frame lost or drawn twice is told from its neighbours.
+    fn counting(path: &Path) {
+        let options = EncodeOptions {
+            codec: VideoCodec::H264,
+            preset: "ultrafast".to_owned(),
+            crf: 8,
+            rate_mode: RateMode::Vbr,
+            bitrate_kbps: 0,
+            ten_bit: false,
+            color_range: concat_media::ColorRange::Limited,
+            hardware: false,
+            threads: 0,
+            software_only: false,
+        };
+        let mut encoder = Encoder::create(path, WIDTH, HEIGHT, FrameRate::THIRTY, &options)
+            .expect("the linked FFmpeg encodes");
+        let mut frame = Frame::black(WIDTH, HEIGHT);
+        for index in 0..48u8 {
+            frame.fill([20 + 4 * index, 60, 200, 255]);
+            encoder.write_frame(&frame).expect("writes a frame");
+        }
+        encoder.finish().expect("finishes the count");
+    }
+
+    /// #756: two halves of a clip split between frames could not be merged.
+    /// Pieces cut between frames, at a start off the grid, with a gap left
+    /// between two of them, merge at every rate into a clip that draws every
+    /// frame the pieces drew - none lost, none twice, the gap still dark -
+    /// and the clip after them does not move.
+    #[test]
+    fn pieces_cut_between_frames_merge_into_the_frames_they_covered() {
+        let scratch = Scratch::new("merge-between-frames");
+        let source = scratch.path().join("count.mp4");
+        counting(&source);
+        for (num, den) in [(30, 1), (24, 1), (30000, 1001), (60, 1)] {
+            let label = format!("between frames at {num}/{den}");
+            let mut studio = Studio::new(
+                scratch.path(),
+                &format!("Between-{num}"),
+                video(WIDTH, HEIGHT, num, den),
+            );
+            let media_id = studio.import(&source);
+            let track_id = studio.project().active().tracks[0].id.clone();
+            let place = |studio: &mut Studio, start: f64| {
+                studio
+                    .apply(Command::AddClip {
+                        media_id: media_id.clone(),
+                        track_id: track_id.clone(),
+                        start,
+                        ripple: false,
+                    })
+                    .expect("a clip")
+            };
+            let whole = place(&mut studio, 0.013);
+            for time in [0.4371, 0.9123] {
+                studio.apply(Command::SplitClips {
+                    clip_ids: vec![studio.clip_ids().last().expect("a clip").clone()],
+                    time,
+                });
+            }
+            let gap = starting_at(&studio, 0.4371);
+            studio.apply(Command::RemoveClips {
+                clip_ids: vec![gap],
+                ripple: false,
+            });
+            let selected = studio.clip_ids();
+            assert_eq!(selected.len(), 2, "{label}: two pieces with a gap between");
+            let end = studio.end();
+            let after = place(&mut studio, end);
+            let after_before = studio.clip(&after).clone();
+
+            let draw = |studio: &mut Studio, name: &str| {
+                studio.session.save(None).expect("saves");
+                let reopened = Session::open(studio.session.path(), studio.session.settings())
+                    .expect("reopens");
+                let output = studio.exports.join(format!("{name}.mp4"));
+                let spec = ExportSpec {
+                    output: output.to_string_lossy().into_owned(),
+                    crf: 8,
+                    preset: "fast".into(),
+                    ..Default::default()
+                };
+                let request = export::request(&reopened, &spec, Vec::new());
+                export::run(&request, &AtomicBool::new(false), |_| {}).expect("exports");
+                Exported::read(name, &output, (num, den))
+            };
+            let before = draw(&mut studio, &format!("between-{num}-before"));
+
+            let plan = Consolidation::new(studio.project(), &selected)
+                .unwrap_or_else(|error| panic!("{label}: cannot merge: {error}"));
+            let root = Path::new(studio.session.path()).to_path_buf();
+            let folder = root.join("media").join(format!("merged-between-{num}"));
+            std::fs::create_dir_all(&folder).expect("makes the media folder");
+            let output = folder.join("merged.mp4");
+            let request = plan.request(studio.project(), &root, &output);
+            export::run(&request, &AtomicBool::new(false), |_| {}).expect("the selection renders");
+            let merged = adopt(&mut studio, &plan, &output);
+            assert_eq!(merged, whole, "{label}: the first piece's id is kept");
+            assert_eq!(
+                studio.clip(&after),
+                &after_before,
+                "{label}: the clip after the merge does not move"
+            );
+            let after_merge = draw(&mut studio, &format!("between-{num}-after"));
+
+            assert_eq!(
+                after_merge.frames.len(),
+                before.frames.len(),
+                "{label}: the timeline is as long"
+            );
+            let dark = |pixel: [u8; 4]| pixel[..3].iter().all(|channel| *channel < 24);
+            let mut footage = 0;
+            for (index, (got, want)) in after_merge.frames.iter().zip(&before.frames).enumerate() {
+                let got = got.pixel(WIDTH / 2, HEIGHT / 2).expect("a pixel");
+                let want = want.pixel(WIDTH / 2, HEIGHT / 2).expect("a pixel");
+                footage += usize::from(!dark(want));
+                assert!(
+                    near(got, want),
+                    "{label}: frame {index} is {got:?} after merging, {want:?} before"
+                );
+            }
+            let gap_frames = before
+                .frames
+                .iter()
+                .filter(|frame| dark(frame.pixel(WIDTH / 2, HEIGHT / 2).expect("a pixel")))
+                .count();
+            assert!(gap_frames > 0 && footage > 0, "{label}: a gap and footage");
+        }
     }
 }

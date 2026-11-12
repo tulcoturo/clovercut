@@ -694,8 +694,10 @@ component BarAction inherits Rectangle {
 // Anything on the page that does something when pressed: a pointer's
 // hover and press, Enter or Space once Tab has put the ring on it, and the
 // ring. The look is the caller's, read from `lit`, `down` and `ring`; the
-// content is its children, drawn over the touch area, so a button inside
-// one - a card's Remove - still takes its own press.
+// content is its children, drawn inside the touch area, so a button inside
+// one - a card's Remove - still takes its own press, and the pointer on that
+// button is still on the card: `lit` holds, and nothing shown on hover goes
+// as the pointer reaches it (#748).
 component Pressable inherits Rectangle {
     in property <bool> enabled: true;
     in property <length> radius: Theme.r-lg;
@@ -746,9 +748,9 @@ component Pressable inherits Rectangle {
         enabled: root.enabled;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
-    }
 
-    @children
+        @children
+    }
 
     FocusRing {
         active: root.ring;
@@ -880,7 +882,6 @@ component PosterAction inherits Rectangle {
     in property <Glyph> glyph;
     in property <string> label;
     in property <bool> enabled: true;
-    out property <bool> hovered: touch.has-hover;
 
     callback clicked();
 
@@ -935,6 +936,11 @@ component PosterCard inherits Pressable {
     callback revealed();
 
     property <length> inset: 6px;
+    // The buttons sit inside the card's own touch area, so `lit` holds
+    // while the pointer is on one. Their own hover must not be counted in
+    // here: it reached this through a change handler, which runs after the
+    // `if` below is re-evaluated, so the buttons were destroyed before it
+    // could keep them, came back under the pointer, and went again (#748).
     property <bool> actions: root.touchy || root.lit || root.ring || root.project.missing;
 
     label: root.project.name;
@@ -1016,9 +1022,9 @@ component PosterCard inherits Pressable {
         }
 
         HorizontalLayout {
-            // Keep the controls instantiated: entering one transfers hover
-            // from the card to that button, and must not destroy its target.
-            visible: root.enabled && (root.actions || reveal.hovered || forget.hovered);
+            // Controls stay instantiated for keyboard navigation; the card's
+            // touch area contains them and keeps its hover while they are used.
+            visible: root.enabled && root.actions;
             x: parent.width - self.preferred-width - 8px;
             y: 8px;
             height: 28px;

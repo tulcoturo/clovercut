@@ -1942,6 +1942,9 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
     if after.masks != before.masks {
         patch.masks = Some(after.masks.clone());
     }
+    if after.visual_motion != before.visual_motion {
+        patch.visual_motion = Some(after.visual_motion);
+    }
     if after.motion != before.motion {
         patch.motion = Some(after.motion.clone());
     }
@@ -2464,6 +2467,9 @@ pub enum Confirm {
     QuitWithoutSaving {
         error: String,
     },
+    /// The previous Android run ended abnormally; offer its diagnostic log.
+    #[cfg(target_os = "android")]
+    LastRunClosed,
 }
 
 /// Each rewritten link as "Old → New", the new one by its package's name.
@@ -2771,6 +2777,12 @@ impl Studio {
                     crate::panes::export::ExportMsg::Overwrite(path),
                 ));
             }
+            #[cfg(target_os = "android")]
+            Some(Confirm::LastRunClosed) => {
+                if let Err(error) = crate::platform::share_log() {
+                    self.notify(&tf("settings.couldNotShareLog", &[&error]), true);
+                }
+            }
             Some(Confirm::QuitWithoutSaving { .. }) => {
                 log::warn!("close: quitting without saving, as asked");
                 self.release_project();
@@ -2824,6 +2836,13 @@ impl Studio {
                 title: t("export.replaceFileTitle").into(),
                 message: tf("export.replaceFileMessage", &[path]).into(),
                 action: t("export.replace").into(),
+            },
+            #[cfg(target_os = "android")]
+            Confirm::LastRunClosed => crate::ui::ConfirmData {
+                open: true,
+                title: t("start.lastRunClosedTitle").into(),
+                message: t("start.lastRunClosed").into(),
+                action: t("settings.shareTheLog").into(),
             },
             Confirm::QuitWithoutSaving { error } => crate::ui::ConfirmData {
                 open: true,
@@ -5228,32 +5247,6 @@ impl Studio {
         });
     }
 
-    /// Set preset motion without replacing any transform or paint keyframes.
-    pub fn visual_motion(&mut self, entrance: i32, exit: i32, duration: f32) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        let Some(clip) = self.clip(&id) else {
-            return;
-        };
-        if !clip.kind.is_visual() || self.locked(&clip.track_id) || !duration.is_finite() {
-            return;
-        }
-        let motion = model::CaptionMotion {
-            entrance: entrance.clamp(0, 3) as u8,
-            exit: exit.clamp(0, 3) as u8,
-            duration: f64::from(duration),
-        }
-        .tidy();
-        self.apply(Command::UpdateClip {
-            clip_id: id,
-            patch: ClipPatch {
-                visual_motion: Some(motion),
-                ..Default::default()
-            },
-        });
-    }
-
     pub fn caption_motion(&mut self, entrance: i32, exit: i32, duration: f32) {
         self.flush_commit();
         let commands = self
@@ -6910,6 +6903,13 @@ impl Studio {
                 | ClipField::BackgroundRadius
                 | ClipField::BackgroundPaddingX
                 | ClipField::BackgroundPaddingY
+                | ClipField::MotionIn
+                | ClipField::MotionInSeconds
+                | ClipField::MotionOut
+                | ClipField::MotionOutSeconds
+                | ClipField::MotionLoop
+                | ClipField::MotionLoopSeconds
+                | ClipField::MotionLoopAmount
         ) {
             self.caption_style_targets()
         } else {
@@ -7088,11 +7088,17 @@ impl Studio {
                     };
                     match field {
                         ClipField::MotionIn => {
+                            // Replacing a phase in the one animation panel
+                            // also replaces its saved legacy preset.
+                            clip.visual_motion.entrance = 0;
+                            text.caption_motion.entrance = 0;
                             let seconds = motion.enter.as_ref().map_or(0.5, |m| m.seconds);
                             motion.enter =
                                 moving(place).map(|kind| model::ClipMove { kind, seconds });
                         }
                         ClipField::MotionOut => {
+                            clip.visual_motion.exit = 0;
+                            text.caption_motion.exit = 0;
                             let seconds = motion.exit.as_ref().map_or(0.5, |m| m.seconds);
                             motion.exit =
                                 moving(place).map(|kind| model::ClipMove { kind, seconds });
@@ -12123,16 +12129,6 @@ impl Studio {
                 })
                 .unwrap_or_default();
             sync(&models.clip_luts, luts);
-            let motion = self
-                .sole_selection()
-                .and_then(|id| self.clip(&id))
-                .filter(|clip| clip.kind.is_visual())
-                .map(|clip| clip.visual_motion)
-                .unwrap_or_default();
-            let motion_ui = app.global::<crate::ui::VideoMotion>();
-            motion_ui.set_entrance(i32::from(motion.entrance));
-            motion_ui.set_exit(i32::from(motion.exit));
-            motion_ui.set_duration(motion.duration as f32);
             sync(&models.applied_visual, visual);
             sync(&models.visual_params, visual_params);
             sync(
@@ -16469,6 +16465,46 @@ mod tests {
             patched(super::clip_commands("c1", &after, &before, false)),
             Some(None)
         );
+    }
+
+    #[test]
+    fn replacing_legacy_motion_commits_both_formats_in_one_patch() {
+        use concat_project::model::{CaptionMotion, Clip, ClipKind as Kind, ClipMotion, ClipMove};
+        let mut before = Clip::blank("c1", "t1", Kind::Video, "m1", 0.0, 4.0);
+        before.visual_motion = CaptionMotion {
+            entrance: 1,
+            exit: 2,
+            duration: 0.4,
+        };
+        let mut after = before.clone();
+        after.visual_motion.entrance = 0;
+        after.motion = Some(ClipMotion {
+            enter: Some(ClipMove {
+                kind: "pop".into(),
+                seconds: 0.5,
+            }),
+            ..Default::default()
+        });
+        for (from, to) in [(&before, &after), (&after, &before)] {
+            let updates: Vec<_> = super::clip_commands("c1", from, to, false)
+                .into_iter()
+                .filter_map(|command| match command {
+                    Command::UpdateClip { patch, .. } => Some(patch),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(
+                updates.len(),
+                1,
+                "one undoable update for both animation formats"
+            );
+            assert_eq!(updates[0].motion, Some(to.motion.clone()));
+            assert_eq!(updates[0].visual_motion, Some(to.visual_motion));
+            assert_eq!(
+                to.visual_motion.exit, 2,
+                "the untouched old exit is preserved"
+            );
+        }
     }
 
     /// A batch level lands on every clip as the inspector commits it - one

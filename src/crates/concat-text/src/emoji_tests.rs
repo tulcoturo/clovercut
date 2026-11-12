@@ -854,15 +854,51 @@ fn has_colour_emoji() -> bool {
     drawn
 }
 
+/// Whether `text` is painted as the face's own picture: the same pixels
+/// whatever the title's fill, where an outline falls back to the fill.
+fn is_a_picture(fonts: &Fonts, text: &str) -> bool {
+    let mut other = title(text);
+    other.color = "#ff0000".to_owned();
+    let (white, red) = (paint(fonts, &title(text)), paint(fonts, &other));
+    white.rgba.iter().any(|&byte| byte != 0) && white.rgba == red.rgba
+}
+
+/// How many glyphs the face set `text` in. Letter spacing falls between
+/// glyphs and after none, so the width a spacing of 20 pixels adds is 20
+/// for each glyph after the first: one glyph means the face joined the
+/// sequence, more mean it drew its parts.
+fn glyphs_of(fonts: &Fonts, text: &str) -> usize {
+    let mut loose = title(text);
+    loose.tracking = 0.05; // 20 pixels
+    let gap =
+        paint(fonts, &loose).block_width as f32 - paint(fonts, &title(text)).block_width as f32;
+    (gap / 20.0).round() as usize + 1
+}
+
 /// Sequences joined into one picture by the face - a family joined with
 /// zero-width joiners, a skin tone, a flag, a heart asked for in colour -
-/// draw as one emoji, about one emoji wide, in the font's own palette.
+/// draw as one emoji, about one emoji wide, as the face's picture.
+///
+/// Which sequences a face has a picture for is the face's to say: Windows'
+/// has no flags, and Noto Color Emoji (Linux, Android) draws a family as a
+/// grey picture, so the picture is told apart from an outline by ignoring
+/// the fill, not by being coloured. Whether the face joined a sequence is
+/// read from how many glyphs it was set in. A joined sequence must be that
+/// picture. One the face did not join is its parts, each drawn: a flag
+/// from a face with no flags is its two letters, set in the title's fill.
+/// Apple's face has all four, so there each must be one glyph and in
+/// colour. Concat joining what any face offers is also settled with an
+/// assembled face, in `a_sequence_the_face_joins_draws_as_one_picture`.
 #[test]
 fn emoji_sequences_draw_as_one_picture() {
     if !has_colour_emoji() {
         eprintln!("no colour emoji face on this machine; skipped");
         return;
     }
+    let apple = system()
+        .families()
+        .iter()
+        .any(|family| family == "Apple Color Emoji");
     let width = |text: &str| paint(system(), &title(text)).block_width as f32;
     let one = width("\u{1F600}");
     for sequence in [
@@ -871,85 +907,31 @@ fn emoji_sequences_draw_as_one_picture() {
         "\u{1F1EF}\u{1F1F5}",
         "\u{2764}\u{FE0F}",
     ] {
-        // A machine having an emoji font does not mean it supports every
-        // sequence. In particular Segoe UI Emoji can leave flag indicators
-        // as outlines. Inspect the actual fallback face and shaped glyphs.
-        let style = title(sequence);
-        let casting = system().cast(&style).expect("sequence faces");
-        let assignments = &casting.paragraphs[0];
-        let pictures = crate::colour_glyphs::Pictures::default();
-        let mut colour = true;
-        let mut has_picture = false;
-        let mut start = 0;
-        while start < sequence.len() {
-            let face_index = assignments[start];
-            let end = sequence
-                .char_indices()
-                .map(|(at, _)| at)
-                .find(|&at| at > start && assignments[at] != face_index)
-                .unwrap_or(sequence.len());
-            let (data, index) = &casting.faces[face_index];
-            let data: &[u8] = data.as_ref().as_ref();
-            let face = rustybuzz::Face::from_slice(data, *index).expect("sequence face");
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
-            buffer.push_str(&sequence[start..end]);
-            buffer.set_direction(rustybuzz::Direction::LeftToRight);
-            let shaped = rustybuzz::shape(&face, &[], buffer);
-            for info in shaped.glyph_infos() {
-                let painted = pictures
-                    .mark(&crate::colour_glyphs::Glyph {
-                        face: &face,
-                        key: crate::colour_glyphs::FaceKey::of(data, *index),
-                        id: ttf_parser::GlyphId(info.glyph_id as u16),
-                        x: 0.0,
-                        y: 0.0,
-                        em: EM,
-                        foreground: ttf_parser::RgbaColor::new(255, 255, 255, 255),
-                    })
-                    .is_some();
-                has_picture |= painted;
-                // Selectors and joiners may remain as invisible glyphs
-                // after shaping. They are not an outline fallback.
-                if !painted
-                    && face
-                        .glyph_bounding_box(ttf_parser::GlyphId(info.glyph_id as u16))
-                        .is_some()
-                {
-                    colour = false;
-                }
-            }
-            start = end;
-        }
-        colour &= has_picture;
         let wide = width(sequence);
-        assert!(
-            wide > 0.0 && (!colour || wide <= one * 1.3),
-            "{sequence}: {wide} vs {one}"
+        let glyphs = glyphs_of(system(), sequence);
+        let picture = is_a_picture(system(), sequence);
+        let measured = format!(
+            "{sequence}: {glyphs} glyphs, {:.2} em wide (one emoji {:.2} em), \
+             the fill {} the pixels, apple {apple}",
+            wide / EM,
+            one / EM,
+            if picture { "left" } else { "changed" },
         );
-        // Some colour fonts use a neutral family pictogram. Its own
-        // palette may be grayscale: the title's fill/outline/shadow must
-        // still leave that picture intact, just as for saturated emoji.
-        let original = paint(system(), &title(sequence));
-        assert!(
-            count(&original, |p| p[3] > 200) > 50,
-            "{sequence} is visible"
-        );
-        let mut dressed = title(sequence);
-        dressed.color = "#ff0000".into();
-        dressed.stroke_color = "#0000ff".into();
-        dressed.stroke_width = 0.02;
-        dressed.shadow = true;
-        let styled = paint(system(), &dressed);
-        if colour {
-            assert!(
-                styled == original,
-                "{sequence} keeps the font's own picture"
-            );
+        assert!(wide > 0.0, "it renders - {measured}");
+        if apple {
+            assert_eq!(glyphs, 1, "one glyph - {measured}");
+            assert!(draws_in_colour(sequence), "in colour - {measured}");
+        } else if glyphs == 1 {
+            assert!(picture, "one glyph is a picture - {measured}");
+            assert!(wide <= one * 1.3, "one emoji wide - {measured}");
         } else {
+            // The face has no picture for it: its parts, drawn in the fill.
+            let characters = sequence.chars().count();
             assert!(
-                styled != original,
-                "{sequence} outline fallback takes the title's style"
+                glyphs <= characters,
+                "no more glyphs than characters - {measured}"
             );
+            assert!(!picture, "its parts are letters in the fill - {measured}");
         }
     }
 }

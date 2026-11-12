@@ -357,6 +357,14 @@ impl SettingsPane {
                 keymap::apply_profile(&mut studio.prefs, profile);
                 studio.prefs.save(&studio.host.dirs);
             }
+            // A phone has no folder to show: the log goes to its share sheet.
+            #[cfg(target_os = "android")]
+            SettingsMsg::ShowLog => {
+                if let Err(error) = platform::share_log() {
+                    studio.notify(&i18n::tf("settings.couldNotShareLog", &[&error]), true);
+                }
+            }
+            #[cfg(not(target_os = "android"))]
             SettingsMsg::ShowLog => {
                 // The file this run is writing, when there is one, so the
                 // manager opens with it selected; the folder when there is
@@ -1048,6 +1056,7 @@ impl SettingsPane {
             magnetic: studio.prefs.magnetic,
             timeline_grid: studio.prefs.timeline_grid,
             show_playhead_split: studio.prefs.show_playhead_split,
+            shares_log: cfg!(target_os = "android"),
             download_source: self.download_source as i32,
             download_base: self.download_base.as_str().into(),
             server_enabled: studio.prefs.server.enabled,

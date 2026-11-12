@@ -61,6 +61,8 @@ pub use platform::{
 };
 #[cfg(target_os = "android")]
 pub use platform::{LinkOpener, install_link_opener};
+#[cfg(target_os = "android")]
+pub use platform::{LogSharer, install_log_sharer, log_file_name, note_last_exit};
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use platform::{MicrophoneAccess, install_microphone_access};
 mod panes;
@@ -344,6 +346,13 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // first thing the window says.
     let mut studio = Studio::new(host);
     studio.set_phone(phone);
+    // A phone whose last run died says so once, now, and offers its log;
+    // the next launch reads this run, which did not (#560).
+    #[cfg(target_os = "android")]
+    if platform::last_run_died() {
+        log::info!("start: the last run died; offering its log");
+        studio.confirm = Some(studio::Confirm::LastRunClosed);
+    }
     if safe {
         let notice = if cfg!(target_os = "android") {
             i18n::t("start.safeModePhone")
@@ -1141,11 +1150,6 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     luts.on_intensity(on_window!(|state, index: i32, value: f32| {
         state.chain_set_param(false, index, concat_effects::catalogue::INTENSITY, value);
     }));
-    app.global::<crate::ui::VideoMotion>().on_set(on_window!(
-        |state, entrance: i32, exit: i32, duration: f32| {
-            state.visual_motion(entrance, exit, duration);
-        }
-    ));
     luts.on_commit(on_window!(|state| {
         state.clip_commit();
     }));
