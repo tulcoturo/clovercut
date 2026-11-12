@@ -174,7 +174,7 @@ fn edit_scale() {
                 .map(|title| title.clip),
         );
         let plan = timed(10, || {
-            std::hint::black_box(concat_export::preview_plan(
+            std::hint::black_box(concat_export::preview_plan_with_canvas(
                 &clips,
                 1920,
                 1080,
@@ -198,7 +198,7 @@ fn edit_scale() {
                     .into_iter()
                     .map(|title| title.clip),
             );
-            std::hint::black_box(concat_export::preview_plan(
+            std::hint::black_box(concat_export::preview_plan_with_canvas(
                 &clips,
                 1920,
                 1080,
