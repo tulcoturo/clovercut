@@ -160,6 +160,36 @@ impl SpeedCurve {
         }
     }
 
+    /// Speed immediately after `x`, preserving the departing side of a step.
+    pub fn speed_leaving(&self, x: f64) -> f64 {
+        let end = self.points.partition_point(|point| point.0 <= x);
+        if end > 0 && self.points[end - 1].0 == x {
+            self.points[end - 1].1
+        } else {
+            self.speed_at(x)
+        }
+    }
+
+    /// Slope immediately after `x`, for a window beginning on a step.
+    pub fn slope_leaving(&self, x: f64) -> f64 {
+        let end = self.points.partition_point(|point| point.0 <= x);
+        if end > 0 && self.points[end - 1].0 == x {
+            self.slopes.as_ref().map_or_else(
+                || {
+                    if end < self.points.len() {
+                        (self.points[end].1 - self.points[end - 1].1)
+                            / (self.points[end].0 - self.points[end - 1].0)
+                    } else {
+                        0.0
+                    }
+                },
+                |slopes| slopes[end - 1],
+            )
+        } else {
+            self.slope_at(x)
+        }
+    }
+
     /// How fast the speed is changing at `x`: speed per unit of `x`. Zero
     /// past the ends, where the speed holds, and on a step.
     pub fn slope_at(&self, x: f64) -> f64 {

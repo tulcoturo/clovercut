@@ -5734,3 +5734,9 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod consolidate_tests;
+
+#[cfg(test)]
+mod speed_curve_tests;

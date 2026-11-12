@@ -452,7 +452,7 @@ pub(super) fn apply(
             let Some(clip) = timeline.clip_mut(&clip_id) else {
                 return Ok(Outcome::default());
             };
-            let curve = curve.filter(|points| crate::speed::curve_of(points).is_some());
+            let curve = curve.and_then(|points| crate::speed::normalize(&points));
             let source_covered = clip.duration * clip.speed;
             let old_end = clip.start + clip.duration;
             let mean = curve

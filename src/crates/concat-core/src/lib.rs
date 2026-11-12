@@ -33,3 +33,6 @@ pub use retime::SpeedCurve;
 pub use shader::{Lut, RevealMap, ShaderPass, Stage, TransitionPass};
 pub use time::{FrameRate, Rational, TimeRange};
 pub use timeline::{Blend, Clip, ClipId, Project, Timeline, Track, TrackId, TrackKind};
+
+#[cfg(test)]
+mod speed_curve_tests;

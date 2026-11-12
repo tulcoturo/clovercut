@@ -871,9 +871,47 @@ fn emoji_sequences_draw_as_one_picture() {
         "\u{1F1EF}\u{1F1F5}",
         "\u{2764}\u{FE0F}",
     ] {
+        // A machine having an emoji font does not mean it supports every
+        // sequence. In particular Segoe UI Emoji can leave flag indicators
+        // as outlines. Inspect the actual fallback face and shaped glyphs.
+        let style = title(sequence);
+        let casting = system().cast(&style).expect("sequence faces");
+        let assignments = &casting.paragraphs[0];
+        let pictures = crate::colour_glyphs::Pictures::default();
+        let mut colour = true;
+        let mut start = 0;
+        while start < sequence.len() {
+            let face_index = assignments[start];
+            let end = sequence
+                .char_indices()
+                .map(|(at, _)| at)
+                .find(|&at| at > start && assignments[at] != face_index)
+                .unwrap_or(sequence.len());
+            let (data, index) = &casting.faces[face_index];
+            let data: &[u8] = data.as_ref().as_ref();
+            let face = rustybuzz::Face::from_slice(data, *index).expect("sequence face");
+            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            buffer.push_str(&sequence[start..end]);
+            buffer.set_direction(rustybuzz::Direction::LeftToRight);
+            let shaped = rustybuzz::shape(&face, &[], buffer);
+            for info in shaped.glyph_infos() {
+                colour &= pictures
+                    .mark(&crate::colour_glyphs::Glyph {
+                        face: &face,
+                        key: crate::colour_glyphs::FaceKey::of(data, *index),
+                        id: ttf_parser::GlyphId(info.glyph_id as u16),
+                        x: 0.0,
+                        y: 0.0,
+                        em: EM,
+                        foreground: ttf_parser::RgbaColor::new(255, 255, 255, 255),
+                    })
+                    .is_some();
+            }
+            start = end;
+        }
         let wide = width(sequence);
         assert!(
-            wide > 0.0 && wide <= one * 1.3,
+            wide > 0.0 && (!colour || wide <= one * 1.3),
             "{sequence}: {wide} vs {one}"
         );
         // Some colour fonts use a neutral family pictogram. Its own
@@ -889,11 +927,18 @@ fn emoji_sequences_draw_as_one_picture() {
         dressed.stroke_color = "#0000ff".into();
         dressed.stroke_width = 0.02;
         dressed.shadow = true;
-        assert_eq!(
-            paint(system(), &dressed),
-            original,
-            "{sequence} keeps the font's own picture"
-        );
+        let styled = paint(system(), &dressed);
+        if colour {
+            assert!(
+                styled == original,
+                "{sequence} keeps the font's own picture"
+            );
+        } else {
+            assert!(
+                styled != original,
+                "{sequence} outline fallback takes the title's style"
+            );
+        }
     }
 }
 

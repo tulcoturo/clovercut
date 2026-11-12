@@ -253,9 +253,24 @@ jobs:
       # Generated Slint Rust can exceed 45 minutes on a cold hosted runner
       # (run 42068736838). Match the existing test-build compile budget;
       # execution limits and the single-job memory cap remain unchanged.
-      - run: cargo clippy --workspace --all-targets --features concat/ui-walkthrough -- -D warnings
+      - name: Lint engine crates
+        run: cargo clippy --workspace --exclude concat --exclude concat-android --all-targets --features concat/ui-walkthrough -- -D warnings
         if: inputs.desktop_only != true
         timeout-minutes: 75
+        working-directory: src
+
+      # The generated UI takes several GB per rustc. Test mode checks the
+      # library and its tests together, avoiding two full Clippy passes.
+      - name: Lint window once in test mode
+        run: cargo clippy -p concat --lib --profile test --features ui-walkthrough -- -D warnings
+        if: inputs.desktop_only != true
+        timeout-minutes: 75
+        working-directory: src
+
+      - name: Lint Android shell
+        run: cargo clippy -p concat-android --all-targets --no-deps -- -D warnings
+        if: inputs.desktop_only != true
+        timeout-minutes: 30
         working-directory: src
 
       # The tests are compiled in a step of their own, so a slow compile

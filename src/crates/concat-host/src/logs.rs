@@ -20,6 +20,13 @@ use std::path::{Path, PathBuf};
 
 pub use concat_log::{CAP, KEEP, LEVEL_VARIABLE, level_name, level_named};
 
+/// Clovercut's log filter, with the upstream variable kept for existing scripts.
+fn environment_spec() -> String {
+    std::env::var("CLOVERCUT_LOG")
+        .or_else(|_| std::env::var(LEVEL_VARIABLE))
+        .unwrap_or_default()
+}
+
 use crate::dirs::AppDirs;
 
 /// Where the logs are kept.
@@ -68,7 +75,7 @@ fn install(
     folder: Option<PathBuf>,
     extra: Option<Box<dyn log::Log>>,
 ) -> Result<concat_log::Opened, String> {
-    let spec = std::env::var(LEVEL_VARIABLE).unwrap_or_default();
+    let spec = environment_spec();
     let (filter, skipped) = concat_log::Filter::parse(&spec);
     let opened = concat_log::open(concat_log::Config {
         folder,
@@ -150,7 +157,7 @@ pub fn catch_panics() {
 /// The level `CONCAT_LOG` names for Concat's own crates, when it names one:
 /// a run's own ask, over the one the Settings sheet remembers.
 pub fn environment_level() -> Option<log::LevelFilter> {
-    let (filter, _) = concat_log::Filter::parse(&std::env::var(LEVEL_VARIABLE).unwrap_or_default());
+    let (filter, _) = concat_log::Filter::parse(&environment_spec());
     filter.named().then(|| filter.own())
 }
 

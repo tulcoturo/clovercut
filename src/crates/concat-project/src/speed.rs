@@ -22,6 +22,49 @@ pub fn curve_of(points: &[SpeedPoint]) -> Option<SpeedCurve> {
     SpeedCurve::with_slopes(&raw, slopes.as_deref())
 }
 
+/// Points stored in order and in range, preserving the requested slopes.
+pub fn normalize(points: &[SpeedPoint]) -> Option<Vec<SpeedPoint>> {
+    let bent = is_smooth(points);
+    let mut tidy: Vec<SpeedPoint> = points
+        .iter()
+        .filter(|knot| knot.at.is_finite() && knot.speed.is_finite())
+        .map(|knot| SpeedPoint {
+            at: knot.at.clamp(0.0, 1.0),
+            speed: knot.speed.clamp(MIN_SPEED, MAX_SPEED),
+            slope: knot
+                .slope
+                .filter(|_| bent)
+                .map(|slope| if slope.is_finite() { slope } else { 0.0 }),
+        })
+        .collect();
+    if tidy.is_empty() {
+        return None;
+    }
+    // Stable, so the two sides of a step keep their order.
+    tidy.sort_by(|a, b| a.at.total_cmp(&b.at));
+    let level = bent.then_some(0.0);
+    let front = tidy[0];
+    if front.at > 0.0 {
+        tidy.insert(
+            0,
+            SpeedPoint {
+                at: 0.0,
+                speed: front.speed,
+                slope: level,
+            },
+        );
+    }
+    let back = tidy[tidy.len() - 1];
+    if back.at < 1.0 {
+        tidy.push(SpeedPoint {
+            at: 1.0,
+            speed: back.speed,
+            slope: level,
+        });
+    }
+    Some(tidy)
+}
+
 /// Whether these points bend smoothly rather than meet in straight lines.
 pub fn is_smooth(points: &[SpeedPoint]) -> bool {
     !points.is_empty() && points.iter().all(|point| point.slope.is_some())
@@ -170,8 +213,8 @@ pub fn rewindow_clip(clip: &mut Clip, old: f64, from: f64, to: f64) -> Option<f6
     let slope = |at: f64| slopes.map(|_| curve.slope_at(at) * (b - a));
     let mut points = vec![SpeedPoint {
         at: 0.0,
-        speed: curve.speed_at(a),
-        slope: slope(a),
+        speed: curve.speed_leaving(a),
+        slope: slopes.map(|_| curve.slope_leaving(a) * (b - a)),
     }];
     points.extend(
         curve
@@ -226,6 +269,33 @@ mod tests {
     fn source_at(clip: &Clip, t: f64) -> f64 {
         let curve = curve_of(clip.speed_curve.as_deref().unwrap()).unwrap();
         clip.source_start + clip.duration * curve.consumed(t / clip.duration)
+    }
+
+    #[test]
+    fn splitting_on_a_step_keeps_the_departing_speed() {
+        let whole = curved(&[(0.0, 1.0), (0.5, 1.0), (0.5, 4.0), (1.0, 4.0)], 10.0);
+        let mut tail = whole.clone();
+        tail.source_start += rewindow_clip(&mut tail, 10.0, 5.0, 10.0).unwrap();
+        tail.duration = 5.0;
+        assert_eq!(tail.speed_curve.as_ref().unwrap()[0].speed, 4.0);
+        for t in [0.0, 0.001, 1.0, 5.0] {
+            assert!((source_at(&tail, t) - source_at(&whole, 5.0 + t)).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn stored_curve_matches_the_engine_after_normalizing() {
+        let raw = points(&[(0.8, 30.0), (0.2, -1.0), (f64::NAN, 1.0)]);
+        let stored = normalize(&raw).unwrap();
+        assert_eq!(stored.first().unwrap().at, 0.0);
+        assert_eq!(stored.last().unwrap().at, 1.0);
+        assert!(stored.windows(2).all(|pair| pair[0].at <= pair[1].at));
+        assert!(
+            stored
+                .iter()
+                .all(|point| (MIN_SPEED..=MAX_SPEED).contains(&point.speed))
+        );
+        assert_eq!(curve_of(&raw), curve_of(&stored));
     }
 
     #[test]

@@ -1879,3 +1879,6 @@ mod durability_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod project_close_tests;

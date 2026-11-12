@@ -87,3 +87,9 @@ pub fn scheduler() -> &'static std::sync::Arc<concat_media::Prefetcher> {
         ))
     })
 }
+
+#[cfg(test)]
+mod project_save_tests;
+
+#[cfg(test)]
+mod consolidate_tests;

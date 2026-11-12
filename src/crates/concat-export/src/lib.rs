@@ -395,7 +395,7 @@ impl ExportClip {
             has_audio: None,
             cutout: None,
             motion: None,
-            mask: None,
+            masks: Vec::new(),
             mask_dir: String::new(),
             face_dir: String::new(),
             stabilize: None,
