@@ -99,7 +99,7 @@ impl Gpu {
         // https://github.com/jub0t/Concat/issues/135
         let info = adapter.get_info();
         log::info!(
-            "GPU adapter: {} ({:?}, {:?}, {})",
+            "gpu: {} · {:?} · {:?} · {}",
             info.name,
             info.device_type,
             info.backend,

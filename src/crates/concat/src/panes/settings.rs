@@ -335,6 +335,7 @@ impl SettingsPane {
             }
             SettingsMsg::ShortcutCapture(id) => self.capturing = Some(id),
             SettingsMsg::ShortcutReset(id) => {
+                log::info!("settings: Shortcuts {id} reset");
                 self.capturing = None;
                 let lost = keymap::reset(&mut studio.prefs, &id);
                 studio.prefs.save(&studio.host.dirs);
@@ -345,6 +346,7 @@ impl SettingsPane {
                 }
             }
             SettingsMsg::ShortcutResetAll => {
+                log::info!("settings: Shortcuts all reset");
                 self.capturing = None;
                 keymap::reset_all(&mut studio.prefs);
                 studio.prefs.save(&studio.host.dirs);
@@ -369,6 +371,7 @@ impl SettingsPane {
             SettingsMsg::LanguageChanged(index) => {
                 let index = index.max(0) as usize;
                 if let Some(language) = studio.languages.get(index).cloned() {
+                    log::info!("settings: Language {}", language.code);
                     self.language = index;
                     studio.prefs.locale = Some(language.code.clone());
                     // The words change on the publish that follows: Rust's
@@ -382,6 +385,10 @@ impl SettingsPane {
                 let Some(level) = LOG_LEVELS.get(index.max(0) as usize) else {
                     return;
                 };
+                log::info!(
+                    "settings: Log level {}",
+                    LOG_LEVEL_NAMES[index.max(0) as usize]
+                );
                 studio.prefs.log_level = Some(concat_host::logs::level_name(*level).to_owned());
                 studio.prefs.save(&studio.host.dirs);
                 // Applied now, whatever the environment said: a person at
@@ -389,6 +396,7 @@ impl SettingsPane {
                 concat_host::logs::set_level(*level);
             }
             SettingsMsg::PlayheadStopsChanged(on) => {
+                log::info!("settings: Playhead stops at the end {}", on_off(on));
                 self.playhead_stops = on;
                 studio.prefs.playhead_stops_at_end = on;
                 studio.prefs.save(&studio.host.dirs);
@@ -398,6 +406,7 @@ impl SettingsPane {
                 studio.seek(at);
             }
             SettingsMsg::ProxiesChanged(on) => {
+                log::info!("settings: Proxies {}", on_off(on));
                 studio.prefs.proxies = on;
                 studio.prefs.save(&studio.host.dirs);
                 // On, the media already in the project gets its proxies
@@ -405,6 +414,7 @@ impl SettingsPane {
                 // off, playback reads the files from the next frame.
             }
             SettingsMsg::RememberLayoutChanged(on) => {
+                log::info!("settings: Remember layout {}", on_off(on));
                 studio.prefs.remember_layout = Some(on);
                 if on {
                     studio.remember_layout_soon();
@@ -414,31 +424,37 @@ impl SettingsPane {
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::GpuChanged(on) => {
+                log::info!("settings: Draw on the GPU {}", on_off(on));
                 studio.prefs.software_gpu = !on;
                 studio.prefs.software_after_crash = None;
                 studio.prefs.save(&studio.host.dirs);
                 studio.notify(&t("settings.gpuNextStart"), false);
             }
             SettingsMsg::TimelineGridChanged(on) => {
+                log::info!("settings: Timeline grid {}", on_off(on));
                 studio.prefs.timeline_grid = on;
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::ShowPlayheadSplitChanged(on) => {
+                log::info!("settings: Playhead split {}", on_off(on));
                 studio.prefs.show_playhead_split = on;
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::MagneticChanged(on) => {
+                log::info!("settings: Magnetic timeline {}", on_off(on));
                 studio.prefs.magnetic = on;
                 studio.prefs.save(&studio.host.dirs);
             }
             SettingsMsg::DownloadSourceChanged(index) => {
                 let index = (index.max(0) as usize).min(SourcePreference::ALL.len() - 1);
                 self.download_source = index;
+                log::info!("settings: Downloads {}", DOWNLOAD_SOURCE_NAMES[index]);
                 studio.prefs.download_source = Some(SourcePreference::ALL[index].name().to_owned());
                 studio.prefs.save(&studio.host.dirs);
                 Self::apply_download_source(studio);
             }
             SettingsMsg::DownloadBaseEdited(text) => {
+                log::debug!("settings: Downloads custom URL edited");
                 let base = text.trim().to_owned();
                 self.download_base = base.clone();
                 studio.prefs.download_base = (!base.is_empty()).then_some(base);
@@ -446,6 +462,7 @@ impl SettingsPane {
                 Self::apply_download_source(studio);
             }
             SettingsMsg::ServerEnabledChanged(on) => {
+                log::info!("settings: Scripts and apps {}", on_off(on));
                 studio.prefs.server.enabled = on;
                 studio.prefs.save(&studio.host.dirs);
                 self.apply_server(studio);
@@ -453,29 +470,37 @@ impl SettingsPane {
             SettingsMsg::ServerHostEdited(text) => {
                 let (_, port) = split_listen(&studio.prefs.server.listen);
                 studio.prefs.server.listen = join_listen(&text, port);
+                // A keystroke at a time: detail.
+                log::debug!("settings: Address {}", studio.prefs.server.listen);
                 studio.prefs.save(&studio.host.dirs);
                 self.apply_server(studio);
             }
             SettingsMsg::ServerPortEdited(port) => {
                 let (host, _) = split_listen(&studio.prefs.server.listen);
                 studio.prefs.server.listen = join_listen(&host, port.clamp(0, 65535) as u16);
+                log::debug!("settings: Address {}", studio.prefs.server.listen);
                 studio.prefs.save(&studio.host.dirs);
                 self.apply_server(studio);
             }
             SettingsMsg::ServerTokenEdited(text) => {
+                // Never the token itself.
+                log::debug!("settings: Token edited");
                 studio.prefs.server.token = text.trim().to_owned();
                 studio.prefs.save(&studio.host.dirs);
                 self.apply_server(studio);
             }
             SettingsMsg::ServerTokenGenerated => {
+                log::info!("settings: Token new");
                 studio.prefs.server.token = new_token();
                 studio.prefs.save(&studio.host.dirs);
                 self.apply_server(studio);
             }
             SettingsMsg::ModelActivated(id) => {
                 if self.is_transcriber(&id) {
+                    log::info!("settings: Models {id}");
                     studio.prefs.transcriber_model = Some(id);
                 } else {
+                    log::info!("settings: Voices {id}");
                     studio.prefs.tts_model = Some(id);
                 }
                 studio.prefs.save(&studio.host.dirs);
@@ -528,8 +553,12 @@ impl SettingsPane {
                 } else {
                     studio.host.speech.delete_model(&studio.host.dirs, &id)
                 };
-                if let Err(error) = result {
-                    studio.notify(&error, true);
+                match result {
+                    Ok(_) => log::info!("models: removed {id}"),
+                    Err(error) => {
+                        log::warn!("models: removing {id} failed: {error}; it stays installed");
+                        studio.notify(&error, true);
+                    }
                 }
                 self.refresh(studio);
             }
@@ -614,19 +643,23 @@ impl SettingsPane {
                 self.install = None;
                 match result {
                     Ok(Installed::InstallerRunning) => {
-                        log::info!("update: the installer for {version} is running; closing");
+                        log::info!(
+                            "update: the installer for {version} is running · Clovercut closes for it"
+                        );
                         studio.notify(&tf("settings.installerOpened", &[&version]), false);
-                        quit_for_switch(|| {});
+                        quit_for_switch("for an update", || {});
                     }
                     Ok(Installed::Replaced) => {
                         // The bundle on disk is already the new build; what
                         // is left is to start it, and that waits on the
                         // project being saved.
-                        log::info!("update: {version} is in place; starting it");
+                        log::info!("update: {version} is in place · Clovercut starts it");
                         studio.notify(&tf("settings.versionInstalled", &[&version]), false);
-                        quit_for_switch(|| {
+                        quit_for_switch("for an update", move || {
                             if let Err(error) = updates::relaunch() {
-                                log::warn!("update: could not arrange the start: {error}");
+                                log::warn!(
+                                    "update: wanted {version} started after this one closes, and could not arrange it: {error}; start it by hand"
+                                );
                             }
                         });
                     }
@@ -634,9 +667,13 @@ impl SettingsPane {
                         studio.notify(&tf("settings.packageOpened", &[&version]), false);
                     }
                     // A cancel is a choice, not a failure worth a toast.
-                    Err(_) if self.install_cancel.load(Ordering::Relaxed) => {}
+                    Err(_) if self.install_cancel.load(Ordering::Relaxed) => {
+                        log::info!("update: switching to {version} cancelled");
+                    }
                     Err(error) => {
-                        log::warn!("update: {version} could not be installed: {error}");
+                        log::warn!(
+                            "update: installing {version} failed: {error}; this version stays"
+                        );
                         studio.notify(&tf("settings.couldNotInstall", &[&version, &error]), true);
                     }
                 }
@@ -681,7 +718,7 @@ impl SettingsPane {
         let folder = updates::folder(&studio.host.dirs);
         let version = release.version;
         log::info!(
-            "update: switching to {version} by its {} package",
+            "update: switching to {version} · its {} package",
             kind.key()
         );
         spawn(
@@ -1096,9 +1133,9 @@ fn fixed_note(why: Fixed) -> String {
 /// session. Now a failed save starts nothing and quits nothing: the window
 /// stays up with `close_project`'s reason, and the bundle already on disk
 /// can be started by hand.
-fn quit_for_switch(after: impl FnOnce() + Send + 'static) {
+fn quit_for_switch(how: &'static str, after: impl FnOnce() + Send + 'static) {
     on_ui(move |studio, app, models| {
-        log::info!("close: quitting for a version switch");
+        log::info!("close: quitting {how}");
         studio.save_layout(slint::ComponentHandle::window(app));
         let outcome = close_window(
             || studio.close_project(),
@@ -1109,7 +1146,7 @@ fn quit_for_switch(after: impl FnOnce() + Send + 'static) {
             },
         );
         if let Err(error) = outcome {
-            log::warn!("close: not switching, project could not be saved: {error}");
+            log::debug!("close: not switching, project could not be saved: {error}");
             studio.offer_quit_without_saving(error);
             studio.refresh_art();
             studio.publish(app, models);
@@ -1122,6 +1159,24 @@ fn quit_for_switch(after: impl FnOnce() + Send + 'static) {
 /// The log level row's choices, in the order the sheet lists them:
 /// errors only, warnings, normal, debug, everything.
 /// https://github.com/jub0t/Concat/issues/223
+/// [`LOG_LEVELS`] as the sheet names them, for the log's line.
+const LOG_LEVEL_NAMES: [&str; 5] = ["Errors only", "Warnings", "Normal", "Debug", "Everything"];
+
+/// The download sources as the sheet names them, in
+/// [`SourcePreference::ALL`]'s order, for the log's line.
+const DOWNLOAD_SOURCE_NAMES: [&str; 5] = [
+    "Automatic",
+    "Clovercut's mirror",
+    "hf-mirror.com",
+    "Original source",
+    "Custom URL",
+];
+
+/// A switch's state as the log says it.
+fn on_off(on: bool) -> &'static str {
+    if on { "on" } else { "off" }
+}
+
 const LOG_LEVELS: [log::LevelFilter; 5] = [
     log::LevelFilter::Error,
     log::LevelFilter::Warn,

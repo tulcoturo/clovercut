@@ -879,6 +879,7 @@ fn emoji_sequences_draw_as_one_picture() {
         let assignments = &casting.paragraphs[0];
         let pictures = crate::colour_glyphs::Pictures::default();
         let mut colour = true;
+        let mut has_picture = false;
         let mut start = 0;
         while start < sequence.len() {
             let face_index = assignments[start];
@@ -895,7 +896,7 @@ fn emoji_sequences_draw_as_one_picture() {
             buffer.set_direction(rustybuzz::Direction::LeftToRight);
             let shaped = rustybuzz::shape(&face, &[], buffer);
             for info in shaped.glyph_infos() {
-                colour &= pictures
+                let painted = pictures
                     .mark(&crate::colour_glyphs::Glyph {
                         face: &face,
                         key: crate::colour_glyphs::FaceKey::of(data, *index),
@@ -906,9 +907,20 @@ fn emoji_sequences_draw_as_one_picture() {
                         foreground: ttf_parser::RgbaColor::new(255, 255, 255, 255),
                     })
                     .is_some();
+                has_picture |= painted;
+                // Selectors and joiners may remain as invisible glyphs
+                // after shaping. They are not an outline fallback.
+                if !painted
+                    && face
+                        .glyph_bounding_box(ttf_parser::GlyphId(info.glyph_id as u16))
+                        .is_some()
+                {
+                    colour = false;
+                }
             }
             start = end;
         }
+        colour &= has_picture;
         let wide = width(sequence);
         assert!(
             wide > 0.0 && (!colour || wide <= one * 1.3),

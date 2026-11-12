@@ -80,6 +80,8 @@ pub fn mean_of(points: &[SpeedPoint]) -> f64 {
 /// length, so the same preset fits a clip of any length. Choosing one
 /// writes ordinary points, which are the clip's own from then on.
 pub struct SpeedPreset {
+    /// Translation key for the inspector label.
+    pub label: &'static str,
     /// The name the window looks its label up by.
     pub id: &'static str,
     /// `(at, speed)`, ascending. Straight lines join them, so a bend that
@@ -93,6 +95,7 @@ pub const PRESETS: &[SpeedPreset] = &[
     // Slow, fast, slow, fast: a rhythm for a sequence of shots.
     SpeedPreset {
         id: "montage",
+        label: "speedRamp.montage",
         points: &[
             (0.0, 0.6),
             (0.15, 0.6),
@@ -107,6 +110,7 @@ pub const PRESETS: &[SpeedPreset] = &[
     // Fast in, a long slow moment in the middle, fast out.
     SpeedPreset {
         id: "hero",
+        label: "speedRamp.hero",
         points: &[
             (0.0, 2.5),
             (0.25, 2.5),
@@ -119,6 +123,7 @@ pub const PRESETS: &[SpeedPreset] = &[
     // Fast, then nearly stopped, then fast: the bullet-time moment.
     SpeedPreset {
         id: "bullet",
+        label: "speedRamp.bullet",
         points: &[
             (0.0, 3.0),
             (0.3, 3.0),
@@ -131,6 +136,7 @@ pub const PRESETS: &[SpeedPreset] = &[
     // Normal, a short burst very fast through the middle, normal.
     SpeedPreset {
         id: "jump-cut",
+        label: "speedRamp.jumpCut",
         points: &[
             (0.0, 1.0),
             (0.38, 1.0),
@@ -143,11 +149,13 @@ pub const PRESETS: &[SpeedPreset] = &[
     // Rushing in, settling to normal.
     SpeedPreset {
         id: "flash-in",
+        label: "speedRamp.flashIn",
         points: &[(0.0, 8.0), (0.12, 4.0), (0.3, 1.0), (1.0, 1.0)],
     },
     // Normal, then rushing out.
     SpeedPreset {
         id: "flash-out",
+        label: "speedRamp.flashOut",
         points: &[(0.0, 1.0), (0.7, 1.0), (0.88, 4.0), (1.0, 8.0)],
     },
 ];

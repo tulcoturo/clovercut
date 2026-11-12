@@ -720,7 +720,8 @@ pub struct Models {
     pub curve_points: RefCell<HashMap<(i32, String), Rc<VecModel<CurvePointData>>>>,
     /// The Speed tab's curve: its points and the presets' names, kept like
     /// the colour curves' so a point being dragged is not dropped.
-    pub speed_points: Rc<VecModel<CurvePointData>>,
+    pub speed_points: Rc<VecModel<crate::ui::SpeedPointData>>,
+    pub speed_selected: Rc<VecModel<bool>>,
     pub speed_presets: Rc<VecModel<SharedString>>,
     /// The keyframe cluster's rows and the libraries' views: synced like
     /// the rest, since a model handed over fresh is unequal to the last by
@@ -818,6 +819,7 @@ impl Models {
             link_curves: RefCell::new(HashMap::new()),
             curve_points: RefCell::new(HashMap::new()),
             speed_points: Rc::new(VecModel::default()),
+            speed_selected: Rc::new(VecModel::default()),
             speed_presets: Rc::new(VecModel::default()),
             key_rows: Rc::new(VecModel::default()),
             key_editor_rows: Rc::new(VecModel::default()),
@@ -999,6 +1001,8 @@ pub struct Studio {
     /// about a track that the document does not.
     pub lanes: crate::panes::timeline::TimelinePane,
     pub selection: Vec<String>,
+    curve_selected: (String, Vec<usize>),
+    speed_grabbed: Option<Vec<model::SpeedPoint>>,
     pub last_active_track: Option<String>,
     pub last_inspector_selection: std::cell::RefCell<Option<Vec<String>>>,
     pub last_inspector_revision: std::cell::RefCell<u64>,
@@ -2550,6 +2554,8 @@ impl Studio {
             waves: RefCell::new(HashMap::new()),
             lanes: crate::panes::timeline::TimelinePane::default(),
             selection: Vec::new(),
+            curve_selected: (String::new(), Vec::new()),
+            speed_grabbed: None,
             last_active_track: None,
             last_inspector_selection: std::cell::RefCell::new(None),
             last_inspector_revision: std::cell::RefCell::new(0),
@@ -5849,16 +5855,22 @@ impl Studio {
             (false, true) => *points = None,
             _ => {}
         });
+        self.set_speed_chosen(Vec::new());
+        self.speed_grabbed = None;
     }
 
     /// One point of the Speed tab's curve, on the echo: moved, or put down
     /// when `point` is negative. `y` is the graph's height for the speed.
     pub fn speed_curve_point(&mut self, point: i32, x: f32, y: f32) {
+        let mut chosen = None;
         self.edit_speed_curve(|points, _| {
             if let Some(points) = points.as_mut() {
-                speed_ramp::set_point(points, point, x.into(), y.into());
+                chosen = speed_ramp::set_point(points, point, x.into(), y.into());
             }
         });
+        if let Some(index) = chosen {
+            self.set_speed_chosen(vec![index]);
+        }
     }
 
     /// One point of the Speed tab's curve taken off, on the echo.
@@ -5868,6 +5880,7 @@ impl Studio {
                 speed_ramp::remove_point(points, point);
             }
         });
+        self.set_speed_chosen(Vec::new());
     }
 
     /// The Speed tab's curve made smooth or straight, on the echo.
@@ -5894,6 +5907,121 @@ impl Studio {
         self.edit_speed_curve(|points, _| {
             if let Some(preset) = speed_ramp::preset_points(index) {
                 *points = Some(preset);
+            }
+        });
+        self.set_speed_chosen(Vec::new());
+    }
+
+    pub(super) fn speed_chosen_now(&self) -> &[usize] {
+        match self.sole_selection() {
+            Some(id) if id == self.curve_selected.0 => &self.curve_selected.1,
+            _ => &[],
+        }
+    }
+
+    /// The selected clip's curve as it stands, echo or document.
+    fn speed_points_now(&self) -> Vec<model::SpeedPoint> {
+        self.sole_selection()
+            .and_then(|id| self.clip(&id))
+            .and_then(|clip| clip.speed_curve.clone())
+            .unwrap_or_default()
+    }
+
+    /// Sets the chosen points, on the selected clip.
+    fn set_speed_chosen(&mut self, mut chosen: Vec<usize>) {
+        chosen.sort_unstable();
+        chosen.dedup();
+        // The graph is published again after every press it hands over.
+        self.curve_selected = (self.sole_selection().unwrap_or_default(), chosen);
+    }
+
+    /// A point pressed: with `add` (Shift, or the platform's command key)
+    /// it joins the chosen or leaves them; without, it becomes the one
+    /// chosen - unless it is chosen already, so a press on one of several
+    /// starts dragging them all.
+    pub fn speed_choose(&mut self, index: i32, add: bool) {
+        let Ok(index) = usize::try_from(index) else {
+            self.set_speed_chosen(Vec::new());
+            return;
+        };
+        let mut chosen = self.speed_chosen_now().to_vec();
+        if add {
+            match chosen.iter().position(|held| *held == index) {
+                Some(at) => {
+                    chosen.remove(at);
+                }
+                None => chosen.push(index),
+            }
+        } else if !chosen.contains(&index) {
+            chosen = vec![index];
+        }
+        self.set_speed_chosen(chosen);
+    }
+
+    /// The points inside a box dragged across the graph, `[x0, y0, x1, y1]`
+    /// on its scale, chosen - joining the chosen with `add`.
+    pub fn speed_choose_box(&mut self, corners: [f32; 4], add: bool) {
+        let [x0, y0, x1, y1] = corners.map(f64::from);
+        let (left, right) = (x0.min(x1), x0.max(x1));
+        let (low, high) = (y0.min(y1), y0.max(y1));
+        let inside = self
+            .speed_points_now()
+            .iter()
+            .enumerate()
+            .filter(|(_, point)| {
+                let y = speed_ramp::height_of(point.speed);
+                (left..=right).contains(&point.at) && (low..=high).contains(&y)
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        let mut chosen = if add {
+            self.speed_chosen_now().to_vec()
+        } else {
+            Vec::new()
+        };
+        chosen.extend(inside);
+        self.set_speed_chosen(chosen);
+    }
+
+    /// Every point chosen, or none.
+    pub fn speed_choose_all(&mut self, all: bool) {
+        let count = if all {
+            self.speed_points_now().len()
+        } else {
+            0
+        };
+        self.set_speed_chosen((0..count).collect());
+    }
+
+    /// A drag of the chosen points begins: the curve as it is now is what
+    /// each move is measured from.
+    pub fn speed_grab(&mut self) {
+        let points = self.speed_points_now();
+        self.speed_grabbed = (!points.is_empty()).then_some(points);
+    }
+
+    /// The chosen points moved together, `dx` across the clip and `dy` up
+    /// the graph from where the drag began; see `speed_ramp::move_selected`.
+    pub fn speed_drag_chosen(&mut self, dx: f32, dy: f32) {
+        let Some(from) = self.speed_grabbed.clone() else {
+            return;
+        };
+        let chosen = self.speed_chosen_now().to_vec();
+        self.edit_speed_curve(|points, _| {
+            if let Some(points) = points.as_mut() {
+                speed_ramp::move_selected(points, &from, &chosen, dx.into(), dy.into());
+            }
+        });
+    }
+
+    /// The chosen points taken off; the two ends stay.
+    pub fn speed_remove_chosen(&mut self) {
+        let chosen = std::mem::take(&mut self.curve_selected.1);
+        self.edit_speed_curve(|points, _| {
+            if let Some(points) = points.as_mut() {
+                for index in chosen.iter().rev() {
+                    speed_ramp::remove_point(points, *index as i32);
+                }
             }
         });
     }
@@ -10450,6 +10578,7 @@ impl Studio {
     /// Opens a project as the session and leaves the launch screen, or
     /// says why it could not.
     pub fn open_project(&mut self, info: ProjectInfo) -> Result<(), String> {
+        let opened = std::time::Instant::now();
         log::info!("project: opening {}", info.path);
         // File › Open and Recents from a window with a project in it: that
         // project is closed first, as a close would - saved, its folder let
@@ -10617,9 +10746,18 @@ impl Studio {
                         ));
                     }
                 }
+                log::info!(
+                    "project: opened {} in {} ms · {} tracks, {} clips, {:.2} s",
+                    self.project_name,
+                    opened.elapsed().as_millis(),
+                    self.timeline().tracks.len(),
+                    self.timeline().clips.len(),
+                    self.duration(),
+                );
                 Ok(())
             }
             Err(error) => {
+                log::warn!("project: could not open {}: {error}", info.name);
                 self.host.open_projects.release(&info.path);
                 Err(error)
             }
@@ -12227,13 +12365,23 @@ impl Studio {
             points
                 .iter()
                 .enumerate()
-                .map(|(index, point)| CurvePointData {
+                .map(|(index, point)| crate::ui::SpeedPointData {
                     index: index as i32,
                     x: point.at as f32,
                     y: speed_ramp::height_of(point.speed) as f32,
+                    end: index == 0 || index + 1 == points.len(),
                 })
                 .collect(),
         );
+        sync(
+            &models.speed_selected,
+            (0..points.len())
+                .map(|index| self.speed_chosen_now().contains(&index))
+                .collect(),
+        );
+        ramp.set_usable(clip.is_some_and(|clip| {
+            matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Audio)
+        }));
         ramp.set_curved(curve.is_some());
         ramp.set_smooth(curve.is_none_or(concat_project::speed::is_smooth));
         ramp.set_path(speed_ramp::path(points).into());

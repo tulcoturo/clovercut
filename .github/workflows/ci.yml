@@ -254,7 +254,7 @@ jobs:
       # (run 42068736838). Match the existing test-build compile budget;
       # execution limits and the single-job memory cap remain unchanged.
       - name: Lint engine crates
-        run: cargo clippy --workspace --exclude concat --exclude concat-android --all-targets --features concat/ui-walkthrough -- -D warnings
+        run: cargo clippy --workspace --exclude concat --exclude concat-android --all-targets -- -D warnings
         if: inputs.desktop_only != true
         timeout-minutes: 75
         working-directory: src

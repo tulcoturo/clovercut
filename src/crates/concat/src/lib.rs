@@ -508,6 +508,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             .set_rows(ModelRc::from(models.key_editor_rows.clone()));
         let ramp = app.global::<SpeedRamp>();
         ramp.set_points(ModelRc::from(models.speed_points.clone()));
+        ramp.set_selected(ModelRc::from(models.speed_selected.clone()));
         ramp.set_presets(ModelRc::from(models.speed_presets.clone()));
         editor.set_key_marks(ModelRc::from(models.key_marks.clone()));
         app.global::<Library>()
@@ -1505,6 +1506,29 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         }));
         ramp.on_extreme(on_lanes!(|state, faster: bool, speed: f32| {
             state.speed_curve_extreme(faster, speed);
+        }));
+        ramp.on_select(on_lanes!(|state, index: i32, add: bool| {
+            state.speed_choose(index, add);
+        }));
+        ramp.on_select_box(on_lanes!(|state,
+                                      x0: f32,
+                                      y0: f32,
+                                      x1: f32,
+                                      y1: f32,
+                                      add: bool| {
+            state.speed_choose_box([x0, y0, x1, y1], add);
+        }));
+        ramp.on_select_all(on_lanes!(|state, all: bool| {
+            state.speed_choose_all(all);
+        }));
+        ramp.on_begin_drag(on_lanes!(|state| {
+            state.speed_grab();
+        }));
+        ramp.on_drag_selected(on_lanes!(|state, dx: f32, dy: f32| {
+            state.speed_drag_chosen(dx, dy);
+        }));
+        ramp.on_remove_selected(on_lanes!(|state| {
+            state.speed_remove_chosen();
         }));
     }
     // The Keyframes panel's verbs; its rows go out with every publish.
