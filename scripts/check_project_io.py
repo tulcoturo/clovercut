@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Check real project/template/preferences storage without native media/UI.
+"""Check real project/template/preferences storage, sessions and locks without native media/UI.
 
 The temporary crate reuses the source, dependency versions and lockfile from this
 checkout. It never copies implementation logic or changes the workspace lockfile.
@@ -43,6 +43,10 @@ def main():
         manifest += 'concat-effects = { path = ' + json.dumps(str(workspace / "crates/concat-effects")) + ' }\n'
         (scratch / "lib.rs").write_text(
             'extern crate self as concat_host;\n'
+            'extern crate self as concat_export;\n'
+            # Session's renderer boundary is deliberately unavailable here.
+            'pub struct ExportClip;\n'
+            'pub mod flatten { pub fn flatten_timeline_in(_: &concat_project::Project, _: Option<()>, _: Option<&std::path::Path>) -> Vec<crate::ExportClip> { panic!("native rendering unavailable in storage-only check") } }\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/dirs.rs")) + '] pub mod directories;\n'
             'pub use directories::AppDirs;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/library.rs")) + '] pub mod library;\n'
@@ -50,15 +54,22 @@ def main():
             '#[path = ' + json.dumps(str(workspace / "crates/concat/src/prefs.rs")) + '] pub mod prefs;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat/src/project_browser.rs")) + '] pub mod project_browser;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/projects.rs")) + '] pub mod projects;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/lock.rs")) + '] pub mod lock;\n'
+            '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/session.rs")) + '] pub mod session;\n'
             '#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/templates.rs")) + '] pub mod templates;\n'
             # Poster extraction requires native media libraries and is covered by full CI.
             'pub mod media { pub fn poster_frame(_: &str) -> Result<Vec<u8>, String> { Err("native poster extraction unavailable in storage-only check".into()) } }\n'
+            '#[cfg(test)]\n#[path = ' + json.dumps(str(workspace / "crates/concat-host/src/project_save_tests.rs")) + '] mod project_save_tests;\n'
         )
         (scratch / "Cargo.toml").write_text(manifest)
         (scratch / "Cargo.lock").write_bytes(lock)
         env = os.environ.copy()
         env.setdefault("CARGO_TARGET_DIR", str(workspace / "target"))
         env.setdefault("CARGO_BUILD_JOBS", "2")
+        env.setdefault("CARGO_PROFILE_DEV_DEBUG", "0")
+        env.setdefault("CARGO_PROFILE_TEST_DEBUG", "0")
+        env.setdefault("CARGO_PROFILE_DEV_CODEGEN_UNITS", "16")
+        env.setdefault("CARGO_PROFILE_TEST_CODEGEN_UNITS", "16")
         for command, options in (
                 ("clippy", ["--all-targets", "--", "-D", "warnings"]),
                 ("test", ["--lib"])):
