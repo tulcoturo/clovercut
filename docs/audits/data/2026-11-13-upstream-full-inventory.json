@@ -475,7 +475,7 @@
     },
     {
       "commit": "2abfcf7d75503f3eede3eb527ece75b6245c92f2",
-      "subject": "fix(project): File \u203a Open and a recent project close the open one first - saved, its folder let go - instead of dropping it",
+      "subject": "fix(project): File › Open and a recent project close the open one first - saved, its folder let go - instead of dropping it",
       "status": "exact_patch_present",
       "prior_audits": [],
       "files": [
@@ -1143,7 +1143,7 @@
     },
     {
       "commit": "c495a8ea107c08b8405915cbc9ce3336a3b9b11c",
-      "subject": "fix(macos): save the project when \u2318Q ends the app (#437)",
+      "subject": "fix(macos): save the project when ⌘Q ends the app (#437)",
       "status": "exact_patch_present",
       "prior_audits": [],
       "files": [
@@ -3026,7 +3026,7 @@
     },
     {
       "commit": "bfb39ca459318e0ce1121c800d1ce4ef11e7f4f3",
-      "subject": "feat(timeline): a quick split rides the playhead, so a rough cut never reaches for \u2318B (#538)",
+      "subject": "feat(timeline): a quick split rides the playhead, so a rough cut never reaches for ⌘B (#538)",
       "status": "verify_current_behavior",
       "prior_audits": [
         "docs/audits/2026-10-28.md"
@@ -4595,7 +4595,7 @@
     {
       "commit": "25cf5073dee8714ffa4d7e742856f549f36df038",
       "subject": "feat(start): a CapCut draft opens as a Concat project, from the launch screen (#477)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-05-upstream-triage.md",
         "docs/audits/2026-11-07-upstream-issues-review.md",
@@ -4636,7 +4636,8 @@
         "src/crates/concat/src/panes/start.rs",
         "src/crates/concat/ui/app.slint",
         "src/crates/concat/ui/start.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-capcut-import.md"
     },
     {
       "commit": "b5e19da29681d7bc7af4decc9f046c14634f73c9",
@@ -5321,7 +5322,7 @@
     },
     {
       "commit": "3c6fc266f1b6b8c5054d80b3aeae9191796d8593",
-      "subject": "fix(relink): the missing media dialog is sized to its files, closes from its \u00d7, and finds a file one at a time",
+      "subject": "fix(relink): the missing media dialog is sized to its files, closes from its ×, and finds a file one at a time",
       "status": "verify_current_behavior",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
