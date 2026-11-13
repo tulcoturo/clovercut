@@ -1619,6 +1619,9 @@ fn commit_key(commands: &[Command]) -> String {
                 if patch.fade_in.is_some() {
                     fields.push("fade_in");
                 }
+                if patch.quadratic_fades.is_some() {
+                    fields.push("quadratic_fades");
+                }
                 if patch.fade_out.is_some() {
                     fields.push("fade_out");
                 }
@@ -1942,6 +1945,9 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
     }
     if after.fade_in != before.fade_in {
         patch.fade_in = Some(after.fade_in);
+    }
+    if after.quadratic_fades != before.quadratic_fades {
+        patch.quadratic_fades = Some(after.quadratic_fades);
     }
     if after.fade_out != before.fade_out {
         patch.fade_out = Some(after.fade_out);
@@ -4613,6 +4619,58 @@ impl Studio {
     /// of sixty-four bars, so a scroll rebuilds at each stride and not at
     /// every pixel, and the cache holds a few hundred windows before it
     /// is emptied.
+    /// Sixty-four real peak bars over a fade's own time window, retimed
+    /// through the clip's source clock rather than the original file's rate.
+    fn wave_end(&self, clip: &Clip, tail: bool) -> SharedString {
+        if clip.muted == Some(true)
+            || !matches!(clip.kind, model::ClipKind::Audio | model::ClipKind::Video)
+        {
+            return SharedString::default();
+        }
+        let art = art_key(&clip.media_id, clip.audio_stream);
+        let Some(peaks) = self.peaks.get(&art) else {
+            return SharedString::default();
+        };
+        let duration = clip.duration;
+        let window = (duration / 2.0).min(10.0);
+        if window <= 0.0 {
+            return SharedString::default();
+        }
+        let from = if tail { duration - window } else { 0.0 };
+        let key = format!(
+            "end|{art}|{}|{from}|{window}|{}|{:?}",
+            clip.source_start, clip.speed, clip.speed_curve
+        );
+        if let Some(cached) = self.waves.borrow().get(&key) {
+            return cached.clone();
+        }
+        let curve = clip
+            .speed_curve
+            .as_deref()
+            .and_then(concat_project::speed::curve_of);
+        let source = |local: f64| {
+            clip.source_start
+                + curve.as_ref().map_or(local * clip.speed, |curve| {
+                    duration * curve.consumed(local / duration)
+                })
+        };
+        let bars: Vec<f32> = (0..64)
+            .map(|column| {
+                let a = source(from + window * column as f64 / 64.0) as f32;
+                let b = source(from + window * (column + 1) as f64 / 64.0) as f32;
+                let (lo, hi) = peaks.level_for(b - a).extremes(a, b);
+                hi.max(-lo)
+            })
+            .collect();
+        let built = SharedString::from(crate::format::bars_path(&bars, WAVE_BAR));
+        let mut waves = self.waves.borrow_mut();
+        if waves.len() >= 512 {
+            waves.clear();
+        }
+        waves.insert(key, built.clone());
+        built
+    }
+
     fn wave(&self, clip: &Clip) -> (SharedString, f64, f64) {
         if clip.muted == Some(true) {
             return Default::default();
@@ -7400,6 +7458,7 @@ impl Studio {
                     clip.crop = (!crop.is_none()).then_some(crop);
                 }
                 ClipField::FadeIn => clip.fade_in = value.clamp(0.0, clip.duration / 2.0),
+                ClipField::QuadraticFades => clip.quadratic_fades = value != 0.0,
                 ClipField::FadeOut => clip.fade_out = value.clamp(0.0, clip.duration / 2.0),
                 ClipField::ShapeKind
                 | ClipField::ShapeWidth
@@ -12164,6 +12223,8 @@ impl Studio {
                             .unwrap_or(0.0),
                         fade_handles: view.offset == 0.0
                             && (view.duration - clip.duration).abs() < 1e-6,
+                        quadratic_fades: clip.quadratic_fades
+                            && matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Audio),
                         fade_in: head.0 as f32,
                         fade_in_start: head.1,
                         fade_in_end: head.2,
@@ -14115,6 +14176,9 @@ impl Studio {
             mask_feather: mask_number("feather"),
             mask_expand: mask_number("expand"),
             mask_opacity: mask_number("opacity"),
+            wave_head: self.wave_end(clip, false),
+            wave_tail: self.wave_end(clip, true),
+            quadratic_fades: clip.quadratic_fades,
             fade_in: clip.fade_in as f32,
             fade_out: clip.fade_out as f32,
             content: text.content.as_str().into(),
@@ -14378,8 +14442,7 @@ impl Studio {
 
     /// The source instant of `clip` under the playhead, held to the clip.
     fn source_at_playhead(&self, clip: &Clip) -> f64 {
-        let along = (self.playhead - clip.start).clamp(0.0, clip.duration);
-        clip.source_start + along * clip.speed
+        concat_project::speed::source_at(clip, self.playhead - clip.start)
     }
 
     /// Whether the cutout model found nothing at the playhead's frame of
@@ -16340,6 +16403,22 @@ pub(crate) fn audio_specs(clips: &[concat_export::ExportClip]) -> Vec<ClipSpec> 
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn fade_curve_inspector_echo_emits_a_saved_undoable_patch() {
+        let before = super::Clip::blank(
+            "audio",
+            "a",
+            super::model::ClipKind::Audio,
+            "Audio",
+            0.0,
+            2.0,
+        );
+        let mut after = before.clone();
+        after.quadratic_fades = false;
+        let commands = super::clip_commands("audio", &before, &after, false);
+        assert!(commands.iter().any(|command|matches!(command,super::Command::UpdateClip {patch,..} if patch.quadratic_fades==Some(false))));
+    }
 
     #[test]
     fn voice_inspector_echo_commits_both_ways_and_off() {

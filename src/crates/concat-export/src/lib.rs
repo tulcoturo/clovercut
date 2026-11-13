@@ -201,6 +201,9 @@ pub struct ExportClip {
     /// Audio fade out into the clip's end, in seconds.
     #[serde(default)]
     pub fade_out: f64,
+    /// Audio gain ramps; old flattened requests retain their linear envelope.
+    #[serde(default)]
+    pub quadratic_fades: bool,
     /// FFmpeg filter chain from the Filters tab, or empty.
     #[serde(default)]
     pub filter_chain: String,
@@ -431,6 +434,7 @@ impl ExportClip {
             volume: 1.0,
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             filter_chain: String::new(),
             speed: 1.0,
             preserve_pitch: true,
@@ -1601,6 +1605,20 @@ fn audio_pieces_of(
 ) -> Vec<AudioClip> {
     let chain = clip.filter_chain.clone();
     let track = volume_track(clip);
+    let track = if gain == 1.0 {
+        track
+    } else {
+        AnimTrack::new(
+            track
+                .keys()
+                .iter()
+                .map(|key| AnimKey {
+                    value: key.value * gain,
+                    ..*key
+                })
+                .collect(),
+        )
+    };
     let retime = clip.retime();
     if retime.is_none() || clip.preserve_pitch {
         return vec![AudioClip {
@@ -1619,6 +1637,7 @@ fn audio_pieces_of(
             volume_curve: track,
             fade_in: clip.fade_in,
             fade_out: clip.fade_out,
+            quadratic_fades: clip.quadratic_fades,
             filter_chain: chain,
         }];
     }
@@ -1652,6 +1671,7 @@ fn audio_pieces_of(
                 volume_curve: track_slice(&track, x0, x1),
                 fade_in: if clip.fade_in > 0.0 { fade_in } else { 0.0 },
                 fade_out: if clip.fade_out > 0.0 { fade_out } else { 0.0 },
+                quadratic_fades: clip.quadratic_fades,
                 filter_chain: chain.clone(),
             }
         })
@@ -3695,6 +3715,23 @@ mod tests {
             assert_eq!(part.stream, None);
             assert_eq!(part.preserve_pitch, clip.preserve_pitch);
         }
+        clip.animation = vec![
+            ExportKey {
+                property: "volume".into(),
+                at: 0.0,
+                value: 1.0,
+                ease: linear_ease(),
+            },
+            ExportKey {
+                property: "volume".into(),
+                at: 1.0,
+                value: 0.5,
+                ease: linear_ease(),
+            },
+        ];
+        let keyed = audio_pieces(&clip);
+        assert!((keyed[0].volume_curve.value_at(0.5, 0.0) - 0.6).abs() < 1e-9);
+        assert!((keyed[1].volume_curve.value_at(0.5, 0.0) - 0.15).abs() < 1e-9);
         clip.voice.as_mut().unwrap().rest_gain = 0.0;
         assert_eq!(audio_pieces(&clip).len(), 1);
         clip.voice.as_mut().unwrap().voice_gain = 0.0;

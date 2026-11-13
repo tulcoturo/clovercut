@@ -651,10 +651,10 @@ pub struct VoiceMix {
 pub enum VoiceKind {
     /// Singing apart from the music under it: a song's vocals and its
     /// instrumental. Deezer's Spleeter.
-    #[default]
     Vocals,
     /// Speech apart from the noise, the room and the music bed behind it:
     /// dialogue cleaned. DeepFilterNet 3.
+    #[default]
     Speech,
 }
 
@@ -672,13 +672,13 @@ impl VoiceMix {
     pub const KEEP_VOICE: VoiceMix = VoiceMix {
         voice: 1.0,
         background: 0.0,
-        kind: VoiceKind::Vocals,
+        kind: VoiceKind::Speech,
     };
     /// Everything but the voice.
     pub const REMOVE_VOICE: VoiceMix = VoiceMix {
         voice: 0.0,
         background: 1.0,
-        kind: VoiceKind::Vocals,
+        kind: VoiceKind::Speech,
     };
 
     /// Both gains in range; a gain that is not a number is as recorded.
@@ -2861,6 +2861,9 @@ pub struct Clip {
     pub fade_in: f64,
     /// Seconds of audio ramp-out to silence at the tail. Zero for none.
     pub fade_out: f64,
+    /// Quadratic gain ramps; absent in old documents preserves linear fades.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub quadratic_fades: bool,
     /// Independent visual entrance/exit, composed with transform and opacity keys.
     #[serde(default, skip_serializing_if = "CaptionMotion::is_default")]
     pub visual_motion: CaptionMotion,
@@ -3055,6 +3058,7 @@ impl Clip {
             volume: 1.0,
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: true,
             visual_motion: CaptionMotion::default(),
             scale: 1.0,
             offset_x: 0.0,

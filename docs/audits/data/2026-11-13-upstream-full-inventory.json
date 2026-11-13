@@ -5439,7 +5439,7 @@
     {
       "commit": "8a4021291625f1cec6786505894d63340c033bb4",
       "subject": "feat(inspector): the Audio tab rebuilt on three controls of its own - a gain fader, a stem mixer and fades drawn on the sound (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
@@ -5475,7 +5475,8 @@
         "src/crates/concat/ui/inspector/audio-controls.slint",
         "src/crates/concat/ui/inspector/clip-inspector.slint",
         "src/crates/concat/ui/timeline/model.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-audio-controls-fades.md"
     },
     {
       "commit": "27626edd29041f874612e3684a65da183f644519",
@@ -5494,7 +5495,7 @@
     {
       "commit": "444476f6007f4e485d9fc386d4b74d7faae6537e",
       "subject": "feat(inspector): voice isolation says what it splits - Sound is Speech or Song, then one row per part with its own mute - and sits under the fades (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
@@ -5527,19 +5528,21 @@
         "src/crates/concat/locales/zh-TW.json",
         "src/crates/concat/ui/inspector/audio-controls.slint",
         "src/crates/concat/ui/inspector/clip-inspector.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-audio-controls-fades.md"
     },
     {
       "commit": "dd8bb0a386c94b210d69f3ea261fdfe7590878cc",
       "subject": "feat(audio): voice isolation starts on speech - the model that ships, for what most of an edit is (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-project/src/model.rs",
         "src/crates/concat/src/studio/keyboard.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-audio-controls-fades.md"
     },
     {
       "commit": "e9c0f6ad6260dc5cc11cb3b9273bfb90e43b01cc",
@@ -5566,7 +5569,7 @@
     {
       "commit": "aa913fac30906f72118b19b04e4513c0f3a26dbd",
       "subject": "feat(audio): fades on a curve, heard and drawn, and a red zone over the amber on the fader and every waveform",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
@@ -5579,7 +5582,8 @@
         "src/crates/concat/ui/theme/light.slint",
         "src/crates/concat/ui/theme/theme.slint",
         "src/crates/concat/ui/timeline/lanes.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-audio-controls-fades.md"
     },
     {
       "commit": "34cdf4ab8fbcadb9e33919f842f081e3da8a748c",

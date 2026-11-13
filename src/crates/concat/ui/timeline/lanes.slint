@@ -56,6 +56,7 @@ global Paint {
 // Drawn at the foot of a picture clip's body, over the whole of a sound's,
 // and over the whole bar of a filter layer, which is all bar.
 component Ramps inherits Rectangle {
+    in property <bool> quadratic-fades;
     in property <float> fade-in;
     in property <float> fade-out;
     in property <float> fade-in-start: 1;
@@ -65,6 +66,16 @@ component Ramps inherits Rectangle {
     in property <length> px-per-second;
     /// The wedges' height; they sit at the foot of this element.
     in property <length> ramp-h: root.height;
+
+    // Restrict the original quadratic to the visible slice: its Bezier
+    // middle is the product of the two endpoint gains, even halfway in.
+    pure function envelope(y: float) -> float { return root.quadratic-fades ? 1 - (1-y)*(1-y) : y; }
+    property <float> head-a: root.envelope(root.fade-in-start);
+    property <float> head-b: root.envelope(root.fade-in-end);
+    property <float> head-control: 1-(1-root.fade-in-start)*(1-root.fade-in-end);
+    property <float> tail-a: root.envelope(root.fade-out-start);
+    property <float> tail-b: root.envelope(root.fade-out-end);
+    property <float> tail-control: 1-(1-root.fade-out-start)*(1-root.fade-out-end);
 
     if root.fade-in > 0: Rectangle {
         x: 0;
@@ -79,7 +90,7 @@ component Ramps inherits Rectangle {
             viewbox-height: 1;
             fit: fill;
             fill: Theme.fade-shade;
-            commands: "M 0 0 L 1 0 L 1 \{root.fade-in-end} L 0 \{root.fade-in-start} Z";
+            commands: root.quadratic-fades ? "M 0 0 L 1 0 L 1 \{root.head-b} Q 0.5 \{root.head-control} 0 \{root.head-a} Z" : "M 0 0 L 1 0 L 1 \{root.head-b} L 0 \{root.head-a} Z";
         }
         Path {
             width: parent.width;
@@ -89,7 +100,7 @@ component Ramps inherits Rectangle {
             fit: fill;
             stroke: Theme.fade-edge;
             stroke-width: 1px;
-            commands: "M 0 \{root.fade-in-start} L 1 \{root.fade-in-end}";
+            commands: root.quadratic-fades ? "M 0 \{root.head-a} Q 0.5 \{root.head-control} 1 \{root.head-b}" : "M 0 \{root.head-a} L 1 \{root.head-b}";
         }
     }
 
@@ -106,7 +117,7 @@ component Ramps inherits Rectangle {
             viewbox-height: 1;
             fit: fill;
             fill: Theme.fade-shade;
-            commands: "M 0 0 L 1 0 L 1 \{root.fade-out-end} L 0 \{root.fade-out-start} Z";
+            commands: root.quadratic-fades ? "M 0 0 L 1 0 L 1 \{root.tail-b} Q 0.5 \{root.tail-control} 0 \{root.tail-a} Z" : "M 0 0 L 1 0 L 1 \{root.tail-b} L 0 \{root.tail-a} Z";
         }
         Path {
             width: parent.width;
@@ -116,7 +127,7 @@ component Ramps inherits Rectangle {
             fit: fill;
             stroke: Theme.fade-edge;
             stroke-width: 1px;
-            commands: "M 0 \{root.fade-out-start} L 1 \{root.fade-out-end}";
+            commands: root.quadratic-fades ? "M 0 \{root.tail-a} Q 0.5 \{root.tail-control} 1 \{root.tail-b}" : "M 0 \{root.tail-a} L 1 \{root.tail-b}";
         }
     }
 }
@@ -404,6 +415,7 @@ export component Clip inherits Rectangle {
             y: 0;
             width: parent.width;
             height: parent.height;
+            quadratic-fades: root.item.quadratic-fades;
             fade-in: root.shown-fade-in;
             fade-out: root.shown-fade-out;
             fade-in-start: root.item.fade-in-start;

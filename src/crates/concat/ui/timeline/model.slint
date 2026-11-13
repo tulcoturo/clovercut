@@ -123,6 +123,7 @@ export struct ClipData {
     fade-handles: bool,
     fade-in: float,
     fade-out: float,
+    quadratic-fades: bool,
     /// Shade endpoints after clipping long geometry to the published window.
     fade-in-start: float,
     fade-in-end: float,
@@ -187,7 +188,7 @@ export enum TextAlignment { left, center, right }
 /// one per control.
 export enum ClipField {
     scale, offset-x, offset-y, rotation, stretch-x, stretch-y, opacity,
-    volume, speed, preserve-pitch, fade-in, fade-out,
+    volume, speed, preserve-pitch, fade-in, fade-out, quadratic-fades,
     flip-h, flip-v, blend, crop-left, crop-top, crop-right, crop-bottom,
     font-size, font-weight, italic, underline, strikethrough, text-case, vertical-align, text-vertical, text-color, text-green-key, text-blue-key, stroke-color-key, stroke-green-key, stroke-blue-key, text-opacity, align,
     stroke-width, shadow, line-height, tracking, text-width, text-height,
@@ -504,8 +505,11 @@ export struct SelectedClipData {
     mask-feather: float,
     mask-expand: float,
     mask-opacity: float,
+    wave-head: string,
+    wave-tail: string,
     fade-in: float,
     fade-out: float,
+    quadratic-fades: bool,
 
     // the cutout: 0 none, 1 automatic, 2 custom; what it keeps, 0 auto,
     // 1 person, 2 object; how soft its edge is; how many strokes it

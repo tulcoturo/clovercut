@@ -62,6 +62,22 @@ pub fn peer_link(shown: &[AppliedFilter], index: usize, peer: &[AppliedFilter]) 
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn new_clips_get_smooth_fades_but_missing_saved_curve_stays_linear() {
+        let clip = crate::model::Clip::blank("a", "audio", ClipKind::Audio, "Audio", 0.0, 2.0);
+        assert!(clip.quadratic_fades);
+        let mut old = serde_json::to_value(&clip).unwrap();
+        old.as_object_mut().unwrap().remove("quadraticFades");
+        let restored: crate::model::Clip = serde_json::from_value(old).unwrap();
+        assert!(!restored.quadratic_fades);
+        assert!(
+            serde_json::to_value(&restored)
+                .unwrap()
+                .get("quadraticFades")
+                .is_none()
+        );
+    }
+
     use super::*;
     use crate::model::Clip;
     #[test]

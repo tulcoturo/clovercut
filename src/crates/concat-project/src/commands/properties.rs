@@ -55,6 +55,9 @@ pub(super) fn apply(
             if let Some(fade_out) = patch.fade_out {
                 applied |= assign(&mut clip.fade_out, fade_out.max(0.0));
             }
+            if let Some(curved) = patch.quadratic_fades {
+                applied |= assign(&mut clip.quadratic_fades, curved);
+            }
             if let Some(motion) = patch.visual_motion {
                 applied |= assign(&mut clip.visual_motion, motion.tidy());
             }

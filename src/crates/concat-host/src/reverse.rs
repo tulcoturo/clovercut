@@ -161,6 +161,7 @@ fn span_clip(request: &ReverseRequest, chain: &str) -> AudioClip {
         volume_curve: concat_core::animate::Track::new(Vec::new()),
         fade_in: 0.0,
         fade_out: 0.0,
+        quadratic_fades: false,
         filter_chain: chain.to_owned(),
     }
 }

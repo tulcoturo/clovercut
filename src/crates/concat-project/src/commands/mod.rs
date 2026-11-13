@@ -101,6 +101,8 @@ pub struct ClipPatch {
     pub fade_in: Option<f64>,
     /// New fade-out length in seconds, floored at 0.
     pub fade_out: Option<f64>,
+    /// Choose smooth quadratic fades or legacy linear ramps.
+    pub quadratic_fades: Option<bool>,
     /// Visual entrance/exit settings, independent of the audio ramps.
     #[serde(default)]
     pub visual_motion: Option<crate::model::CaptionMotion>,

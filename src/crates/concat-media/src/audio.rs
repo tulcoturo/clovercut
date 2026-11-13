@@ -121,6 +121,17 @@ pub(crate) fn curve_filters(retime: &TempoCurve) -> Vec<String> {
     ]
 }
 
+/// The envelope shared by live preview and the exported FFmpeg curve=qua.
+/// A square is closer to a perceptually even loudness change than linear gain.
+pub fn fade_gain(quadratic: bool, progress: f64) -> f64 {
+    let progress = progress.clamp(0.0, 1.0);
+    if quadratic {
+        progress * progress
+    } else {
+        progress
+    }
+}
+
 /// One audible clip, in timeline terms.
 #[derive(Clone, Debug)]
 pub struct AudioClip {
@@ -156,6 +167,8 @@ pub struct AudioClip {
     pub fade_in: f64,
     /// Fade out over this many seconds into the clip's end.
     pub fade_out: f64,
+    /// Smooth quadratic gain ramps when true; linear preserves older edits.
+    pub quadratic_fades: bool,
     /// Extra FFmpeg audio filters, or empty. Validated, not trusted.
     pub filter_chain: String,
 }
@@ -531,13 +544,18 @@ fn mix_graph_from(
             }
             None => {}
         }
+        let curve = if clip.quadratic_fades {
+            ":curve=qua"
+        } else {
+            ""
+        };
         if clip.fade_in > 0.0 {
-            stage.push_str(&format!(",afade=t=in:st=0:d={:.4}", clip.fade_in));
+            stage.push_str(&format!(",afade=t=in:st=0:d={:.4}{curve}", clip.fade_in));
         }
         if clip.fade_out > 0.0 {
             let start = (clip.duration - clip.fade_out).max(0.0);
             stage.push_str(&format!(
-                ",afade=t=out:st={start:.4}:d={:.4}",
+                ",afade=t=out:st={start:.4}:d={:.4}{curve}",
                 clip.fade_out
             ));
         }
@@ -1414,6 +1432,41 @@ impl<'a> Feed<'a> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn quadratic_fades_are_rendered_as_the_same_squared_envelope() {
+        let dir =
+            std::env::temp_dir().join(format!("clovercut-quadratic-fades-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("tone.wav");
+        tone_wav(&source, 1.0);
+        let mut piece = clip(source.to_str().unwrap());
+        piece.duration = 1.0;
+        piece.fade_in = 0.2;
+        piece.fade_out = 0.2;
+        piece.quadratic_fades = true;
+        let output = dir.join("smooth.wav");
+        mix_to_file(&[piece], 1.0, &output).unwrap();
+        let mut decoder =
+            crate::AudioDecoder::open(&output, &crate::AudioOptions::default()).unwrap();
+        let mut samples = Vec::new();
+        while let Some(chunk) = decoder.next_i16().unwrap() {
+            samples.extend(chunk);
+        }
+        assert_eq!(samples.len(), MIX_RATE as usize * 2);
+        for (index, pair) in samples.chunks_exact(2).enumerate() {
+            let t = index as f64 / f64::from(MIX_RATE);
+            let envelope = fade_gain(true, t / 0.2) * fade_gain(true, (1.0 - t) / 0.2);
+            let raw = (0.5 * (2.0 * std::f64::consts::PI * 440.0 * t).sin() * 32767.0) as i16;
+            let want = f64::from(raw) * envelope;
+            assert!(
+                (f64::from(pair[0]) - want).abs() < 5.0,
+                "sample {index}: {} vs {want}",
+                pair[0]
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     use super::*;
 
     fn clip(path: &str) -> AudioClip {
@@ -1430,6 +1483,7 @@ mod tests {
             volume_curve: Track::default(),
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             filter_chain: String::new(),
         }
     }
@@ -1778,6 +1832,7 @@ mod tests {
             volume: 0.5,
             fade_in: 0.02,
             fade_out: 0.03,
+            quadratic_fades: false,
             ..clip("")
         };
         for extension in ["wav", "WAV", "m4a"] {
@@ -2044,6 +2099,7 @@ mod tests {
             volume_curve: Track::default(),
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             filter_chain: String::new(),
         };
         let clips = [piece(0.0, 0.0, 2.0), piece(2.0, 2.0, 4.0)];
