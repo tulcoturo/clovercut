@@ -783,6 +783,8 @@ export component PreviewPane inherits Rectangle {
     /// The snap lines while one of them is being moved.
     in property <[StageGuideData]> stage-guides;
 
+    in property <bool> fullscreen;
+    callback fullscreen-toggled();
     callback play-toggled();
     /// Absolute, in seconds.
     callback seek(seconds: float);
@@ -1340,6 +1342,15 @@ export component PreviewPane inherits Rectangle {
                             options: [I18n.t("common.full"), I18n.t("previewPane.half"), I18n.t("previewPane.quarter")];
                             details: ["1:1", "1:2", "1:4"];
                             changed(index) => { root.quality-changed(index); }
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        IconButton {
+                            glyph: Glyph.maximize;
+                            label: I18n.t("previewPane.fullscreen");
+                            clicked => { root.fullscreen-toggled(); }
                         }
                     }
 

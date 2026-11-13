@@ -203,6 +203,7 @@ fn import_edit_reopen_relink_export() {
                     check_media_selection(&shell);
                     studio = shell.studio.borrow_mut();
                     check_speed_selection(&mut studio);
+                    check_shapes_and_preview_hold(&mut studio);
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -644,4 +645,65 @@ fn check_speed_selection(state: &mut Studio) {
     assert_eq!(state.project(), &baseline);
     state.selection = selection;
     state.speed_choose(-1, false);
+}
+
+// Real inspector transactions, plus temporary preview hold and seek bounds.
+fn check_shapes_and_preview_hold(state: &mut Studio) {
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let playhead = state.playhead;
+    let axis = state.prefs.preview_axis;
+    let bounded = state.prefs.playhead_stops_at_end;
+    let id = state
+        .apply(Command::AddShapeClip {
+            track_id: None,
+            above: true,
+            start: 0.0,
+            style: Some(concat_project::model::ShapeStyle::default()),
+            duration: Some(1.0),
+            name: "Editable figure".into(),
+        })
+        .unwrap();
+    state.selection = vec![id.clone()];
+    let original = state.clip(&id).unwrap().shape.clone();
+    state.clip_shape_colour(0, slint::Color::from_argb_u8(128, 18, 52, 86));
+    state.clip_commit();
+    state.flush_commit();
+    let changed = state.clip(&id).unwrap().shape.clone().unwrap();
+    assert_eq!(changed.fill, "#12345680");
+    state.undo();
+    assert_eq!(
+        state.clip(&id).unwrap().shape,
+        original,
+        "one undo restores the shape's colour"
+    );
+    state.redo();
+    assert_eq!(state.clip(&id).unwrap().shape.as_ref(), Some(&changed));
+    state.undo();
+    state.undo();
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
+    state.prefs.preview_axis = true;
+    state.hover(0.25);
+    assert_eq!(state.hover, Some(0.25));
+    state.preview_held = true;
+    state.hover(0.75);
+    state.end_hover();
+    assert_eq!(
+        state.hover,
+        Some(0.25),
+        "Shift holds the currently shown hover frame"
+    );
+    state.preview_held = false;
+    state.hover(0.75);
+    assert_eq!(state.hover, Some(0.75));
+    state.end_hover();
+    state.prefs.playhead_stops_at_end = true;
+    state.seek(1_000_000.0);
+    assert!(state.playhead <= state.duration());
+    state.seek(-1.0);
+    assert_eq!(state.playhead, 0.0);
+    state.prefs.playhead_stops_at_end = bounded;
+    state.prefs.preview_axis = axis;
+    state.seek(playhead);
 }

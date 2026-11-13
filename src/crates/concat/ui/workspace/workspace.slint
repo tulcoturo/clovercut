@@ -37,10 +37,11 @@ export component Workspace inherits Rectangle {
     changed height => { Editor.workspace-resized(root.width, root.height); }
 
     for seat in Editor.seats: Seat {
-        x: seat.x;
-        y: seat.y;
-        width: seat.width;
-        height: seat.height;
+        visible: Editor.preview-fullscreen-seat < 0 || Editor.preview-fullscreen-seat == seat.index;
+        x: Editor.preview-fullscreen-seat >= 0 ? 0px : seat.x;
+        y: Editor.preview-fullscreen-seat >= 0 ? 0px : seat.y;
+        width: Editor.preview-fullscreen-seat >= 0 ? root.width : seat.width;
+        height: Editor.preview-fullscreen-seat >= 0 ? root.height : seat.height;
         kind: seat.kind;
         index: seat.index;
 
@@ -54,6 +55,7 @@ export component Workspace inherits Rectangle {
     // used; which one a gutter gets is a fact about its split, so it comes
     // down with the box rather than being decided here.
     for divider in Editor.dividers: Rectangle {
+        visible: Editor.preview-fullscreen-seat < 0;
         x: divider.x;
         y: divider.y;
         width: divider.width;

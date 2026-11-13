@@ -131,6 +131,11 @@ export component App inherits Window {
     // until a press lands on a pane's floor. Each of those teardowns hands
     // the focus back here on the way out.
     changed on-start => {
+        Editor.preview-held(false);
+        if (root.on-start && Editor.preview-fullscreen-seat >= 0) {
+            Editor.preview-fullscreen(-1);
+        }
+
         if (!root.on-start) {
             keys.focus();
         }
@@ -556,7 +561,21 @@ export component App inherits Window {
         // and the capture field in Settings > Shortcuts listens on this
         // same callback. False lets the key go on up, so Escape still
         // closes a popup and Tab still moves focus.
+        key-released(event) => {
+            if (event.text == Key.Shift || event.text == Key.ShiftR) {
+                Editor.preview-held(false);
+            }
+            return reject;
+        }
         key-pressed(event) => {
+            if (event.text == Key.Shift || event.text == Key.ShiftR) {
+                Editor.preview-held(true);
+            }
+
+            if (event.text == Key.F11 && !root.on-start && !root.sheet-up) {
+                Editor.preview-fullscreen(-2);
+                return accept;
+            }
             // Escape closes the sheet on top, as its × does. A sheet busy
             // with a job keeps itself - its × is gone then too - and the
             // key is spent on it, not passed to the editor underneath.
@@ -590,6 +609,10 @@ export component App inherits Window {
                 }
                 if (root.captions.open) {
                     if (!root.sheets-fill || !root.captions.running) { root.captions-closed(); }
+                    return accept;
+                }
+                if (Editor.preview-fullscreen-seat >= 0) {
+                    Editor.preview-fullscreen(-1);
                     return accept;
                 }
                 // A look being shown over the picture, and nothing above it.
@@ -632,7 +655,7 @@ export component App inherits Window {
             // No strip on a phone: its menus, its window buttons and its
             // drag region are all a desk's, and the phone shell's top bar
             // carries the two verbs that are not.
-            if !root.phone: TitleBar {
+            if !root.phone && Editor.preview-fullscreen-seat < 0: TitleBar {
                 macos: root.macos;
                 minimal: root.on-start;
                 deep: root.on-start;

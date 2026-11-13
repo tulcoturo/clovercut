@@ -814,7 +814,7 @@ fn key_of(project: &Project, painting: Painting<'_>, width: u32, height: u32) ->
     // preserve overflow and store the canvas size in the sidecar.
     // 9: per-word looks and variable line metrics.
     // 10: cached colour glyphs, COLR gradients and presentation selectors.
-    bytes.extend_from_slice(&10u32.to_le_bytes());
+    bytes.extend_from_slice(&11u32.to_le_bytes());
     crate::media::fnv1a(&bytes)
 }
 
@@ -953,8 +953,18 @@ fn title_style(style: &TextStyle) -> TitleStyle {
     }
 }
 
-/// The document's shape, in the painter's terms.
+/// The document's shape, in the painter's terms: the box resolved, a
+/// line's ends and the figure's own counts filled in.
 fn shape_style(style: &ShapeStyle) -> concat_text::ShapeStyle {
+    use concat_project::model::{LineHead, StrokeAlign, StrokeDash};
+    let head = |head: LineHead| match head {
+        LineHead::None => concat_text::Head::None,
+        LineHead::Arrow => concat_text::Head::Arrow,
+        LineHead::Triangle => concat_text::Head::Triangle,
+        LineHead::Circle => concat_text::Head::Circle,
+        LineHead::Bar => concat_text::Head::Bar,
+    };
+    let (width, height) = style.figure_box();
     concat_text::ShapeStyle {
         figure: match style.kind {
             ShapeKind::Square => Figure::Square,
@@ -962,13 +972,45 @@ fn shape_style(style: &ShapeStyle) -> concat_text::ShapeStyle {
             ShapeKind::Triangle => Figure::Triangle,
             ShapeKind::Parallelogram => Figure::Parallelogram,
             ShapeKind::Trapezoid => Figure::Trapezoid,
-            ShapeKind::Line => Figure::Line,
-            ShapeKind::Arrow => Figure::Arrow,
+            ShapeKind::Line | ShapeKind::Arrow => Figure::Line,
+            ShapeKind::Polygon => Figure::Polygon(style.sides),
+            ShapeKind::Star => Figure::Star(style.points, style.inner_radius as f32),
+            ShapeKind::Heart => Figure::Heart,
         },
-        size: style.size,
+        width,
+        height,
+        corner_radius: style.corner_radius,
         fill: style.fill.clone(),
+        gradient: style
+            .gradient
+            .as_ref()
+            .map(|gradient| concat_text::Gradient {
+                radial: gradient.radial,
+                color: gradient.color.clone(),
+                angle: gradient.angle,
+            }),
         stroke: style.stroke.clone(),
         stroke_width: style.stroke_width,
+        align: match style.stroke_align {
+            StrokeAlign::Center => concat_text::StrokeAlign::Center,
+            StrokeAlign::Inside => concat_text::StrokeAlign::Inside,
+            StrokeAlign::Outside => concat_text::StrokeAlign::Outside,
+        },
+        dash: match style.dash {
+            StrokeDash::Solid => concat_text::Dash::Solid,
+            StrokeDash::Dashed => concat_text::Dash::Dashed,
+            StrokeDash::Dotted => concat_text::Dash::Dotted,
+        },
+        start_head: head(style.start()),
+        end_head: head(style.end()),
+        shadow: style.shadow.as_ref().map(|shadow| concat_text::Shadow {
+            color: shadow.color.clone(),
+            blur: shadow.blur,
+            distance: shadow.distance,
+            angle: shadow.angle,
+        }),
+        trim_start: style.trim_start,
+        trim_end: style.trim_end,
     }
 }
 
@@ -1372,7 +1414,7 @@ mod tests {
                     track_id: None,
                     start: index as f64,
                     style: Some(concat_project::model::ShapeStyle {
-                        size: 0.1 + index as f64 * 0.001,
+                        width: 0.1 + index as f64 * 0.001,
                         ..Default::default()
                     }),
                     duration: Some(1.0),

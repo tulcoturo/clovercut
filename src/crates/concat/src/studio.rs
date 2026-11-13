@@ -1020,6 +1020,10 @@ pub struct Studio {
     /// lanes, which the monitor shows instead of the playhead's. None when
     /// the pointer is elsewhere, or the axis is off, or the cut is playing.
     pub hover: Option<f64>,
+    /// Shift temporarily holds the last hover preview without changing playback.
+    pub preview_held: bool,
+    /// Temporary preview-only presentation never replaces the saved dock.
+    pub preview_fullscreen: bool,
     /// Stops the burst of sound a hover with audio plays.
     hover_hush: slint::Timer,
     /// Complete copied clips and their referenced media/fonts, held for Paste.
@@ -1866,6 +1870,17 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
             stretch_y: Some(after.stretch_y),
         });
     }
+    if after.shape != before.shape
+        && let Some(shape) = after.shape.clone()
+    {
+        commands.push(Command::UpdateClip {
+            clip_id: id.to_owned(),
+            patch: ClipPatch {
+                shape: Some(shape),
+                ..Default::default()
+            },
+        });
+    }
     if after.cutout != before.cutout {
         commands.push(Command::SetClipCutout {
             clip_id: id.to_owned(),
@@ -2575,6 +2590,8 @@ impl Studio {
             coast: crate::panes::glide::Coast::default(),
             glide_beat: slint::Timer::default(),
             hover: None,
+            preview_held: false,
+            preview_fullscreen: false,
             hover_hush: slint::Timer::default(),
             clipboard: Clipboard::default(),
             clipboard_project: None,
@@ -4041,7 +4058,7 @@ impl Studio {
     /// The pointer is over the lanes at `seconds`. Nothing while playing -
     /// the transport owns the monitor then - and nothing with the axis off.
     pub fn hover(&mut self, seconds: f64) {
-        if !self.prefs.preview_axis || self.playing {
+        if !self.prefs.preview_axis || self.playing || self.preview_held {
             return;
         }
         let seconds = seconds.max(0.0);
@@ -4075,6 +4092,9 @@ impl Studio {
     /// The pointer left the lanes, or the axis went off: the monitor is the
     /// playhead's again.
     pub fn end_hover(&mut self) {
+        if self.preview_held {
+            return;
+        }
         if self.hover.take().is_some() {
             self.request_preview();
         }
@@ -4621,7 +4641,10 @@ impl Studio {
             "shape" => Some(DropPlan::new(
                 ClipKind::Shape,
                 label.to_owned(),
-                model::ShapeKind::parse(id)?.id().to_owned(),
+                {
+                    model::ShapeStyle::preset(id)?;
+                    id.to_owned()
+                },
                 f64::from(LAYER_DURATION),
             )),
             // A sound from the Audio page: not in the bin yet, so its card
@@ -5088,12 +5111,12 @@ impl Studio {
         shape: &str,
         name: &str,
     ) -> Option<String> {
-        let kind = model::ShapeKind::parse(shape).unwrap_or_default();
+        let style = model::ShapeStyle::preset(shape).unwrap_or_default();
         self.apply(Command::AddShapeClip {
             track_id,
             above: true,
             start,
-            style: Some(model::ShapeStyle::of(kind)),
+            style: Some(style),
             duration: Some(duration),
             name: name.to_owned(),
         })
@@ -7184,6 +7207,36 @@ impl Studio {
                 }
                 ClipField::FadeIn => clip.fade_in = value.clamp(0.0, clip.duration / 2.0),
                 ClipField::FadeOut => clip.fade_out = value.clamp(0.0, clip.duration / 2.0),
+                ClipField::ShapeKind
+                | ClipField::ShapeWidth
+                | ClipField::ShapeHeight
+                | ClipField::ShapeRadius
+                | ClipField::ShapeSides
+                | ClipField::ShapePoints
+                | ClipField::ShapeInner
+                | ClipField::ShapeFillOn
+                | ClipField::ShapeGradient
+                | ClipField::ShapeGradientAngle
+                | ClipField::ShapeStrokeOn
+                | ClipField::ShapeStrokeWidth
+                | ClipField::ShapeStrokeAlign
+                | ClipField::ShapeDash
+                | ClipField::ShapeStartHead
+                | ClipField::ShapeEndHead
+                | ClipField::ShapeTrimStart
+                | ClipField::ShapeTrimEnd
+                | ClipField::ShapeShadowOn
+                | ClipField::ShapeShadowBlur
+                | ClipField::ShapeShadowDistance
+                | ClipField::ShapeShadowAngle => {
+                    if clip.kind == model::ClipKind::Shape {
+                        set_shape(
+                            clip.shape.get_or_insert_with(model::ShapeStyle::default),
+                            field,
+                            value,
+                        );
+                    }
+                }
                 ClipField::FontSize => text.font_size = value.clamp(0.01, 0.5),
                 ClipField::FontWeight => text.font_weight = value.clamp(100.0, 900.0),
                 ClipField::Italic => text.italic = value != 0.0,
@@ -7510,6 +7563,45 @@ impl Studio {
         }
     }
 
+    /// One of a shape's colours from the Shape section: 0 the fill, 1 the
+    /// blend's second colour, 2 the outline - a line's own colour - and 3
+    /// the shadow. Each keeps its alpha.
+    pub fn clip_shape_colour(&mut self, which: i32, value: slint::Color) {
+        let ids = self.edit_targets();
+        if ids.is_empty() {
+            return;
+        }
+        self.commit_targets = ids.clone();
+        self.begin_echo();
+        let hex = hex_with_alpha(value);
+        for id in ids {
+            let Some(clip) = self.echo_clip_mut(&id) else {
+                continue;
+            };
+            if clip.kind != model::ClipKind::Shape {
+                continue;
+            }
+            let shape = clip.shape.get_or_insert_with(model::ShapeStyle::default);
+            match which {
+                0 => shape.fill = hex.clone(),
+                1 => {
+                    shape
+                        .gradient
+                        .get_or_insert_with(model::ShapeGradient::default)
+                        .color = hex.clone();
+                }
+                2 => shape.stroke = hex.clone(),
+                3 => {
+                    shape
+                        .shadow
+                        .get_or_insert_with(model::ShapeShadow::default)
+                        .color = hex.clone()
+                }
+                _ => {}
+            }
+        }
+    }
+
     // ── styled words ──
     //
     // A title is one look, and over it some of its words can wear their
@@ -7760,14 +7852,8 @@ impl Studio {
             // Not painted yet: the figure's box from its style, the way the
             // painter sizes it, until the painter says.
             let shape = clip.shape.clone().unwrap_or_default();
-            let side = shape.size.clamp(0.01, 2.0) * height;
-            let (w, h) = match shape.kind {
-                model::ShapeKind::Square | model::ShapeKind::Circle => (side, side),
-                model::ShapeKind::Triangle => (side, side * 0.866),
-                model::ShapeKind::Parallelogram | model::ShapeKind::Trapezoid => (side, side * 0.6),
-                model::ShapeKind::Line => (side, shape.stroke_width * height),
-                model::ShapeKind::Arrow => (side, (shape.stroke_width * 4.0).max(0.18) * side),
-            };
+            let (w, h) = shape.figure_box();
+            let (w, h) = (w * height, h * height);
             (w * clip.scale / width, h * clip.scale / height)
         } else {
             let media = self.project().media_by_id(&clip.media_id);
@@ -8121,13 +8207,28 @@ impl Studio {
             } else {
                 -dx * sin + dy * cos
             };
+            // A shape's side grips pull its own width and height, which
+            // keeps its outline even and its corners round; a picture's
+            // pull its stretch.
+            let figure = clip
+                .shape
+                .as_ref()
+                .filter(|_| {
+                    clip.kind == model::ClipKind::Shape
+                        && !clip
+                            .shape
+                            .as_ref()
+                            .is_some_and(|s| s.kind.is_line() && !across)
+                })
+                .map(|shape| shape.figure_box());
             Gesture::StageStretch {
                 clip: id.to_owned(),
                 across,
-                stretch: if across {
-                    clip.stretch_x
-                } else {
-                    clip.stretch_y
+                stretch: match (figure, across) {
+                    (Some((w, _)), true) => w,
+                    (Some((_, h)), false) => h,
+                    (None, true) => clip.stretch_x,
+                    (None, false) => clip.stretch_y,
                 },
                 centre,
                 from: along.abs().max(1.0),
@@ -8343,7 +8444,18 @@ impl Studio {
                     next = (next * 20.0).round() / 20.0;
                 }
                 if let Some(clip) = self.echo_clip_mut(clip) {
-                    if *across {
+                    let line = clip
+                        .shape
+                        .as_ref()
+                        .is_some_and(|shape| shape.kind.is_line());
+                    if clip.kind == model::ClipKind::Shape && (*across || !line) {
+                        let shape = clip.shape.get_or_insert_with(model::ShapeStyle::default);
+                        if *across {
+                            shape.width = next.clamp(0.01, 4.0);
+                        } else {
+                            shape.height = next.clamp(0.01, 4.0);
+                        }
+                    } else if *across {
                         clip.stretch_x = next.clamp(0.1, 10.0);
                     } else {
                         clip.stretch_y = next.clamp(0.1, 10.0);
@@ -8571,6 +8683,18 @@ impl Studio {
                     clip_id: id.clone(),
                     patch: ClipPatch {
                         masks: Some(after.masks.clone()),
+                        ..Default::default()
+                    },
+                });
+            }
+            // A shape's width or height, from its side grips.
+            if after.shape != before.shape
+                && let Some(shape) = after.shape.clone()
+            {
+                commands.push(Command::UpdateClip {
+                    clip_id: id.clone(),
+                    patch: ClipPatch {
+                        shape: Some(shape),
                         ..Default::default()
                     },
                 });
@@ -13640,6 +13764,7 @@ impl Studio {
                         .copied()
                 })
             });
+        let shape = clip.shape.clone().unwrap_or_default();
         let mut enhance = self.enhance_readout(clip);
         let steady = self.stabilize_readout(clip);
         let enhance_preview = enhance.preview.is_some();
@@ -13881,6 +14006,63 @@ impl Studio {
                 .filter(|(id, fetching, _)| *id == clip.id && *fetching)
                 .map(|(_, _, fraction)| *fraction)
                 .unwrap_or(-1.0),
+            shape_kind: model::ShapeKind::ALL
+                .iter()
+                .position(|kind| *kind == shape.kind)
+                .unwrap_or(0) as i32,
+            shape_is_line: shape.kind.is_line(),
+            shape_width: shape.width as f32,
+            shape_height: shape.figure_box().1 as f32,
+            shape_radius: shape.corner_radius as f32,
+            shape_sides: shape.sides as i32,
+            shape_points: shape.points as i32,
+            shape_inner: shape.inner_radius as f32,
+            shape_fill_on: !shape.fill.is_empty(),
+            shape_fill: if shape.fill.is_empty() {
+                slint::Color::from_rgb_u8(255, 255, 255)
+            } else {
+                colour_of(&shape.fill)
+            },
+            shape_gradient: match &shape.gradient {
+                None => 0,
+                Some(gradient) if gradient.radial => 2,
+                Some(_) => 1,
+            },
+            shape_gradient_color: colour_of(&shape.gradient.clone().unwrap_or_default().color),
+            shape_gradient_angle: shape.gradient.as_ref().map_or(90.0, |g| g.angle) as f32,
+            shape_stroke_on: !shape.stroke.is_empty() && shape.stroke_width > 0.0,
+            // A line is drawn in its outline's colour, or its fill's.
+            shape_stroke: match (shape.stroke.is_empty(), shape.fill.is_empty()) {
+                (false, _) => colour_of(&shape.stroke),
+                (true, false) if shape.kind.is_line() => colour_of(&shape.fill),
+                _ => slint::Color::from_rgb_u8(255, 255, 255),
+            },
+            shape_stroke_width: shape.stroke_width as f32,
+            shape_stroke_align: match shape.stroke_align {
+                model::StrokeAlign::Center => 0,
+                model::StrokeAlign::Inside => 1,
+                model::StrokeAlign::Outside => 2,
+            },
+            shape_dash: match shape.dash {
+                model::StrokeDash::Solid => 0,
+                model::StrokeDash::Dashed => 1,
+                model::StrokeDash::Dotted => 2,
+            },
+            shape_start_head: model::LineHead::ALL
+                .iter()
+                .position(|head| *head == shape.start())
+                .unwrap_or(0) as i32,
+            shape_end_head: model::LineHead::ALL
+                .iter()
+                .position(|head| *head == shape.end())
+                .unwrap_or(0) as i32,
+            shape_trim_start: shape.trim_start as f32,
+            shape_trim_end: shape.trim_end as f32,
+            shape_shadow_on: shape.shadow.is_some(),
+            shape_shadow_color: colour_of(&shape.shadow.clone().unwrap_or_default().color),
+            shape_shadow_blur: shape.shadow.as_ref().map_or(0.02, |s| s.blur) as f32,
+            shape_shadow_distance: shape.shadow.as_ref().map_or(0.012, |s| s.distance) as f32,
+            shape_shadow_angle: shape.shadow.as_ref().map_or(90.0, |s| s.angle) as f32,
             enhance_preview,
             enhance_before,
             enhance_after,
@@ -17360,5 +17542,107 @@ mod title_preview_ui_tests {
         // Linux C exit handlers can tear down LLVM under renderer threads.
         // Every behavior assertion must finish before the success exit.
         crate::leave(0);
+    }
+}
+
+/// One of the Shape section's numbers onto `shape`. A switch turned on
+/// brings back a visible default rather than an invisible one: a fill in
+/// white, an outline in white a little over a pixel thick, a soft shadow.
+fn set_shape(shape: &mut model::ShapeStyle, field: ClipField, value: f64) {
+    let index = value.max(0.0).round() as usize;
+    match field {
+        ClipField::ShapeKind => {
+            if let Some(kind) = model::ShapeKind::ALL.get(index) {
+                shape.kind = *kind;
+            }
+        }
+        ClipField::ShapeWidth => shape.width = value.clamp(0.01, 4.0),
+        ClipField::ShapeHeight => shape.height = value.clamp(0.01, 4.0),
+        ClipField::ShapeRadius => shape.corner_radius = value.clamp(0.0, 1.0),
+        ClipField::ShapeSides => shape.sides = (value.round() as u32).clamp(3, 12),
+        ClipField::ShapePoints => shape.points = (value.round() as u32).clamp(3, 24),
+        ClipField::ShapeInner => shape.inner_radius = value.clamp(0.05, 0.95),
+        ClipField::ShapeFillOn => {
+            if value != 0.0 {
+                if shape.fill.is_empty() {
+                    shape.fill = "#ffffff".to_owned();
+                }
+            } else {
+                shape.fill.clear();
+            }
+        }
+        ClipField::ShapeGradient => {
+            shape.gradient = match index {
+                0 => None,
+                _ => Some(model::ShapeGradient {
+                    radial: index == 2,
+                    ..shape.gradient.clone().unwrap_or_default()
+                }),
+            };
+        }
+        ClipField::ShapeGradientAngle => {
+            if let Some(gradient) = shape.gradient.as_mut() {
+                gradient.angle = value.rem_euclid(360.0);
+            }
+        }
+        ClipField::ShapeStrokeOn => {
+            if value != 0.0 {
+                if shape.stroke.is_empty() {
+                    shape.stroke = "#ffffff".to_owned();
+                }
+                if shape.stroke_width <= 0.0 {
+                    shape.stroke_width = 0.012;
+                }
+            } else {
+                shape.stroke.clear();
+            }
+        }
+        ClipField::ShapeStrokeWidth => shape.stroke_width = value.clamp(0.0, 0.5),
+        ClipField::ShapeStrokeAlign => {
+            shape.stroke_align = match index {
+                1 => model::StrokeAlign::Inside,
+                2 => model::StrokeAlign::Outside,
+                _ => model::StrokeAlign::Center,
+            };
+        }
+        ClipField::ShapeDash => {
+            shape.dash = match index {
+                1 => model::StrokeDash::Dashed,
+                2 => model::StrokeDash::Dotted,
+                _ => model::StrokeDash::Solid,
+            };
+        }
+        ClipField::ShapeStartHead => {
+            shape.start_head = model::LineHead::ALL.get(index).copied();
+        }
+        ClipField::ShapeEndHead => {
+            shape.end_head = model::LineHead::ALL.get(index).copied();
+        }
+        // Each end held on its own side of the other.
+        ClipField::ShapeTrimStart => {
+            shape.trim_start = value.clamp(0.0, 1.0).min(shape.trim_end);
+        }
+        ClipField::ShapeTrimEnd => {
+            shape.trim_end = value.clamp(0.0, 1.0).max(shape.trim_start);
+        }
+        ClipField::ShapeShadowOn => {
+            shape.shadow = (value != 0.0).then(|| shape.shadow.clone().unwrap_or_default());
+        }
+        ClipField::ShapeShadowBlur => {
+            if let Some(shadow) = shape.shadow.as_mut() {
+                shadow.blur = value.clamp(0.0, 0.2);
+            }
+        }
+        ClipField::ShapeShadowDistance => {
+            if let Some(shadow) = shape.shadow.as_mut() {
+                shadow.distance = value.clamp(0.0, 0.2);
+            }
+        }
+        ClipField::ShapeShadowAngle => {
+            if let Some(shadow) = shape.shadow.as_mut() {
+                shadow.angle = value.rem_euclid(360.0);
+            }
+        }
+        _ => {}
     }
 }

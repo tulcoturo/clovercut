@@ -284,8 +284,15 @@ impl CustomApplicationHandler for DropHandler {
         }
         match event {
             WindowEvent::ScaleFactorChanged { .. } => reapply_ui_scale(std::time::Duration::ZERO),
-            #[cfg(target_os = "linux")]
             WindowEvent::ModifiersChanged(modifiers) => {
+                crate::host::Shell::with(|shell, _| {
+                    let mut studio = shell.studio.borrow_mut();
+                    studio.preview_held = modifiers.state().shift_key();
+                    if !studio.preview_held {
+                        studio.end_hover();
+                    }
+                });
+                #[cfg(target_os = "linux")]
                 // Wayland can report a modifier's new state without its key
                 // release (for example after a compositor shortcut). Slint's
                 // winit backend tracks key events, so reconcile released keys
@@ -313,6 +320,13 @@ impl CustomApplicationHandler for DropHandler {
             // dropped file is to an import, a return is to a look for one
             // that went away while the window was open.
             WindowEvent::Focused(true) => (self.on_focused)(),
+            WindowEvent::Focused(false) => {
+                crate::host::Shell::with(|shell, _| {
+                    let mut studio = shell.studio.borrow_mut();
+                    studio.preview_held = false;
+                    studio.end_hover();
+                });
+            }
             WindowEvent::CursorMoved { position, .. } => {
                 let scale = slint_window
                     .map(|window| f64::from(window.scale_factor()))

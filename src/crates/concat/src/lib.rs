@@ -889,7 +889,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         // library or the inspector into it. The wide dock waits, whole,
         // for the window to widen again; every dock operation works on
         // whichever is showing.
-        state.set_compact(width < studio::COMPACT_WIDTH);
+        if !state.preview_fullscreen {
+            state.set_compact(width < studio::COMPACT_WIDTH);
+        }
     }));
     editor.on_dock_set(on_dock!(|state, seat: i32, kind: PaneKind| {
         let Some(path) = state.dock.leaf_path(seat.max(0) as usize) else {
@@ -1617,6 +1619,51 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_clip_reset_words(on_lanes!(|state| {
         state.reset_words();
     }));
+    editor.on_clip_shape_colour(on_lanes!(|state, which: i32, value: slint::Color| {
+        state.clip_shape_colour(which, value);
+    }));
+    editor.on_preview_held(on_window!(|state, held: bool| {
+        state.preview_held = held;
+        if !held {
+            state.end_hover();
+        }
+    }));
+    editor.on_preview_fullscreen({
+        let app = app.as_weak();
+        let prior = std::cell::Cell::new(false);
+        move |seat: i32| {
+            if let Some(app) = app.upgrade() {
+                let editor = app.global::<Editor>();
+                let seat = if seat == -2 {
+                    if editor.get_preview_fullscreen_seat() >= 0 {
+                        -1
+                    } else if let Some(preview) = editor
+                        .get_seats()
+                        .iter()
+                        .find(|seat| seat.kind == PaneKind::Preview)
+                    {
+                        preview.index
+                    } else {
+                        return;
+                    }
+                } else {
+                    seat
+                };
+                let entering = seat >= 0 && editor.get_preview_fullscreen_seat() < 0;
+                Shell::with(|shell, _| {
+                    shell.studio.borrow_mut().preview_fullscreen = entering;
+                });
+                if seat < 0 || editor.get_preview_fullscreen_seat() >= 0 {
+                    editor.set_preview_fullscreen_seat(-1);
+                    app.window().set_fullscreen(prior.get());
+                } else {
+                    prior.set(app.window().is_fullscreen());
+                    editor.set_preview_fullscreen_seat(seat);
+                    app.window().set_fullscreen(true);
+                }
+            }
+        }
+    });
     editor.on_clip_set_colour(on_lanes!(
         |state, field: ClipTextField, value: slint::Color| {
             state.clip_set_colour(field, value);

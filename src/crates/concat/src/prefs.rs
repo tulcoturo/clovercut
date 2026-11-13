@@ -23,7 +23,7 @@ pub const UI_SCALES: [u32; 6] = [100, 110, 125, 150, 175, 200];
 pub use crate::workspace_layout::SavedLayout;
 
 /// Remembered preferences.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Preferences {
     /// Optional public audio catalogue, enabled explicitly in Settings.
@@ -80,8 +80,7 @@ pub struct Preferences {
     /// Successful library applications, shared across projects on this machine.
     pub library_history: concat_host::library::History,
     /// The playhead stops at the end of the content instead of going where
-    /// it is put. Off by default: a click past the last clip lands there, so
-    /// a clip can be dropped at the playhead beyond everything else.
+    /// it is put. On by default; a saved explicit choice is retained.
     pub playhead_stops_at_end: bool,
     /// Proxies: a file larger than HD gets a smaller copy written in the
     /// background, and playback at Half and Quarter reads that copy. Off
@@ -167,6 +166,54 @@ pub struct Preferences {
     pub keybinds: BTreeMap<String, String>,
     /// Active shortcut preset profile: "clovercut", "premiere", "finalcut", "davinci", "custom".
     pub shortcut_profile: Option<String>,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            opengameart_library: Default::default(),
+            youtube_audio_library: Default::default(),
+            youtube_audio_api: Default::default(),
+            freesound_library: Default::default(),
+            freesound_api_key: Default::default(),
+            giphy_library: Default::default(),
+            gl_transitions_library: Default::default(),
+            dark: Default::default(),
+            last_project_location: Default::default(),
+            accent: Default::default(),
+            playhead: Default::default(),
+            ui_scale: Default::default(),
+            transcriber_model: Default::default(),
+            caption_language: Default::default(),
+            tts_model: Default::default(),
+            tts_voice: Default::default(),
+            locale: Default::default(),
+            favourites: Default::default(),
+            library_history: Default::default(),
+            playhead_stops_at_end: true,
+            proxies: Default::default(),
+            software_gpu: Default::default(),
+            software_after_crash: Default::default(),
+            magnetic: Default::default(),
+            timeline_grid: Default::default(),
+            show_playhead_split: Default::default(),
+            project_list_view: Default::default(),
+            trim_follow: Default::default(),
+            preview_axis: Default::default(),
+            preview_axis_audio: Default::default(),
+            vu_meters: Default::default(),
+            download_source: Default::default(),
+            download_base: Default::default(),
+            server: Default::default(),
+            title_style: Default::default(),
+            log_level: Default::default(),
+            voiceover: Default::default(),
+            remember_layout: Default::default(),
+            layout: Default::default(),
+            keybinds: Default::default(),
+            shortcut_profile: Default::default(),
+        }
+    }
 }
 
 /// The voiceover panel's choices, kept from one take to the next and one
@@ -439,6 +486,18 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn seek_bounds_default_on_and_a_saved_choice_is_preserved() {
+        assert!(Preferences::default().playhead_stops_at_end);
+        assert!(
+            serde_json::from_str::<Preferences>("{}")
+                .unwrap()
+                .playhead_stops_at_end
+        );
+        let old: Preferences = serde_json::from_str(r#"{"playheadStopsAtEnd":false}"#).unwrap();
+        assert!(!old.playhead_stops_at_end);
+    }
 
     #[test]
     fn layout_preferences_keep_legacy_defaults_and_named_presets() {

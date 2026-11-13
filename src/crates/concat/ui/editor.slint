@@ -46,6 +46,9 @@ export global Editor {
     // The arrangement is a tree and it lives in Rust; see dock.slint. These
     // two are that tree walked into boxes, and everything the workspace draws
     // it draws out of them.
+    in-out property <int> preview-fullscreen-seat: -1;
+    callback preview-fullscreen(seat: int);
+    callback preview-held(held: bool);
     in-out property <[SeatBox]> seats;
     in-out property <[DockDivider]> dividers;
 
@@ -175,6 +178,7 @@ export global Editor {
     /// The selected words back in the title's own look.
     callback clip-reset-words();
     callback clip-set-colour(field: ClipTextField, value: color);
+    callback clip-shape-colour(which: int, value: color);
     callback clip-commit();
     /// The families a title can be set in: the bundled face, the user's
     /// own fonts, then the machine's. See `Studio::font_families`.

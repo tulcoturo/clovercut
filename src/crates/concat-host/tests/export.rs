@@ -3157,7 +3157,6 @@ mod consolidation_between_frames {
             hardware: false,
             threads: 0,
             software_only: false,
-            software_only: false,
         };
         let mut encoder = Encoder::create(path, WIDTH, HEIGHT, FrameRate::THIRTY, &options)
             .expect("the linked FFmpeg encodes");

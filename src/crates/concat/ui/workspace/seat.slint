@@ -172,6 +172,8 @@ export component Seat inherits Rectangle {
             pane-removable: Editor.seats.length > 1;
             pane-removed => { root.removed(); }
 
+            fullscreen: Editor.preview-fullscreen-seat >= 0;
+            fullscreen-toggled => { Editor.preview-fullscreen(root.index); }
             previewing: Editor.library-audition != "";
             preview-ended => { Editor.library-audition-filter(Editor.library-audition); }
             output-width: Editor.output-width;
@@ -317,6 +319,7 @@ export component Seat inherits Rectangle {
             clip-select-words(anchor, cursor) => { Editor.clip-select-words(anchor, cursor); }
             clip-reset-words => { Editor.clip-reset-words(); }
             clip-set-colour(field, value) => { Editor.clip-set-colour(field, value); }
+            clip-shape-colour(which, value) => { Editor.clip-shape-colour(which, value); }
             clip-commit => { Editor.clip-commit(); }
             font-families: Editor.font-families;
             import-font => { Editor.import-font(); }

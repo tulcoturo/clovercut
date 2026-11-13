@@ -34,8 +34,15 @@ distribution. Upstream contribution policy, sponsor copy and upstream release
 numbering are not product backlog. The smaller duplicate animation pickers are
 removed; legacy saved fields still render and undo restores both representations.
 
-No additional product feature or behavior fix was found missing in the reviewed
-range. The new consolidation fixture is included in the full release checks.
+This recent-commit check did not establish parity across the entire divergent
+history. The subsequent full inventory records all 388 upstream-only commits
+from the common ancestor `79116bd0` to the current `upstream/main`, independently
+of release tags. Older audits contain deferred features, including editable
+shapes, voice isolation, transition clips and CapCut draft import. Those entries
+must be checked against current code and implemented before claiming full parity.
+See `data/2026-11-13-upstream-full-inventory.json`; a prior audit mention alone
+does not establish that a feature shipped. Editable shapes are now being adapted
+alongside Clovercut issue #61. The new consolidation fixture is included in the full release checks.
 Release publication requires native CI and desktop regressions, headless UI and
 document checks, Linux packaging checks, GPU effects on Linux and Windows, and
 all desktop package builds to succeed. Physical Android/Intel Mac verification

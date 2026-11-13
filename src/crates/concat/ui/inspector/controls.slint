@@ -530,6 +530,7 @@ export component PositionRow inherits VerticalLayout {
 // units and change callbacks remain shared by every way of setting it.
 export component Param inherits Rectangle {
     in property <string> label;
+    in property <string> help;
     in-out property <float> value;
     in property <float> minimum;
     in property <float> maximum;
@@ -584,7 +585,7 @@ export component Param inherits Rectangle {
         font-size: Theme.fs;
         vertical-alignment: center;
         wrap: word-wrap;
-        TouchArea {
+        hint-touch := TouchArea {
             enabled: root.enabled;
             double-clicked => {
                 root.value = root.default-value;
@@ -592,6 +593,8 @@ export component Param inherits Rectangle {
             }
         }
     }
+
+    Tip { text: root.help; active: hint-touch.has-hover && root.help != ""; }
 
     HorizontalLayout {
         x: root.inset-left + (root.inline-row ? 120px : 0px);
