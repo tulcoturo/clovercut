@@ -9957,7 +9957,7 @@ impl Studio {
             .into_iter()
             .filter_map(|id| {
                 let cutout = self.clip(&id)?.cutout.clone()?;
-                (cutout.subject != subject).then(|| Command::SetClipCutout {
+                (cutout.subject != subject).then_some(Command::SetClipCutout {
                     clip_id: id,
                     cutout: Some(model::Cutout { subject, ..cutout }),
                 })

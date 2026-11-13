@@ -30,6 +30,9 @@ def main():
             '[package]\nname = "clovercut-project-io-check"\n'
             f'version = {json.dumps(version)}\nedition = "2024"\n'
             '[lib]\npath = "lib.rs"\n'
+            # The reused host modules also support schema generation in the
+            # full application; this storage-only fixture leaves it disabled.
+            '[features]\nschema = []\n'
             '[dependencies]\n'
         )
         for name in ("serde", "serde_json", "log", "tempfile"):
