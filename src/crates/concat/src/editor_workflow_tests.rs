@@ -205,6 +205,7 @@ fn import_edit_reopen_relink_export() {
                     check_speed_selection(&mut studio);
                     check_shapes_and_preview_hold(&mut studio);
                     check_transition_layers(&mut studio);
+                    check_batch_inspector(&mut studio);
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -767,4 +768,79 @@ fn check_transition_layers(state: &mut Studio) {
     assert_eq!(state.project(), &baseline);
     state.selection = selection;
     state.seek(playhead);
+}
+
+// Actual inspector commands affect compatible peers and undo as whole gestures.
+fn check_batch_inspector(state: &mut Studio) {
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let ids: Vec<String> = (0..2)
+        .map(|number| {
+            state
+                .apply(Command::AddShapeClip {
+                    track_id: None,
+                    above: true,
+                    start: 0.0,
+                    style: None,
+                    duration: Some(1.0),
+                    name: format!("Batch shape {number}"),
+                })
+                .unwrap()
+        })
+        .collect();
+    state.selection = ids.clone();
+    assert_eq!(state.edit_targets(), ids);
+    let before_width = state.project().clone();
+    state.clip_set(crate::ui::ClipField::ShapeWidth, 0.4);
+    state.clip_commit();
+    assert!(
+        ids.iter()
+            .all(|id| (state.clip(id).unwrap().shape.as_ref().unwrap().width - 0.4).abs() < 1e-6)
+    );
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_width,
+        "one undo restores the complete shape gesture"
+    );
+    state.selection = ids.clone();
+    state.apply_catalogue("concat.adjust", true);
+    assert!(
+        ids.iter()
+            .all(|id| state.clip(id).unwrap().video_effects.len() == 1)
+    );
+    let before_knob = state.project().clone();
+    state.chain_set_param(false, 0, "contrast", 0.75);
+    state.clip_commit();
+    assert!(ids.iter().all(|id| {
+        state.clip(id).unwrap().video_effects[0]
+            .params
+            .get("contrast")
+            == Some(&0.75)
+    }));
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_knob,
+        "one undo restores every peer's effect knob"
+    );
+    state.selection = ids.clone();
+    state.chain_toggle(false, 0);
+    assert!(
+        ids.iter()
+            .all(|id| !state.clip(id).unwrap().video_effects[0].enabled)
+    );
+    state.undo();
+    state.selection = ids.clone();
+    state.chain_remove(false, 0);
+    assert!(
+        ids.iter()
+            .all(|id| state.clip(id).unwrap().video_effects.is_empty())
+    );
+    state.undo();
+    state.undo(); // both catalogue additions
+    state.undo(); // second shape
+    state.undo(); // first shape
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
 }

@@ -12,6 +12,8 @@ pub(super) struct ColourPick {
     pub effect: String,
     pub media: String,
     pub expected: AppliedFilter,
+    pub targets: Vec<String>,
+    pub shown: Vec<AppliedFilter>,
 }
 
 /// Whether a clip of this kind has a picture of its own to take a colour
@@ -33,7 +35,12 @@ impl Studio {
         let Ok(entry) = usize::try_from(index) else {
             return;
         };
-        let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)).cloned() else {
+        let Some(clip) = self
+            .edit_targets()
+            .first()
+            .and_then(|id| self.clip(id))
+            .cloned()
+        else {
             return;
         };
         let Some(link) = clip.video_effects.get(entry) else {
@@ -58,6 +65,8 @@ impl Studio {
                 .unwrap_or_default(),
             media: clip.media_id.clone(),
             expected: link.clone(),
+            targets: self.edit_targets(),
+            shown: clip.video_effects.clone(),
         };
         if self.picking_colour.as_ref() == Some(&pick) {
             self.picking_colour = None;
@@ -84,37 +93,12 @@ impl Studio {
     /// A colour knob of the selected clip's link `index` back to its
     /// default - the colour its package finds by itself - as one edit.
     pub fn chain_auto_colour(&mut self, index: i32, key: &str) {
-        let Some(clip) = self.sole_selection().and_then(|id| self.clip(&id)).cloned() else {
-            return;
-        };
-        if self.locked(&clip.track_id) {
-            return;
-        }
-        let Some(link) = usize::try_from(index)
-            .ok()
-            .and_then(|index| clip.video_effects.get(index))
-        else {
-            return;
-        };
-        if !link.params.contains_key(key) && !link.keys.contains_key(key) {
-            return;
-        }
-        let mut effects = clip.video_effects.clone();
-        if let Some(link) = usize::try_from(index)
-            .ok()
-            .and_then(|index| effects.get_mut(index))
-        {
+        self.flush_commit();
+        self.edit_links(false, index, |link, _| {
             link.params.remove(key);
             link.keys.remove(key);
-        }
-        self.flush_commit();
-        self.apply(Command::UpdateClip {
-            clip_id: clip.id,
-            patch: ClipPatch {
-                video_effects: Some(effects),
-                ..ClipPatch::default()
-            },
         });
+        self.clip_commit();
     }
 
     /// A press on the stage while an eyedropper is armed: the colour of the
@@ -192,17 +176,28 @@ impl Studio {
             self.notify(&t("studio.pickColourGrey"), false);
             return;
         }
-        link.params.insert(
-            pick.key.clone(),
-            packed(slint::Color::from_argb_u8(255, r, g, b)),
-        );
+        let colour = packed(slint::Color::from_argb_u8(255, r, g, b));
+        let commands = pick
+            .targets
+            .iter()
+            .filter_map(|id| {
+                let clip = self.clip(id)?;
+                if self.locked(&clip.track_id) {
+                    return None;
+                }
+                let mut effects = clip.video_effects.clone();
+                let row = peer_link(&pick.shown, pick.entry, &effects)?;
+                effects[row].params.insert(pick.key.clone(), colour);
+                Some(Command::UpdateClip {
+                    clip_id: id.clone(),
+                    patch: ClipPatch {
+                        video_effects: Some(effects),
+                        ..ClipPatch::default()
+                    },
+                })
+            })
+            .collect();
         self.flush_commit();
-        self.apply(Command::UpdateClip {
-            clip_id: clip.id,
-            patch: ClipPatch {
-                video_effects: Some(effects),
-                ..ClipPatch::default()
-            },
-        });
+        self.apply(Command::Batch { commands });
     }
 }

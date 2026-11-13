@@ -39,11 +39,21 @@ impl Studio {
     /// The selected clip, when it is one a background is drawn behind: a
     /// video or a still on the timeline's lowest picture lane.
     fn backdrop_clip(&self) -> Option<&Clip> {
-        let id = self.sole_selection()?;
+        let id = self.backdrop_clips().into_iter().next()?;
+        self.timeline().clip(&id)
+    }
+
+    fn backdrop_clips(&self) -> Vec<String> {
         let timeline = self.timeline();
-        let clip = timeline.clip(&id)?;
-        (clip.kind.is_visual() && timeline.background_lane() == Some(clip.track_id.as_str()))
-            .then_some(clip)
+        let lane = timeline.background_lane();
+        self.edit_targets()
+            .into_iter()
+            .filter(|id| {
+                timeline.clip(id).is_some_and(|clip| {
+                    clip.kind.is_visual() && lane == Some(clip.track_id.as_str())
+                })
+            })
+            .collect()
     }
 
     /// A background as the panels show it; None is a clip following the
@@ -123,15 +133,21 @@ impl Studio {
     /// picked through, which folds into the step its last edit made.
     fn backdrop_write(&mut self, clip: bool, background: Option<Background>, knob: Option<&str>) {
         let command = if clip {
-            let Some(target) = self.backdrop_clip() else {
-                return;
-            };
-            Command::UpdateClip {
-                clip_id: target.id.clone(),
-                patch: ClipPatch {
-                    background: Some(background),
-                    ..ClipPatch::default()
-                },
+            let mut commands: Vec<Command> = self
+                .backdrop_clips()
+                .into_iter()
+                .map(|clip_id| Command::UpdateClip {
+                    clip_id,
+                    patch: ClipPatch {
+                        background: Some(background.clone()),
+                        ..ClipPatch::default()
+                    },
+                })
+                .collect();
+            match commands.len() {
+                0 => return,
+                1 => commands.remove(0),
+                _ => Command::Batch { commands },
             }
         } else {
             Command::SetTimelineBackground {
@@ -255,7 +271,7 @@ impl Studio {
     /// The selected picture Fit and Fill can size: one video or still on
     /// a lane that is not locked, from media whose size the bin knows.
     pub(super) fn framing_target(&self) -> Option<&Clip> {
-        let id = self.sole_selection()?;
+        let id = self.edit_targets().first()?.clone();
         let clip = self.clip(&id)?;
         if self.locked(&clip.track_id) {
             return None;
@@ -274,16 +290,27 @@ impl Studio {
     /// covering it. A keyed scale or position takes its key at the
     /// playhead, as the knobs write one.
     pub fn frame_selected(&mut self, fill: bool) {
-        let Some(clip) = self.framing_target() else {
-            return;
-        };
-        let (clip_id, at) = (clip.id.clone(), place_in(clip, self.playhead));
         let framing = if fill { Framing::Fill } else { Framing::Fit };
-        self.apply(Command::FrameClip {
-            clip_id,
-            framing,
-            at,
-        });
+        let commands = self
+            .edit_targets()
+            .into_iter()
+            .filter_map(|id| {
+                let clip = self.clip(&id)?;
+                let media = self.project().media_by_id(&clip.media_id)?;
+                clip.framing_scale(
+                    framing,
+                    (media.width, media.height),
+                    self.output_size(),
+                    0.0,
+                )?;
+                Some(Command::FrameClip {
+                    clip_id: id,
+                    framing,
+                    at: place_in(clip, self.playhead),
+                })
+            })
+            .collect();
+        self.apply(Command::Batch { commands });
     }
 
     /// One edit of a value that is dragged rather than pressed, folded into

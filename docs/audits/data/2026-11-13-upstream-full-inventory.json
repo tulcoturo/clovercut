@@ -3116,7 +3116,7 @@
     {
       "commit": "2b594e8e241719ef2b5dd6b6d0566426e385e7ec",
       "subject": "feat(effects): a chroma key that finds the screen itself, an eyedropper, Remove Black, and batch edits in the inspector (#543, #470)",
-      "status": "partially_adapted_batch_inspector_pending",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-polish-plan.md",
         "docs/audits/2026-11-04-remove-black.md"
@@ -3174,7 +3174,10 @@
         "src/crates/concat/ui/workspace/preview-pane.slint",
         "src/crates/concat/ui/workspace/seat.slint"
       ],
-      "evidence": "docs/audits/2026-11-13-advanced-key.md"
+      "evidence": [
+        "docs/audits/2026-11-13-advanced-key.md",
+        "docs/audits/2026-11-13-batch-inspector.md"
+      ]
     },
     {
       "commit": "9e69bbcf40d0f9b74e7d5accfc22a13047c87a00",

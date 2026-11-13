@@ -39,6 +39,7 @@ use concat_host::{
 };
 use concat_media::{Pyramid, jpeg};
 use concat_project::commands::{ClipMove, ClipPatch, TrackFlag, TrimEdge};
+use concat_project::inspector::peer_link;
 use concat_project::model::{
     self, AppliedFilter, Clip, Project, TextAlign, TextStyle, Timeline, Track, Transition,
 };
@@ -5207,26 +5208,13 @@ impl Studio {
 
     /// The selected clip's id, when exactly one is selected.
     /// The clips the inspector's knobs write to: the one selected clip, or
-    /// every selected clip when two or more are selected and all of them
-    /// are titles - a batch of captions styled together. Anything else
-    /// selected together is nothing the inspector edits.
+    /// every compatible selected clip: titles, pictures, shapes, layers or sounds.
+    /// Locked tracks are excluded and each gesture remains one undo step.
     /// https://github.com/jub0t/Concat/issues/224
     pub fn edit_targets(&self) -> Vec<String> {
-        if let Some(id) = self.sole_selection() {
-            return vec![id];
-        }
-        if self.selection.len() < 2 {
-            return Vec::new();
-        }
-        let titles = self.selection.iter().all(|id| {
-            self.clip(id)
-                .is_some_and(|clip| clip.kind == model::ClipKind::Text)
-        });
-        if titles {
-            self.selection.clone()
-        } else {
-            Vec::new()
-        }
+        concat_project::inspector::targets(self.project(), &self.selection, |track| {
+            self.locked(track)
+        })
     }
 
     /// Explicitly adopt an existing text lane; ordinary titles elsewhere stay titles.
@@ -5464,52 +5452,65 @@ impl Studio {
 
     /// A catalogue filter or effect, applied to the selected clip's chain.
     pub fn apply_catalogue(&mut self, id: &str, video: bool) {
-        let Some(clip_id) = self.sole_selection() else {
+        let ids = self.edit_targets();
+        let Some(first) = ids.first().and_then(|id| self.clip(id)) else {
             self.notify(&t("studio.selectClipTimelineFirst"), true);
             return;
         };
-        let Some(clip) = self.clip(&clip_id).cloned() else {
-            return;
-        };
+        // A batch is one kind of thing, so the first speaks for all of it.
         if video
-            && concat_core::subject::source_effect(id)
-            && !matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Image)
-        {
-            self.notify(&t("studio.selectVideoImageClip"), true);
-            return;
-        }
-        if video
-            && !(graded(clip.kind)
-                || matches!(clip.kind, model::ClipKind::Text | model::ClipKind::Shape))
+            && !(graded(first.kind)
+                || matches!(first.kind, model::ClipKind::Text | model::ClipKind::Shape))
         {
             self.notify(&t("studio.selectVideoImageText"), true);
             return;
         }
-        if !video && clip.kind == model::ClipKind::Image {
+        if !video && first.kind == model::ClipKind::Image {
             self.notify("A still has no sound to filter", true);
             return;
         }
-        if self.locked(&clip.track_id) {
+        if video
+            && concat_core::subject::source_effect(id)
+            && !matches!(first.kind, model::ClipKind::Video | model::ClipKind::Image)
+        {
+            self.notify(&t("studio.selectVideoImageClip"), true);
             return;
         }
-        self.last_active_track = Some(clip.track_id.clone());
-        let entry = AppliedFilter::new(id);
-        let patch = if video {
-            let mut effects = clip.video_effects.clone();
-            effects.push(entry);
-            ClipPatch {
-                video_effects: Some(effects),
-                ..ClipPatch::default()
-            }
-        } else {
-            let mut filters = clip.filters.clone();
-            filters.push(entry);
-            ClipPatch {
-                filters: Some(filters),
-                ..ClipPatch::default()
-            }
+        let active_track = first.track_id.clone();
+        let mut commands: Vec<Command> = ids
+            .iter()
+            .filter_map(|clip_id| {
+                let clip = self.clip(clip_id)?;
+                let entry = AppliedFilter::new(id);
+                let patch = if video {
+                    let mut effects = clip.video_effects.clone();
+                    effects.push(entry);
+                    model::order_subject_effects(&mut effects);
+                    ClipPatch {
+                        video_effects: Some(effects),
+                        ..ClipPatch::default()
+                    }
+                } else {
+                    let mut filters = clip.filters.clone();
+                    filters.push(entry);
+                    ClipPatch {
+                        filters: Some(filters),
+                        ..ClipPatch::default()
+                    }
+                };
+                Some(Command::UpdateClip {
+                    clip_id: clip_id.clone(),
+                    patch,
+                })
+            })
+            .collect();
+        let command = match commands.len() {
+            0 => return,
+            1 => commands.remove(0),
+            _ => Command::Batch { commands },
         };
-        self.apply(Command::UpdateClip { clip_id, patch });
+        self.last_active_track = Some(active_track);
+        self.apply(command);
         // Show it: the applied chain is where the knobs are, and a card
         // that did something with no visible result reads as a card that
         // did nothing.
@@ -5775,36 +5776,11 @@ impl Studio {
     /// Drops one entry from the selected clip's chains, by the row id the
     /// inspector shows: video effects count from 1, audio filters from 1000.
     pub fn remove_effect(&mut self, row: i32) {
-        let Some(clip_id) = self.sole_selection() else {
-            return;
-        };
-        let Some(clip) = self.clip(&clip_id).cloned() else {
-            return;
-        };
-        let patch = if row >= 1000 {
-            let index = (row - 1000) as usize;
-            let mut filters = clip.filters.clone();
-            if index >= filters.len() {
-                return;
-            }
-            filters.remove(index);
-            ClipPatch {
-                filters: Some(filters),
-                ..ClipPatch::default()
-            }
+        if row >= 1000 {
+            self.chain_remove(true, row - 1000);
         } else {
-            let index = (row - 1).max(0) as usize;
-            let mut effects = clip.video_effects.clone();
-            if index >= effects.len() {
-                return;
-            }
-            effects.remove(index);
-            ClipPatch {
-                video_effects: Some(effects),
-                ..ClipPatch::default()
-            }
-        };
-        self.apply(Command::UpdateClip { clip_id, patch });
+            self.chain_remove(false, (row - 1).max(0));
+        }
     }
 
     // ── the chains ──
@@ -5816,47 +5792,83 @@ impl Studio {
 
     /// One edit to the selected clip's chain, as a command. `edit` returns
     /// false to say it changed nothing.
-    fn chain_edit(&mut self, audio: bool, edit: impl FnOnce(&mut Vec<AppliedFilter>) -> bool) {
-        let Some(clip_id) = self.sole_selection() else {
+    fn chain_edit(
+        &mut self,
+        audio: bool,
+        links: &[i32],
+        edit: impl Fn(&mut Vec<AppliedFilter>, &[usize]) -> bool,
+    ) {
+        let ids = self.edit_targets();
+        let chain_of = |clip: &Clip| {
+            if audio {
+                clip.filters.clone()
+            } else {
+                clip.video_effects.clone()
+            }
+        };
+        let Some(shown) = ids.first().and_then(|id| self.clip(id)).map(chain_of) else {
             return;
         };
-        let Some(clip) = self.clip(&clip_id).cloned() else {
+        let Some(rows) = links
+            .iter()
+            .map(|&row| usize::try_from(row).ok().filter(|&row| row < shown.len()))
+            .collect::<Option<Vec<usize>>>()
+        else {
             return;
         };
-        let mut chain = if audio {
-            clip.filters
-        } else {
-            clip.video_effects
-        };
-        if !edit(&mut chain) {
-            return;
+        let mut commands = Vec::new();
+        for clip_id in &ids {
+            let Some(clip) = self.clip(clip_id) else {
+                continue;
+            };
+            let mut chain = chain_of(clip);
+            let Some(own) = rows
+                .iter()
+                .map(|&row| peer_link(&shown, row, &chain))
+                .collect::<Option<Vec<usize>>>()
+            else {
+                continue;
+            };
+            if !edit(&mut chain, &own) {
+                continue;
+            }
+            let patch = if audio {
+                ClipPatch {
+                    filters: Some(chain),
+                    ..ClipPatch::default()
+                }
+            } else {
+                ClipPatch {
+                    video_effects: Some(chain),
+                    ..ClipPatch::default()
+                }
+            };
+            commands.push(Command::UpdateClip {
+                clip_id: clip_id.clone(),
+                patch,
+            });
         }
-        let patch = if audio {
-            ClipPatch {
-                filters: Some(chain),
-                ..ClipPatch::default()
-            }
-        } else {
-            ClipPatch {
-                video_effects: Some(chain),
-                ..ClipPatch::default()
-            }
+        let command = match commands.len() {
+            0 => return,
+            1 => commands.remove(0),
+            _ => Command::Batch { commands },
         };
-        self.apply(Command::UpdateClip { clip_id, patch });
+        self.apply(command);
     }
 
     pub fn chain_add(&mut self, audio: bool, id: &str) {
         if !audio
             && self
-                .sole_selection()
-                .and_then(|id| self.clip(&id))
+                .edit_targets()
+                .first()
+                .and_then(|id| self.clip(id))
                 .is_some_and(|clip| clip.kind == model::ClipKind::Transition)
         {
             if Catalogue::builtin()
                 .get(id)
                 .is_some_and(|package| package.manifest.transition.is_some())
             {
-                self.chain_edit(false, |chain| {
+                self.chain_edit(false, &[], |chain, _| {
                     *chain = vec![AppliedFilter::new(id)];
                     true
                 });
@@ -5870,71 +5882,92 @@ impl Studio {
     }
 
     pub fn chain_toggle(&mut self, audio: bool, index: i32) {
-        self.chain_edit(audio, |chain| {
-            let Some(entry) = usize::try_from(index).ok().and_then(|i| chain.get_mut(i)) else {
-                return false;
-            };
-            entry.enabled = !entry.enabled;
-            true
+        // The link shown sets the state for all of a batch, so a batch
+        // whose links disagree comes out agreeing rather than flipped.
+        let on = self
+            .edit_targets()
+            .first()
+            .and_then(|id| self.clip(id))
+            .and_then(|clip| {
+                let chain = if audio {
+                    &clip.filters
+                } else {
+                    &clip.video_effects
+                };
+                usize::try_from(index).ok().and_then(|at| chain.get(at))
+            })
+            .is_some_and(|entry| !entry.enabled);
+        self.chain_edit(audio, &[index], move |chain, at| {
+            let entry = &mut chain[at[0]];
+            let changed = entry.enabled != on;
+            entry.enabled = on;
+            changed
         });
     }
 
     pub fn chain_move(&mut self, audio: bool, index: i32, delta: i32) {
-        self.chain_edit(audio, |chain| {
-            let Ok(from) = usize::try_from(index) else {
-                return false;
-            };
-            let Ok(to) = usize::try_from(index + delta) else {
-                return false;
-            };
-            if from >= chain.len() || to >= chain.len() || from == to {
-                return false;
-            }
+        if delta == 0 {
+            return;
+        }
+        self.chain_edit(audio, &[index, index + delta], |chain, at| {
             if !audio
-                && concat_core::subject::source_effect(&chain[from].id)
-                    != concat_core::subject::source_effect(&chain[to].id)
+                && concat_core::subject::source_effect(&chain[at[0]].id)
+                    != concat_core::subject::source_effect(&chain[at[1]].id)
             {
                 return false;
             }
-            chain.swap(from, to);
+            chain.swap(at[0], at[1]);
             true
         });
     }
 
     pub fn chain_remove(&mut self, audio: bool, index: i32) {
-        self.chain_edit(audio, |chain| {
-            let Ok(at) = usize::try_from(index) else {
-                return false;
-            };
-            if at >= chain.len() {
-                return false;
-            }
-            chain.remove(at);
+        self.chain_edit(audio, &[index], |chain, at| {
+            chain.remove(at[0]);
             true
         });
     }
 
     /// One knob of one link, on the echo. `clip_commit` makes it real.
     pub fn chain_set_param(&mut self, audio: bool, index: i32, key: &str, value: f32) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        self.begin_echo();
-        let Some(clip) = self.echo_clip_mut(&id) else {
-            return;
-        };
-        let chain = if audio {
-            &mut clip.filters
-        } else {
-            &mut clip.video_effects
-        };
-        if let Some(entry) = usize::try_from(index).ok().and_then(|i| chain.get_mut(i)) {
-            entry.params.insert(key.to_owned(), f64::from(value));
-        }
+        self.edit_links(audio, index, |link, _| {
+            link.params.insert(key.to_owned(), f64::from(value));
+        });
         if audio {
             self.sync_audio();
         } else if !self.playing {
             self.request_preview();
+        }
+    }
+
+    fn edit_links(&mut self, audio: bool, index: i32, edit: impl Fn(&mut AppliedFilter, bool)) {
+        let ids = self.edit_targets();
+        let Some(row) = usize::try_from(index).ok() else {
+            return;
+        };
+        let Some(shown) = ids.first().and_then(|id| self.clip(id)).map(|clip| {
+            if audio {
+                clip.filters.clone()
+            } else {
+                clip.video_effects.clone()
+            }
+        }) else {
+            return;
+        };
+        self.commit_targets = ids.clone();
+        self.begin_echo();
+        for (turn, id) in ids.iter().enumerate() {
+            let Some(clip) = self.echo_clip_mut(id) else {
+                continue;
+            };
+            let chain = if audio {
+                &mut clip.filters
+            } else {
+                &mut clip.video_effects
+            };
+            if let Some(at) = peer_link(&shown, row, chain) {
+                edit(&mut chain[at], turn == 0);
+            }
         }
     }
 
@@ -5944,14 +5977,17 @@ impl Studio {
     /// of their own here, `<key>.x`, `<key>.y` and `<key>.m`.
     pub fn adjust_set(&mut self, key: &str, value: f32) {
         let point = self.key_point().map(|(_, at)| at);
-        self.edit_adjust_link(|link| match point {
+        self.edit_adjust_link(|link, shown| match point {
             // A knob that rides is edited where the playhead is: the value
             // becomes the key there, put on if there was none. Setting the
             // constant under a ride would change nothing on screen.
-            Some(at) if link.is_keyed(key) => {
+            Some(at) if shown && link.is_keyed(key) => {
                 let ease = ease_before(link.keys_on(key), at);
                 link.set_key(key, at, f64::from(value), ease);
             }
+            // Another clip of a batch keeps its own ride: the playhead's
+            // place is the shown clip's, and means nothing in that one.
+            _ if !shown && link.is_keyed(key) => {}
             _ => {
                 link.params.insert(key.to_owned(), f64::from(value));
             }
@@ -5965,7 +6001,7 @@ impl Studio {
     /// as an individual parameter reset, committed as one undo operation.
     pub fn reset_adjust_group(&mut self, group: &str) {
         self.flush_commit();
-        let Some(id) = self.sole_selection() else {
+        let Some(id) = self.edit_targets().first().cloned() else {
             return;
         };
         let Some(clip) = self.clip(&id).filter(|clip| graded(clip.kind)) else {
@@ -5981,13 +6017,13 @@ impl Studio {
         if rows.is_empty() {
             return;
         }
-        self.edit_adjust_link(|link| {
-            for row in rows {
+        self.edit_adjust_link(|link, shown| {
+            for row in &rows {
                 let key = row.key.as_str();
-                if let Some(at) = at.filter(|_| link.is_keyed(key)) {
+                if let Some(at) = at.filter(|_| shown && link.is_keyed(key)) {
                     let ease = ease_before(link.keys_on(key), at);
                     link.set_key(key, at, f64::from(row.default_value), ease);
-                } else {
+                } else if shown || !link.is_keyed(key) {
                     link.params
                         .insert(key.to_owned(), f64::from(row.default_value));
                 }
@@ -6211,7 +6247,7 @@ impl Studio {
     /// One point of one of the colour panel's curves, on the echo: moved,
     /// or put down when `point` is negative.
     pub fn adjust_curve_point(&mut self, key: &str, point: i32, x: f32, y: f32) {
-        self.edit_adjust_link(|link| {
+        self.edit_adjust_link(|link, _| {
             grading::set_curve_point(&mut link.params, key, point, x.into(), y.into());
         });
         if !self.playing {
@@ -6221,7 +6257,7 @@ impl Studio {
 
     /// One point of one of the colour panel's curves taken off, on the echo.
     pub fn adjust_curve_remove(&mut self, key: &str, point: i32) {
-        self.edit_adjust_link(|link| grading::remove_curve_point(&mut link.params, key, point));
+        self.edit_adjust_link(|link, _| grading::remove_curve_point(&mut link.params, key, point));
         if !self.playing {
             self.request_preview();
         }
@@ -6230,29 +6266,33 @@ impl Studio {
     /// The selected clip's colour link on the echo, put at the head of the
     /// picture's chain if it is not there yet, handed to `edit`. Nothing
     /// for a clip that is not a picture.
-    fn edit_adjust_link(&mut self, edit: impl FnOnce(&mut AppliedFilter)) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        self.begin_echo();
-        let Some(clip) = self.echo_clip_mut(&id) else {
-            return;
-        };
-        if !graded(clip.kind) {
+    fn edit_adjust_link(&mut self, edit: impl Fn(&mut AppliedFilter, bool)) {
+        let ids = self.edit_targets();
+        if ids.is_empty() {
             return;
         }
-        let entry = match clip
-            .video_effects
-            .iter()
-            .position(|entry| entry.id == ADJUST_ID)
-        {
-            Some(entry) => entry,
-            None => {
-                clip.video_effects.insert(0, AppliedFilter::new(ADJUST_ID));
-                0
+        self.commit_targets = ids.clone();
+        self.begin_echo();
+        for (turn, id) in ids.iter().enumerate() {
+            let Some(clip) = self.echo_clip_mut(id) else {
+                continue;
+            };
+            if !graded(clip.kind) {
+                continue;
             }
-        };
-        edit(&mut clip.video_effects[entry]);
+            let entry = match clip
+                .video_effects
+                .iter()
+                .position(|entry| entry.id == ADJUST_ID)
+            {
+                Some(entry) => entry,
+                None => {
+                    clip.video_effects.insert(0, AppliedFilter::new(ADJUST_ID));
+                    0
+                }
+            };
+            edit(&mut clip.video_effects[entry], turn == 0);
+        }
     }
 
     /// One point of a curve of the picture chain's link `index`, on the
@@ -6289,20 +6329,8 @@ impl Studio {
     }
 
     /// The picture chain's link `index` of the selected clip, on the echo.
-    fn edit_chain_link(&mut self, index: i32, edit: impl FnOnce(&mut AppliedFilter)) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        self.begin_echo();
-        let Some(clip) = self.echo_clip_mut(&id) else {
-            return;
-        };
-        if let Some(link) = usize::try_from(index)
-            .ok()
-            .and_then(|index| clip.video_effects.get_mut(index))
-        {
-            edit(link);
-        }
+    fn edit_chain_link(&mut self, index: i32, edit: impl Fn(&mut AppliedFilter)) {
+        self.edit_links(false, index, |link, _| edit(link));
     }
 
     /// The colour link of the selected clip - the one the Adjust panel's
@@ -9822,33 +9850,34 @@ impl Studio {
     /// The Mode row: 0 off, 1 automatic, 2 custom. The chroma rows are the
     /// inspector's own business, on the chain.
     pub fn cutout_mode(&mut self, mode: i32) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        let Some(clip) = self.clip(&id).cloned() else {
-            return;
-        };
-        let held = clip.cutout.clone().unwrap_or_else(model::Cutout::auto);
-        let cutout = match mode {
-            1 => Some(model::Cutout {
-                mode: model::CutoutMode::Auto,
-                ..held
-            }),
-            2 => Some(model::Cutout {
-                mode: model::CutoutMode::Custom,
-                ..held
-            }),
-            _ => None,
-        };
-        if mode == 2 {
-            self.painting = true;
-        }
-        if cutout != clip.cutout {
-            self.apply(Command::SetClipCutout {
-                clip_id: id,
-                cutout,
-            });
-        }
+        let ids = self.edit_targets();
+        let commands = ids
+            .iter()
+            .filter_map(|id| {
+                let clip = self.clip(id)?;
+                if !matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Image) {
+                    return None;
+                }
+                let held = clip.cutout.clone().unwrap_or_else(model::Cutout::auto);
+                let cutout = match mode {
+                    1 => Some(model::Cutout {
+                        mode: model::CutoutMode::Auto,
+                        ..held
+                    }),
+                    2 => Some(model::Cutout {
+                        mode: model::CutoutMode::Custom,
+                        ..held
+                    }),
+                    _ => None,
+                };
+                (cutout != clip.cutout).then(|| Command::SetClipCutout {
+                    clip_id: id.clone(),
+                    cutout,
+                })
+            })
+            .collect();
+        self.painting = mode == 2 && ids.len() == 1;
+        self.apply(Command::Batch { commands });
     }
 
     /// The name an analysis runs under: the media and what it keeps.
@@ -9859,44 +9888,42 @@ impl Studio {
     /// The Subject row: 0 automatic, 1 person, 2 object. A change means
     /// other masks, which the analysis notices on its own.
     pub fn cutout_subject(&mut self, index: i32) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        let Some(cutout) = self.clip(&id).and_then(|clip| clip.cutout.clone()) else {
-            return;
-        };
         let subject = match index {
             1 => model::Subject::Person,
             2 => model::Subject::Object,
             _ => model::Subject::Auto,
         };
-        if cutout.subject == subject {
-            return;
-        }
-        self.apply(Command::SetClipCutout {
-            clip_id: id,
-            cutout: Some(model::Cutout { subject, ..cutout }),
-        });
+        let commands = self
+            .edit_targets()
+            .into_iter()
+            .filter_map(|id| {
+                let cutout = self.clip(&id)?.cutout.clone()?;
+                (cutout.subject != subject).then(|| Command::SetClipCutout {
+                    clip_id: id,
+                    cutout: Some(model::Cutout { subject, ..cutout }),
+                })
+            })
+            .collect();
+        self.apply(Command::Batch { commands });
     }
 
     /// Takes every stroke off the selected clip's cutout, keeping it custom.
     pub fn cutout_clear(&mut self) {
-        let Some(id) = self.sole_selection() else {
-            return;
-        };
-        let Some(cutout) = self.clip(&id).and_then(|clip| clip.cutout.clone()) else {
-            return;
-        };
-        if cutout.strokes.is_empty() {
-            return;
-        }
-        self.apply(Command::SetClipCutout {
-            clip_id: id,
-            cutout: Some(model::Cutout {
-                strokes: Vec::new(),
-                ..cutout
-            }),
-        });
+        let commands = self
+            .edit_targets()
+            .into_iter()
+            .filter_map(|id| {
+                let cutout = self.clip(&id)?.cutout.clone()?;
+                (!cutout.strokes.is_empty()).then(|| Command::SetClipCutout {
+                    clip_id: id,
+                    cutout: Some(model::Cutout {
+                        strokes: Vec::new(),
+                        ..cutout
+                    }),
+                })
+            })
+            .collect();
+        self.apply(Command::Batch { commands });
     }
 
     pub fn cutout_tool(&mut self, index: i32) {
@@ -12364,7 +12391,7 @@ impl Studio {
 
         if should_publish_inspector {
             // The selected clip's chains, as the inspector's two stacks.
-            let (video, audio) = match self.sole_selection().and_then(|id| self.clip(&id)) {
+            let (video, audio) = match self.edit_targets().first().and_then(|id| self.clip(id)) {
                 Some(clip) => (
                     clip.video_effects
                         .iter()
@@ -12393,7 +12420,7 @@ impl Studio {
             // The same chains as the inspector's stacks see them: a row per
             // link and a row per knob, from the catalogue's manifests.
             let (visual, visual_params, sound, sound_params) =
-                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                match self.edit_targets().first().and_then(|id| self.clip(id)) {
                     Some(clip) => {
                         let (visual, visual_params) = chain_rows(&clip.video_effects);
                         let (sound, sound_params) = chain_rows(&clip.filters);
@@ -12403,8 +12430,9 @@ impl Studio {
                 };
             let catalogue = Catalogue::builtin();
             let luts = self
-                .sole_selection()
-                .and_then(|id| self.clip(&id))
+                .edit_targets()
+                .first()
+                .and_then(|id| self.clip(id))
                 .map(|clip| {
                     clip.video_effects
                         .iter()
@@ -12432,7 +12460,7 @@ impl Studio {
             sync(&models.visual_params, visual_params);
             sync(
                 &models.visual_colours,
-                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                match self.edit_targets().first().and_then(|id| self.clip(id)) {
                     Some(clip) => chain_colours(
                         &clip.video_effects,
                         picks_colour(clip.kind),
@@ -12446,7 +12474,7 @@ impl Studio {
             );
             sync_with(
                 &models.visual_choices,
-                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                match self.edit_targets().first().and_then(|id| self.clip(id)) {
                     Some(clip) => chain_choices(&clip.video_effects),
                     None => Vec::new(),
                 },
@@ -12456,7 +12484,7 @@ impl Studio {
             sync(&models.audio_params, sound_params);
             sync(
                 &models.adjust_params,
-                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                match self.edit_targets().first().and_then(|id| self.clip(id)) {
                     Some(clip) if graded(clip.kind) => {
                         adjust_rows(&clip.video_effects, self.key_point().map(|(_, at)| at))
                     }
@@ -12467,7 +12495,7 @@ impl Studio {
             // The wheels and curves: the chain's by link, the colour panel's
             // keyable at the playhead. Each curve's points go into the model
             // kept for it.
-            let clip = self.sole_selection().and_then(|id| self.clip(&id));
+            let clip = self.edit_targets().first().and_then(|id| self.clip(id));
             let (visual_wheels, visual_curves) =
                 clip.map_or_else(Default::default, |clip| chain_grading(&clip.video_effects));
             let (adjust_wheels, adjust_curves) = match (clip, Catalogue::builtin().get(ADJUST_ID)) {
