@@ -478,6 +478,73 @@ fn block(
 
 #[cfg(test)]
 mod tests {
+    /// Explicit opt-in uses only the carried public-domain fixture and pinned
+    /// test networks in a scratch folder, never a user's recording or model cache.
+    #[test]
+    #[ignore = "requires CLOVERCUT_SPLEETER_DIR with the verified pinned networks"]
+    fn model_stems_reconstruct_a_carried_voice() {
+        let networks = PathBuf::from(std::env::var("CLOVERCUT_SPLEETER_DIR").unwrap());
+        let networks = Networks {
+            vocals: networks.join("spleeter-2stems-vocals.fp16.onnx"),
+            accompaniment: networks.join("spleeter-2stems-accompaniment.fp16.onnx"),
+        };
+        let input = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/voices/mark-f-smith.flac"
+        ));
+        let root = std::env::temp_dir().join(format!(
+            "clovercut-spleeter-reconstruction-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        let stems = Stems {
+            voice: root.join("voice.wav"),
+            rest: root.join("rest.wav"),
+        };
+        separate(
+            input,
+            None,
+            &networks,
+            &stems,
+            1,
+            &AtomicBool::new(false),
+            &mut |_| {},
+        )
+        .unwrap();
+        let read = |path: &Path| {
+            AudioDecoder::open(
+                path,
+                &AudioOptions {
+                    rate: RATE,
+                    channels: 1,
+                    format: SampleFormat::F32,
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+            .collect_f32()
+            .unwrap()
+        };
+        let original = read(input);
+        let voice = read(&stems.voice);
+        let rest = read(&stems.rest);
+        assert_eq!(voice.len(), original.len());
+        assert_eq!(rest.len(), original.len());
+        let error = original
+            .iter()
+            .zip(&voice)
+            .zip(&rest)
+            .map(|((original, voice), rest)| (original - voice - rest).abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            error < 0.0003,
+            "voice+rest differs from the source by {error}"
+        );
+        assert!(voice.iter().any(|sample| sample.abs() > 0.01));
+        assert!(rest.iter().any(|sample| sample.abs() > 0.0001));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     use super::*;
 
     /// Analysis and synthesis at a quarter hop give back the signal.

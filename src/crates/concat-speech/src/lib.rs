@@ -24,6 +24,7 @@ pub mod chatterbox;
 pub mod isolate;
 pub mod languages;
 mod speech_reel;
+mod stock_voices;
 pub mod transcribe;
 pub mod tts;
 #[cfg(feature = "isolate")]

@@ -22,7 +22,3 @@ same.
 The voice list names each by its reader's first name, with an accent
 only where a public source states one (see `CHATTERBOX_VOICES` in
 `src/tts.rs`).
-
-This Clovercut import includes only mark-f-smith.flac here, as the public-domain
-voice-isolation regression fixture. The other entries above document upstream
-provenance and are not additional bundled files in this directory.

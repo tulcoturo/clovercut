@@ -196,19 +196,19 @@ pub const POCKET_CLONE: i32 = 1099;
 /// The Pocket bundle, which is also where the stock recordings live.
 pub const POCKET_ID: &str = "sherpa-onnx-pocket-tts-int8-2026-01-26";
 
-/// Chatterbox's voices. The model has no speakers of its own and ships no
-/// recording of anyone's under a licence this build may carry, so its
-/// stock voice is Pocket's Bria recording, read from the Pocket bundle:
-/// offered only while that bundle is on disk, and named as Chatterbox's
-/// so a voice id still says which family reads it. Pocket's other
-/// recording, Loona, is a second long, and Chatterbox needs five to take
-/// a voice from - see `chatterbox::MIN_REFERENCE_SECONDS` - so it is not
-/// offered here. The other voice is a recording of the caller's choosing,
-/// as Pocket's is.
+/// Chatterbox's carried public-domain references and its legacy Pocket voice.
+/// New IDs keep the existing Bria/clone IDs stable in saved Clovercut requests.
 pub const CHATTERBOX_VOICES: &[(i32, &str, Option<&str>)] = &[
+    (2100, "af_elizabeth", Some("elizabeth-klett.flac")),
+    (2101, "am_mark", Some("mark-f-smith.flac")),
+    (2102, "bf_ruth", Some("ruth-golding.flac")),
+    (2103, "xm_bob", Some("bob-neufeld.flac")),
     (2000, "chatterbox_bria", Some("test_wavs/bria.wav")),
     (CHATTERBOX_CLONE, "chatterbox_clone", None),
 ];
+
+/// The default carried Chatterbox reference, Elizabeth Klett.
+pub const CHATTERBOX_DEFAULT: i32 = 2100;
 
 /// A recording of the caller's choosing, read by Chatterbox.
 pub const CHATTERBOX_CLONE: i32 = 2099;
@@ -577,12 +577,16 @@ impl Speech {
                     family: Family::Pocket,
                     avatar: None,
                 }))
-                // Chatterbox's stock voices are Pocket's recordings, and are
-                // only offered while the bundle holding them is here.
+                // Carried references are always available. The legacy Bria
+                // reference remains available with its existing Pocket bundle.
                 .chain(
                     CHATTERBOX_VOICES
                         .iter()
-                        .filter(|(_, _, file)| file.is_none() || model_downloaded(dirs, POCKET_ID))
+                        .filter(|(_, _, file)| {
+                            file.is_none()
+                                || file.is_some_and(crate::stock_voices::carries)
+                                || model_downloaded(dirs, POCKET_ID)
+                        })
                         .map(|(id, name, _)| VoiceInfo {
                             id: *id,
                             name: (*name).to_owned(),
@@ -895,8 +899,15 @@ impl Speech {
         // and the file written here. Sherpa's families go on below.
         // A named voice's recording lives in the Pocket bundle, whichever
         // model reads it; a chosen recording needs no bundle at all.
-        let recordings = if is_clone(request.voice) {
+        let bundled = CHATTERBOX_VOICES
+            .iter()
+            .find(|(id, _, _)| *id == request.voice)
+            .and_then(|(_, _, file)| *file)
+            .is_some_and(crate::stock_voices::carries);
+        let recordings = if family == Family::Kokoro || is_clone(request.voice) {
             dir.clone()
+        } else if bundled {
+            crate::stock_voices::ensure(&dirs.data)?
         } else {
             recordings_dir(dirs)?
         };
@@ -1393,7 +1404,23 @@ mod tests {
         }
         // The stock Chatterbox voice is Pocket's long recording by another
         // name; Pocket's one-second one is not offered to it.
-        assert_eq!(CHATTERBOX_VOICES[0].2, POCKET_VOICES[0].2);
+        assert_eq!(
+            CHATTERBOX_VOICES
+                .iter()
+                .find(|(id, _, _)| *id == 2000)
+                .unwrap()
+                .2,
+            POCKET_VOICES[0].2
+        );
+        assert_eq!(voice_family(CHATTERBOX_DEFAULT), Some(Family::Chatterbox));
+        assert_eq!(voice_name(CHATTERBOX_DEFAULT), Some("af_elizabeth"));
+        assert_eq!(
+            CHATTERBOX_VOICES
+                .iter()
+                .filter(|(_, _, file)| file.is_some_and(crate::stock_voices::carries))
+                .count(),
+            4
+        );
         assert!(
             !CHATTERBOX_VOICES
                 .iter()

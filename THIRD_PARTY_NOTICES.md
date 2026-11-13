@@ -318,3 +318,9 @@ The surrounding DSP is adapted from libDF. Its FFT uses realfft and rustfft
 Music separation uses Deezer's MIT-licensed Spleeter weights, exported to ONNX
 by sherpa-onnx and downloaded on demand. Pinned sources and SHA256 digests
 are recorded in models/manifest.toml.
+
+## Carried LibriVox reference voices
+
+The Chatterbox reference recordings credit Elizabeth Klett, Mark F. Smith,
+Ruth Golding and Bob Neufeld. Their LibriVox public-domain readings and exact
+source chapters are recorded in src/crates/concat-speech/voices/README.md.

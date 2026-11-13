@@ -3873,7 +3873,7 @@
     {
       "commit": "cb895fe88c5fdaf14f34add2e5182305b5409fcf",
       "subject": "feat(speech): four public-domain LibriVox voices replace Bria",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-upstream-review.md"
       ],
@@ -3887,7 +3887,8 @@
         "src/crates/concat-speech/voices/mark-f-smith.flac",
         "src/crates/concat-speech/voices/ruth-golding.flac",
         "src/crates/concat/src/panes/speech.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-carried-voices.md"
     },
     {
       "commit": "c4854685c3da1465e9a5ead089cacbe2138612c0",

@@ -18,5 +18,11 @@
 dev = "run --bin clovercut --profile quick"
 
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))']
-rustflags = ["-C", "link-arg=-Wl,-z,muldefs", "-C", "link-arg=-Wl,--allow-multiple-definition"]
+rustflags = ["-C", "link-arg=-Wl,-z,muldefs", "-C", "link-arg=-Wl,--allow-multiple-definition", "-C", "link-arg=-Wl,--exclude-libs,ALL"]
 
+
+# sherpa carries a static ONNX/protobuf runtime; ort also loads the shared
+# runtime. Keep archive symbols private so shared libraries cannot bind to
+# the other runtime's C++ allocator/protobuf implementations (invalid free).
+[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))']
+rustflags = ["-C", "link-arg=-Wl,--exclude-libs,ALL"]

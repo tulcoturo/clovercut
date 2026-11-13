@@ -50,8 +50,8 @@ use crate::ui::{NewVoiceData, SpeechSheetData};
 const DEFAULT_VOICE: i32 = 3;
 /// The default Pocket voice: Bria, the bundle's first recording.
 const DEFAULT_POCKET_VOICE: i32 = 1000;
-/// The default Chatterbox voice: the same recording, read by Chatterbox.
-const DEFAULT_CHATTERBOX_VOICE: i32 = 2000;
+/// The default carried Chatterbox voice: Elizabeth Klett.
+const DEFAULT_CHATTERBOX_VOICE: i32 = concat_speech::tts::CHATTERBOX_DEFAULT;
 /// The speeds a voice can be asked for, as the rate multiplier the sheet's
 /// slider runs over; 1 is the voice's own.
 const SPEEDS: (f32, f32) = (0.5, 2.0);
