@@ -165,6 +165,7 @@ export component ConfigPane inherits Rectangle {
     // callback says which. A filter is neither: it is a layer on the lanes,
     // with a panel of its own.
     in property <[CatalogueEntryData]> catalogue-effects;
+    in property <[CatalogueEntryData]> catalogue-transitions;
     in property <[CatalogueEntryData]> catalogue-audio;
     in property <[string]> effect-groups;
     in property <[string]> audio-groups;
@@ -263,9 +264,11 @@ export component ConfigPane inherits Rectangle {
     // Enter captions on Style; keep a tab explicitly chosen within the collection.
     property <bool> is-caption: root.is-text && CaptionsLibrary.style-count > 0;
     changed is-caption => { if root.is-caption { root.tab = 1; } }
-    property <bool> is-layer: root.cached-kind == ClipKind.filter;
+    property <bool> is-transition-layer: root.selected.transition-layer;
+    property <bool> is-layer: root.cached-kind == ClipKind.filter && !root.is-transition-layer;
     property <bool> is-sound-layer: root.cached-kind == ClipKind.sound-layer;
     property <[string]> tabs: root.cached-batch-volume ? ["Audio"] : root.is-text ? (CaptionsLibrary.style-count > 0 ? ["Captions", "Text", "Effects"] : ["Text", "Effects"])
+        : root.is-transition-layer ? ["Effects"]
         : root.is-layer ? ["Filter"]
         : root.is-sound-layer ? ["Audio"]
         : root.is-shape ? ["Video"]
@@ -275,6 +278,7 @@ export component ConfigPane inherits Rectangle {
     /// The same tabs in the interface's language. `tabs` stays English,
     /// because the panels are picked by comparing against it.
     property <[string]> tabs-shown: root.cached-batch-volume ? [I18n.t("common.audio")] : root.is-text ? (CaptionsLibrary.style-count > 0 ? [I18n.t("captions.captions"), I18n.t("captions.styleTab"), I18n.t("common.effects")] : [I18n.t("common.text"), I18n.t("common.effects")])
+        : root.is-transition-layer ? [I18n.t("mediaPane.transition")]
         : root.is-layer ? [I18n.t("configPane.filter")]
         : root.is-sound-layer ? [I18n.t("common.audio")]
         : root.is-shape ? [I18n.t("configPane.vectorImage")]
@@ -826,7 +830,7 @@ export component ConfigPane inherits Rectangle {
                     empty-note: I18n.t("configPane.noEffectClipYet");
                     shelf: 1;
                     group-labels: root.effect-groups;
-                    catalogue: root.catalogue-effects;
+                    catalogue: root.is-transition-layer ? root.catalogue-transitions : root.catalogue-effects;
                     applied: root.applied-visual;
                     params: root.visual-params;
                     wheel-groups: root.visual-wheels;

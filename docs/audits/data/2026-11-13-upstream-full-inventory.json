@@ -3307,7 +3307,7 @@
     {
       "commit": "f2a260814bb7637ddbfe24c9bc94cb2c73121675",
       "subject": "wip(transitions): the engine draws a transition as a clip of its own, over a cut or a single shot (#621)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-upstream-review.md"
       ],
@@ -3319,7 +3319,8 @@
         "src/crates/concat-effects/packages/concat.zoom-transition/effect.toml",
         "src/crates/concat-export/src/lib.rs",
         "src/crates/concat-export/src/resolve.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-transition-layers.md"
     },
     {
       "commit": "09f1a5de87b145659507f879f5085357511a923c",
@@ -3844,14 +3845,15 @@
     {
       "commit": "0ddc8214004cb825617f488bbabec181d3e705a0",
       "subject": "feat(project): documents are version 2, so 0.2.8 refuses them instead of deleting what it can't read",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-project/src/doc.rs",
         "src/crates/concat-project/src/lib.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-transition-layers.md"
     },
     {
       "commit": "d64e7f255c0bbc48aaca19ad02f8f0ff81fb3c0d",
@@ -4201,7 +4203,7 @@
     {
       "commit": "9ce13ffff72c6bcbb515344e424026237dedfec3",
       "subject": "feat(transitions): a transition is a clip on the timeline, placed, moved and trimmed like any other (#621)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-upstream-review.md"
       ],
@@ -4244,7 +4246,8 @@
         "src/crates/concat/src/studio/menus.rs",
         "src/crates/concat/src/studio/placing.rs",
         "src/crates/concat/ui/workspace/media-pane.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-transition-layers.md"
     },
     {
       "commit": "7279a2d4d429be38ec922559e8dfbca193ee9553",

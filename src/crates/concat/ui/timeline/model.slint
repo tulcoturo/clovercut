@@ -430,6 +430,7 @@ export struct SelectedClipData {
     frame-height: int,
     name: string,
     kind: ClipKind,
+    transition-layer: bool,
     /// Seconds, and the ceiling on a fade: longer than half the clip and the
     /// two ramps would overlap.
     duration: float,

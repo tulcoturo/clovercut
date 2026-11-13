@@ -204,6 +204,7 @@ fn import_edit_reopen_relink_export() {
                     studio = shell.studio.borrow_mut();
                     check_speed_selection(&mut studio);
                     check_shapes_and_preview_hold(&mut studio);
+                    check_transition_layers(&mut studio);
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -705,5 +706,65 @@ fn check_shapes_and_preview_hold(state: &mut Studio) {
     assert_eq!(state.playhead, 0.0);
     state.prefs.playhead_stops_at_end = bounded;
     state.prefs.preview_axis = axis;
+    state.seek(playhead);
+}
+
+fn check_transition_layers(state: &mut Studio) {
+    use concat_project::commands::{ClipMove, TrimEdge};
+    use concat_project::model::{ClipKind, TrackKind};
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let playhead = state.playhead;
+    state.apply_transition("concat.push");
+    let id = state.sole_selection().expect("the transition is selected");
+    let clip = state.clip(&id).unwrap().clone();
+    assert_eq!(clip.kind, ClipKind::Transition);
+    assert_eq!(clip.video_effects[0].id, "concat.push");
+    assert_eq!(
+        state.timeline().track(&clip.track_id).unwrap().kind,
+        TrackKind::Filter
+    );
+    state.chain_add(false, "concat.zoom-transition");
+    assert_eq!(state.clip(&id).unwrap().video_effects.len(), 1);
+    assert_eq!(
+        state.clip(&id).unwrap().video_effects[0].id,
+        "concat.zoom-transition"
+    );
+    let before_copy = state.project().clone();
+    state.duplicate_selected();
+    let copied = state.sole_selection().expect("the copy is selected");
+    assert_ne!(copied, id);
+    assert_eq!(state.clip(&copied).unwrap().kind, ClipKind::Transition);
+    assert_eq!(
+        state.clip(&copied).unwrap().video_effects,
+        state.clip(&id).unwrap().video_effects
+    );
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_copy,
+        "one undo removes a transition duplicate"
+    );
+    state.selection = vec![id.clone()];
+    state.apply(Command::MoveClips {
+        moves: vec![ClipMove {
+            clip_id: id.clone(),
+            start: 3.0,
+            track_id: clip.track_id.clone(),
+        }],
+    });
+    state.apply(Command::TrimClip {
+        clip_id: id.clone(),
+        edge: TrimEdge::Start,
+        delta: -0.25,
+        ripple: false,
+    });
+    assert_eq!(state.clip(&id).unwrap().start, 2.75);
+    assert_eq!(state.clip(&id).unwrap().duration, 1.25);
+    for _ in 0..4 {
+        state.undo();
+    }
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
     state.seek(playhead);
 }

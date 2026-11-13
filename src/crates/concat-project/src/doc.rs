@@ -25,7 +25,9 @@
 //!
 //! Writing is the derives again, plus a mirror of the active timeline in
 //! the flat `tracks` / `clips` / `video` fields that builds from before
-//! multiple timelines read, so a file saved here still opens there.
+//! multiple timelines read. Version 2 explicitly protects transition layers:
+//! older builds that cannot represent them refuse the document rather than
+//! silently dropping its clips. Version-1 documents remain readable.
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -38,7 +40,7 @@ use crate::model::{Clip, ColorSpace, MediaItem, Project, Timeline, VideoSettings
 /// on load: a document from a later version is refused whole rather than
 /// read in part and then saved over. Every bump adds a step to
 /// [`MIGRATIONS`].
-pub const DOCUMENT_VERSION: u64 = 1;
+pub const DOCUMENT_VERSION: u64 = 2;
 
 /// The version a document says it is. Documents from before the field
 /// existed are version 1: that is the version their shape was given.
@@ -263,9 +265,11 @@ fn settle_clip(
         return None;
     }
     match clip.kind {
-        ClipKind::Text | ClipKind::Layer | ClipKind::SoundLayer | ClipKind::Shape => {
-            clip.media_id.clear()
-        }
+        ClipKind::Text
+        | ClipKind::Layer
+        | ClipKind::SoundLayer
+        | ClipKind::Shape
+        | ClipKind::Transition => clip.media_id.clear(),
         ClipKind::Video | ClipKind::Audio | ClipKind::Image => {
             if !media.iter().any(|item| item.id == clip.media_id) {
                 return None;

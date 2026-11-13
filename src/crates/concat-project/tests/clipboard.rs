@@ -173,6 +173,7 @@ fn every_clip_kind_keeps_its_complete_state_and_auxiliary_media() {
         (ClipKind::Text, "text"),
         (ClipKind::Shape, "stickers"),
         (ClipKind::Layer, "filter"),
+        (ClipKind::Transition, "filter"),
         (ClipKind::SoundLayer, "filter"),
     ] {
         let mut p = source();

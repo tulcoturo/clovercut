@@ -3008,7 +3008,7 @@ export component MediaPane inherits FocusScope {
                         entries: root.catalogue-transitions;
                         payload-kind: "transition";
                         glyph: Glyph.transition;
-                        // Transitions apply directly on single-click — no audition overlay.
+                        // Click places a transition layer; drag positions it on a lane.
                         auditions: false;
                         applied(id, label) => { root.apply-transition(id); }
                     }

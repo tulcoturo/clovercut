@@ -21,7 +21,8 @@ pub(super) fn apply(
             .clip(clip_id)
             .map(|clip| clip.track_id.as_str()),
         Command::AddClip { track_id, .. } => Some(track_id.as_str()),
-        Command::AddClipsInSequence { track_id, .. } => track_id.as_deref(),
+        Command::AddClipsInSequence { track_id, .. }
+        | Command::AddTransitionClip { track_id, .. } => track_id.as_deref(),
         _ => None,
     };
     if target.is_some_and(|track| locked.iter().any(|id| id == track)) {
@@ -257,6 +258,62 @@ pub(super) fn apply(
             } else {
                 clip.video_effects = vec![AppliedFilter::new(effect_id)];
             }
+            timeline.clips.push(Arc::new(clip));
+            Ok(Outcome {
+                created_id: Some(id),
+                applied: true,
+            })
+        }
+
+        Command::AddTransitionClip {
+            track_id,
+            start,
+            duration,
+            transition_id,
+            name,
+        } => {
+            let duration = duration
+                .unwrap_or(DEFAULT_TRANSITION_DURATION)
+                .max(crate::model::ranges::MIN_TRANSITION);
+            let timeline = project.active_mut();
+            let track_id = match track_id {
+                Some(id) if timeline.track(&id).is_some() => id,
+                Some(_) => return Err(CommandError::TrackGone),
+                // Over the picture, as a layer is: a transition acts on what
+                // is beneath it, and one under the footage would act on
+                // nothing.
+                None => first_free_track_above(timeline, start, duration)
+                    .filter(|id| {
+                        !locked.contains(id)
+                            && timeline
+                                .track(id)
+                                .is_some_and(|track| track.kind == TrackKind::Filter)
+                    })
+                    .unwrap_or_else(|| {
+                        let id = fresh_track(timeline, mint);
+                        if let Some(track) = timeline.tracks.iter_mut().find(|track| track.id == id)
+                        {
+                            track.kind = TrackKind::Filter;
+                        }
+                        id
+                    }),
+            };
+            let start = timeline.nearest_free_start(&track_id, start, duration, &[]);
+            let id = mint.next("c");
+            let name = if name.trim().is_empty() {
+                transition_id.clone()
+            } else {
+                name
+            };
+            let mut clip = Clip::blank(
+                id.clone(),
+                track_id,
+                ClipKind::Transition,
+                name,
+                start,
+                duration,
+            );
+            clip.video_effects = vec![AppliedFilter::new(transition_id)];
             timeline.clips.push(Arc::new(clip));
             Ok(Outcome {
                 created_id: Some(id),
