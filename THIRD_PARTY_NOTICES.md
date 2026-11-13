@@ -304,3 +304,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Voice isolation
+
+Speech separation bundles DeepFilterNet 3's ONNX export (enc.onnx,
+erb_dec.onnx, df_dec.onnx), from models/DeepFilterNet3_onnx.tar.gz at
+https://github.com/Rikorose/DeepFilterNet, Copyright (c) 2021 Hendrik Schröter.
+Code and weights are dual licensed MIT or Apache-2.0; Clovercut uses MIT.
+Both license texts are included in src/crates/concat-speech/assets/deepfilternet3/.
+The surrounding DSP is adapted from libDF. Its FFT uses realfft and rustfft
+(MIT or Apache-2.0).
+
+Music separation uses Deezer's MIT-licensed Spleeter weights, exported to ONNX
+by sherpa-onnx and downloaded on demand. Pinned sources and SHA256 digests
+are recorded in models/manifest.toml.

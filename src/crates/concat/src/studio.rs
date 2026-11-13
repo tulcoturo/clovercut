@@ -49,6 +49,7 @@ mod consolidate;
 use consolidate::MergeJob;
 mod masking;
 mod masks;
+mod voice;
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
@@ -1247,6 +1248,9 @@ pub struct Studio {
     /// Media whose stabilization was turned on anew, so an analysis the
     /// app died in last time is tried again rather than skipped.
     stabilize_retry: HashSet<String>,
+    voice_jobs: HashMap<std::path::PathBuf, (bool, f32)>,
+    voice_cancel: Option<Arc<std::sync::atomic::AtomicBool>>,
+    voice_failed: HashSet<std::path::PathBuf>,
     /// Enhance at work, by clip id: whether the model is still
     /// downloading, and how far along. One at a time, like every long job.
     enhance_jobs: HashMap<String, (bool, f32)>,
@@ -1886,6 +1890,9 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
             clip_id: id.to_owned(),
             cutout: after.cutout.clone(),
         });
+    }
+    if after.voice != before.voice {
+        commands.push(Command::SetClipVoice { clip_id: id.to_owned(), voice: after.voice });
     }
     if after.stabilize != before.stabilize {
         commands.push(Command::SetClipStabilize {
@@ -2677,6 +2684,9 @@ impl Studio {
             cutout_jobs: HashMap::new(),
             stabilize_jobs: HashMap::new(),
             stabilize_retry: HashSet::new(),
+            voice_jobs: HashMap::new(),
+            voice_cancel: None,
+            voice_failed: HashSet::new(),
             enhance_jobs: HashMap::new(),
             enhance_size: 0,
             enhance_strength: concat_host::enhance::DEFAULT_STRENGTH,
@@ -3457,6 +3467,7 @@ impl Studio {
         self.request_preview();
         self.ensure_cutouts();
         self.ensure_stabilizers();
+        self.ensure_voices();
         self.ensure_regions();
     }
 
@@ -7117,6 +7128,38 @@ impl Studio {
                 ClipField::StabilizeMaxZoom => {
                     if let Some(stabilize) = clip.stabilize.as_mut() {
                         stabilize.max_zoom = value.clamp(1.0, model::MAX_STABILIZE_ZOOM);
+                    }
+                }
+                // Only what plays sound has a voice in it.
+                // A new way keeps the kind the clip had.
+                ClipField::VoiceMode => {
+                    let sounding =
+                        matches!(clip.kind, model::ClipKind::Video | model::ClipKind::Audio);
+                    let kind = clip.voice.unwrap_or_default().kind;
+                    clip.voice = match value as i32 {
+                        1 if sounding => Some(model::VoiceMix::KEEP_VOICE),
+                        2 if sounding => Some(model::VoiceMix::REMOVE_VOICE),
+                        _ => None,
+                    }
+                    .map(|mix| model::VoiceMix { kind, ..mix });
+                }
+                ClipField::VoiceKind => {
+                    if let Some(mix) = clip.voice.as_mut() {
+                        mix.kind = if value as i32 == 1 {
+                            model::VoiceKind::Speech
+                        } else {
+                            model::VoiceKind::Vocals
+                        };
+                    }
+                }
+                ClipField::VoiceLevel => {
+                    if let Some(mix) = clip.voice.as_mut() {
+                        mix.voice = value.clamp(0.0, model::MAX_VOICE_GAIN);
+                    }
+                }
+                ClipField::BackgroundLevel => {
+                    if let Some(mix) = clip.voice.as_mut() {
+                        mix.background = value.clamp(0.0, model::MAX_VOICE_GAIN);
                     }
                 }
                 ClipField::StabilizeTripod => {
@@ -10866,6 +10909,7 @@ impl Studio {
                 self.request_preview();
                 self.ensure_cutouts();
                 self.ensure_stabilizers();
+        self.ensure_voices();
                 self.ensure_regions();
 
                 // Effects this build no longer has, named once as the project
@@ -11084,6 +11128,7 @@ impl Studio {
         self.cutout_jobs.clear();
         self.stabilize_jobs.clear();
         self.stabilize_retry.clear();
+        self.cancel_voices();
         self.region_job = None;
         self.autosave.stop();
         // The launch screen's card for this project is read again: the
@@ -14026,6 +14071,20 @@ impl Studio {
                 .unwrap_or(-1.0),
             stabilize_zoom: steady.map_or(-1.0, |(zoom, _)| zoom as f32),
             stabilize_needed: steady.map_or(-1.0, |(_, needed)| needed as f32),
+            voice_mode: match clip.voice {
+                None => 0,
+                Some(mix) if mix.voice == 1.0 && mix.background == 0.0 => 1,
+                Some(mix) if mix.voice == 0.0 && mix.background == 1.0 => 2,
+                Some(_) => 3,
+            },
+            voice_level: clip.voice.map_or(1.0, |mix| mix.voice as f32),
+            background_level: clip.voice.map_or(1.0, |mix| mix.background as f32),
+            voice_progress: self.voice_progress(clip).0,
+            voice_fetching: self.voice_progress(clip).1,
+            voice_kind: match clip.voice.unwrap_or_default().kind {
+                model::VoiceKind::Vocals => 0,
+                model::VoiceKind::Speech => 1,
+            },
             enhance_progress: self
                 .enhance_jobs
                 .get(&clip.id)
@@ -15199,6 +15258,26 @@ impl Studio {
                 self.clip_has_sound(clip),
             ));
             rows.push(rule());
+            // Voice isolation, both ways, one click each: ticked when it is
+            // what the clip plays, and chosen again to play it as recorded
+            // (#120).
+            let voiced = self.clip_has_sound(clip) && !locked;
+            let mix = clip.voice;
+            rows.push(check(
+                "voice-keep",
+                &t("voice.keepOnly"),
+                "",
+                mix.is_some_and(|mix| mix.voice > 0.0 && mix.background == 0.0),
+                voiced,
+            ));
+            rows.push(check(
+                "voice-remove",
+                &t("voice.remove"),
+                "",
+                mix.is_some_and(|mix| mix.voice == 0.0),
+                voiced,
+            ));
+            rows.push(rule());
         }
 
         if clip.kind == model::ClipKind::Video || concat_project::captions::is_caption(clip) {
@@ -15992,6 +16071,30 @@ impl Studio {
                     }
                 }
             }
+            // One of the two ways, or back to the recording when that way
+            // is the one already on; on the selection when the clip is in
+            // it, else on the clip alone.
+            "voice-keep" | "voice-remove" => {
+                self.flush_commit();
+                if !self.selection.iter().any(|held| held == id) {
+                    self.selection = vec![id.to_owned()];
+                    self.transition_selected = None;
+                }
+                let wanted = concat_project::model::VoiceMix {
+                    // The kind the clip had; vocals apart from music else.
+                    kind: clip.voice.unwrap_or_default().kind,
+                    ..if action == "voice-keep" {
+                        concat_project::model::VoiceMix::KEEP_VOICE
+                    } else {
+                        concat_project::model::VoiceMix::REMOVE_VOICE
+                    }
+                };
+                let on = clip.voice.is_some_and(|mix| {
+                    (mix.voice == 0.0) == (wanted.voice == 0.0)
+                        && (mix.background == 0.0) == (wanted.background == 0.0)
+                });
+                self.set_voice((!on).then_some(wanted));
+            }
             "detach" => self.detach_audio(&clip),
             "reattach" => {
                 self.apply(Command::ReattachAudio {
@@ -16112,6 +16215,21 @@ pub(crate) fn audio_specs(clips: &[concat_export::ExportClip]) -> Vec<ClipSpec> 
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn voice_inspector_echo_commits_both_ways_and_off() {
+        let before = super::Clip::blank("voice", "video", super::model::ClipKind::Video, "Voice", 0.0, 4.0);
+        for voice in [Some(super::model::VoiceMix::KEEP_VOICE), Some(super::model::VoiceMix::REMOVE_VOICE)] {
+            let mut after = before.clone();
+            after.voice = voice;
+            let commands = super::clip_commands("voice", &before, &after, false);
+            assert!(commands.iter().any(|command| matches!(command,
+                super::Command::SetClipVoice { voice: actual, .. } if *actual == voice)));
+            let commands = super::clip_commands("voice", &after, &before, false);
+            assert!(commands.iter().any(|command| matches!(command,
+                super::Command::SetClipVoice { voice: None, .. })));
+        }
+    }
     use super::{
         Command, Footprint, Studio, adjust_key_names, chain_colours, chain_rows, custom_frame,
         custom_rate, fps_of, grading_rows, home_folder, key_commands, packed, place_in, shown,

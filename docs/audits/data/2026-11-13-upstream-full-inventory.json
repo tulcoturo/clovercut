@@ -5193,7 +5193,7 @@
     {
       "commit": "6e73902fb42465df4c78e9d175b1ed688e09af65",
       "subject": "feat(speech): voice isolation's engine - DeepFilterNet 3 carried in the app, a recording split into its voice and everything else (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-07-upstream-issues-review.md",
         "docs/audits/2026-11-07-upstream-release-review.md"
@@ -5211,12 +5211,13 @@
         "src/crates/concat-speech/src/lib.rs",
         "src/crates/concat-vision/src/runtime.rs",
         "src/crates/concat/Cargo.toml"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-voice-isolation.md"
     },
     {
       "commit": "b184a55c94e601381f9dc549bf3f6f5cac6a2563",
       "subject": "feat(audio): voice isolation - a clip's voice kept alone or taken out, from a song's music or from a recording's noise, each part at its own level (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-07-upstream-release-review.md"
       ],
@@ -5267,18 +5268,20 @@
         "src/crates/concat/src/studio/voice.rs",
         "src/crates/concat/ui/inspector/clip-inspector.slint",
         "src/crates/concat/ui/timeline/model.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-voice-isolation.md"
     },
     {
       "commit": "5e77293bfa12bcd7152df7d334bc7e61ced507be",
       "subject": "fix(audio): the inspector's Voice only and No voice are kept, not dropped at the commit (#120)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-07-upstream-release-review.md"
       ],
       "files": [
         "src/crates/concat/src/studio.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-voice-isolation.md"
     },
     {
       "commit": "443fb2a33648a86733c4360544cd8f291f5aeaae",

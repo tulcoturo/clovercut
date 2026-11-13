@@ -105,6 +105,49 @@ impl PartialEq for GeneratedImage {
     }
 }
 
+/// A clip's sound split by voice isolation: the voice, and everything
+/// else, each a file at a gain of its own. The two files add up to the
+/// recording.
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceStems {
+    /// The voice's file.
+    pub voice: String,
+    /// Everything else's file.
+    pub rest: String,
+    /// The voice's gain over the clip's own volume.
+    pub voice_gain: f64,
+    /// Everything else's.
+    pub rest_gain: f64,
+}
+
+/// Where voice isolation keeps stream `stream` (the first when `None`) of
+/// `media_path` split, under `project`: a folder named by a hash of the
+/// path, as the masks' and the stabilizer's are, holding `voice.wav` and
+/// `rest.wav`. The engine's version is in the name, so a better model
+/// makes its parts afresh rather than reading the old ones.
+pub fn voice_stems_dir(
+    project: &Path,
+    media_path: &str,
+    stream: Option<u32>,
+    kind: concat_project::model::VoiceKind,
+) -> PathBuf {
+    // FNV-1a, as concat-vision names its folders.
+    let hash = media_path
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    let stream = stream.map_or_else(|| "a".to_owned(), |index| index.to_string());
+    project.join("cache").join("voice").join(format!(
+        "{hash:016x}-{stream}-{}",
+        match kind {
+            concat_project::model::VoiceKind::Vocals => "spleeter2",
+            concat_project::model::VoiceKind::Speech => "dfn3",
+        }
+    ))
+}
+
 /// One clip, as the frontend's flattener describes it.
 #[derive(Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -296,6 +339,12 @@ pub struct ExportClip {
     /// flattener had no project folder to name it by.
     #[serde(default)]
     pub motion_dir: String,
+    /// The clip's sound as its voice and everything else, each at a level
+    /// of its own (the document's `Clip::voice`), when both parts have
+    /// been worked out; absent, the clip plays its file as recorded. Set
+    /// by the flattener, which knows where the parts are kept.
+    #[serde(default)]
+    pub voice: Option<VoiceStems>,
     /// A title's per-word reveal order, baked at rasterize time and set by
     /// the host - never by the wire format, like `transition_chain`. Every
     /// shader pass over this clip carries it, so a reveal effect can read
@@ -416,6 +465,7 @@ impl ExportClip {
             face_dir: String::new(),
             stabilize: None,
             motion_dir: String::new(),
+            voice: None,
             highlighted: false,
             reveal_map: None,
             generated: None,
@@ -1530,13 +1580,24 @@ pub fn audio_buses(clips: &[ExportClip]) -> Vec<audio::AudioBus> {
 /// Tape-speed curves use constant-rate pieces, each consuming exactly its
 /// stretch of the source clock.
 pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
+    let Some(stems) = &clip.voice else {
+        return audio_pieces_of(clip, &clip.path, clip.audio_stream, 1.0);
+    };
+    [(&stems.voice, stems.voice_gain), (&stems.rest, stems.rest_gain)]
+        .into_iter()
+        .filter(|(_, gain)| gain.is_finite() && *gain > 0.0)
+        .flat_map(|(path, gain)| audio_pieces_of(clip, path, None, gain))
+        .collect()
+}
+
+fn audio_pieces_of(clip: &ExportClip, path: &str, stream: Option<u32>, gain: f64) -> Vec<AudioClip> {
     let chain = clip.filter_chain.clone();
     let track = volume_track(clip);
     let retime = clip.retime();
     if retime.is_none() || clip.preserve_pitch {
         return vec![AudioClip {
-            path: PathBuf::from(&clip.path),
-            stream: clip.audio_stream.map(|index| index as usize),
+            path: PathBuf::from(path),
+            stream: stream.map(|index| index as usize),
             start: clip.start,
             duration: clip.duration,
             source_start: clip.source_start,
@@ -1546,7 +1607,7 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
                 curve,
                 duration: clip.duration,
             }),
-            volume: clip.volume,
+            volume: clip.volume * gain,
             volume_curve: track,
             fade_in: clip.fade_in,
             fade_out: clip.fade_out,
@@ -1571,15 +1632,15 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
             let fade_out_from = clip.start + clip.duration - clip.fade_out;
             let fade_out = (piece_end - fade_out_from.max(piece_start)).clamp(0.0, piece_duration);
             AudioClip {
-                path: PathBuf::from(&clip.path),
-                stream: clip.audio_stream.map(|index| index as usize),
+                path: PathBuf::from(path),
+                stream: stream.map(|index| index as usize),
                 start: piece_start,
                 duration: piece_duration,
                 source_start,
                 speed: audio::clamp_speed(mean),
                 preserve_pitch: clip.preserve_pitch,
                 retime: None,
-                volume: clip.volume,
+                volume: clip.volume * gain,
                 volume_curve: track_slice(&track, x0, x1),
                 fade_in: if clip.fade_in > 0.0 { fade_in } else { 0.0 },
                 fade_out: if clip.fade_out > 0.0 { fade_out } else { 0.0 },
@@ -3597,6 +3658,35 @@ pub fn preview_moments(
 mod tests {
     use super::*;
     use concat_media::{Decoder, FrameSource};
+
+    #[test]
+    fn isolated_parts_share_timing_pitch_and_clip_gain() {
+        let mut clip = ExportClip::blank(ClipKind::Video, 2.0, 4.0, 0);
+        clip.path = "original.mov".into();
+        clip.source_start = 1.5;
+        clip.volume = 0.5;
+        clip.fade_in = 0.3;
+        clip.fade_out = 0.4;
+        clip.voice = Some(VoiceStems { voice: "voice.wav".into(), rest: "rest.wav".into(),
+            voice_gain: 0.8, rest_gain: 0.2 });
+        let parts = audio_pieces(&clip);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].path, PathBuf::from("voice.wav"));
+        assert_eq!(parts[1].path, PathBuf::from("rest.wav"));
+        assert_eq!((parts[0].volume, parts[1].volume), (0.4, 0.1));
+        for part in &parts {
+            assert_eq!((part.start, part.duration, part.source_start), (2.0, 4.0, 1.5));
+            assert_eq!((part.fade_in, part.fade_out), (0.3, 0.4));
+            assert_eq!(part.stream, None);
+            assert_eq!(part.preserve_pitch, clip.preserve_pitch);
+        }
+        clip.voice.as_mut().unwrap().rest_gain = 0.0;
+        assert_eq!(audio_pieces(&clip).len(), 1);
+        clip.voice.as_mut().unwrap().voice_gain = 0.0;
+        assert!(audio_pieces(&clip).is_empty());
+        clip.voice = None;
+        assert_eq!(audio_pieces(&clip)[0].path, PathBuf::from("original.mov"));
+    }
 
     /// An Animate pick reaches the frame: a clip from the document with a
     /// Slide Left in and a Fade out is off to the side at its start, at
