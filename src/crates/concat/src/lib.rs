@@ -512,6 +512,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         editor.set_visual_wheels(ModelRc::from(models.visual_wheels.clone()));
         editor.set_visual_curves(ModelRc::from(models.visual_curves.clone()));
         editor.set_visual_colours(ModelRc::from(models.visual_colours.clone()));
+        editor.set_visual_choices(ModelRc::from(models.visual_choices.clone()));
         app.global::<Keyframes>()
             .set_rows(ModelRc::from(models.key_rows.clone()));
         app.global::<KeyEditor>()
@@ -1707,6 +1708,13 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_adjust_group_reset(on_lanes!(|state, group: SharedString| {
         state.reset_adjust_group(group.as_str());
     }));
+    editor.on_chain_pick_colour(on_window!(|state, index: i32, key: SharedString| {
+        state.chain_pick_colour(index, key.as_str());
+    }));
+    editor.on_chain_auto_colour(on_window!(|state, index: i32, key: SharedString| {
+        state.chain_auto_colour(index, key.as_str());
+    }));
+
     editor.on_adjust_set(on_lanes!(|state, key: SharedString, value: f32| {
         state.adjust_set(key.as_str(), value);
     }));
@@ -2143,6 +2151,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             let Some(chord) = chord else {
                 return;
             };
+            if chord == "escape" && shell.studio.borrow_mut().cancel_colour_pick() {
+                handled = true;
+                shell.studio.borrow().publish(&app, &shell.models);
+                return;
+            }
             if on_start {
                 // The launch screen has no project to act on. Capture
                 // is handled above, so its keys work there too.

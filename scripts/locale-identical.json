@@ -12,6 +12,7 @@
   },
   "de": {
     "captions.horizontalWriting": "Horizontal",
+    "clipInspector.autoColour": "Auto",
     "clipInspector.normal": "Normal",
     "clipInspector.person": "Person",
     "common.audio": "Audio",
@@ -61,6 +62,7 @@
   "es": {
     "captions.horizontalWriting": "Horizontal",
     "captions.verticalWriting": "Vertical",
+    "clipInspector.autoColour": "Auto",
     "clipInspector.colorTab": "Color",
     "clipInspector.normal": "Normal",
     "common.audio": "Audio",
@@ -94,6 +96,7 @@
     "captions.styles": "Styles",
     "captions.verticalWriting": "Vertical",
     "captions.writingDirection": "Direction",
+    "clipInspector.autoColour": "Auto",
     "clipInspector.backgroundImage": "Image",
     "clipInspector.normal": "Normal",
     "clipInspector.source": "Source",
@@ -206,6 +209,7 @@
     "voices.styleRobot": "Robot"
   },
   "it": {
+    "clipInspector.autoColour": "Auto",
     "clipInspector.chromaKey": "Chroma key",
     "clipInspector.volume": "Volume",
     "common.audio": "Audio",
@@ -235,6 +239,7 @@
     "voices.styleRobot": "Robot"
   },
   "nl": {
+    "clipInspector.autoColour": "Auto",
     "clipInspector.volume": "Volume",
     "clipInspector.zoomPercent": "{0}% zoom",
     "common.audio": "Audio",
@@ -282,6 +287,7 @@
     "voices.styleRobot": "Robot"
   },
   "pl": {
+    "clipInspector.autoColour": "Auto",
     "common.audio": "Audio",
     "common.autoValue": "auto",
     "common.model": "Model",
@@ -298,6 +304,7 @@
   "pt-BR": {
     "captions.horizontalWriting": "Horizontal",
     "captions.verticalWriting": "Vertical",
+    "clipInspector.autoColour": "Auto",
     "clipInspector.chromaKey": "Chroma key",
     "clipInspector.normal": "Normal",
     "clipInspector.volume": "Volume",

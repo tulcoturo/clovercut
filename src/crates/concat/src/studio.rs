@@ -47,9 +47,11 @@ use concat_project::{Command, PlayheadSide};
 mod backdrop;
 mod consolidate;
 use consolidate::MergeJob;
+mod colour_pick;
 mod masking;
 mod masks;
 mod voice;
+use colour_pick::{ColourPick, picks_colour};
 use masking::{MaskFrame, MaskGrip};
 use slint::{Model, ModelRc, SharedString, VecModel};
 
@@ -712,6 +714,7 @@ pub struct Models {
     pub visual_curves: Rc<VecModel<CurveGroupData>>,
     /// The picture's chain's colour knobs, a row each.
     pub visual_colours: Rc<VecModel<ColourKnobData>>,
+    pub visual_choices: Rc<VecModel<ChainChoiceData>>,
     /// A link's wheels and curves, and a curve's points, by the link - -1
     /// the colour panel - and the curve's key: kept like the rest, so a
     /// wheel or a point being dragged is not dropped when it is published
@@ -815,6 +818,7 @@ impl Models {
             adjust_curves: Rc::new(VecModel::default()),
             visual_wheels: Rc::new(VecModel::default()),
             visual_colours: Rc::new(VecModel::default()),
+            visual_choices: Rc::new(VecModel::default()),
             visual_curves: Rc::new(VecModel::default()),
             link_wheels: RefCell::new(HashMap::new()),
             link_curves: RefCell::new(HashMap::new()),
@@ -933,6 +937,7 @@ macro_rules! same_with_models {
 
 same_with_models! {
     same_transition_choice: crate::ui::TransitionChoiceData => options, values;
+    same_chain_choice: crate::ui::ChainChoiceData => options, values;
     same_export: crate::ui::ExportData => resolutions, rates, rate_details;
     same_settings: crate::ui::SettingsData => shortcuts;
     same_relink: crate::ui::RelinkData => items;
@@ -1248,6 +1253,7 @@ pub struct Studio {
     /// Media whose stabilization was turned on anew, so an analysis the
     /// app died in last time is tried again rather than skipped.
     stabilize_retry: HashSet<String>,
+    picking_colour: Option<ColourPick>,
     voice_jobs: HashMap<std::path::PathBuf, (bool, f32)>,
     voice_cancel: Option<Arc<std::sync::atomic::AtomicBool>>,
     voice_failed: HashSet<std::path::PathBuf>,
@@ -2137,7 +2143,11 @@ fn unpacked(value: f64) -> slint::Color {
 
 /// A chain's colour knobs, a row each, holding the document's colour or
 /// the default.
-fn chain_colours(chain: &[AppliedFilter]) -> Vec<ColourKnobData> {
+fn chain_colours(
+    chain: &[AppliedFilter],
+    pickable: bool,
+    picking: Option<(usize, &str)>,
+) -> Vec<ColourKnobData> {
     let catalogue = Catalogue::builtin();
     chain
         .iter()
@@ -2155,6 +2165,11 @@ fn chain_colours(chain: &[AppliedFilter]) -> Vec<ColourKnobData> {
                 .iter()
                 .filter(|param| param.kind == ParamType::Color)
                 .map(move |param| ColourKnobData {
+                    pickable,
+                    picking: picking == Some((index, param.key.as_str())),
+                    automatic: param.default == 0.0
+                        && entry.params.get(&param.key).copied().unwrap_or(0.0) == 0.0,
+                    can_automatic: param.default == 0.0,
                     entry: index as i32,
                     key: param.key.as_str().into(),
                     label: param.label.as_str().into(),
@@ -2168,6 +2183,63 @@ fn chain_colours(chain: &[AppliedFilter]) -> Vec<ColourKnobData> {
                 })
         })
         .collect()
+}
+
+/// A chain's choices - its enum knobs - a row of segments each, at the
+/// document's value or the default.
+fn chain_choices(chain: &[AppliedFilter]) -> Vec<ChainChoiceData> {
+    let catalogue = Catalogue::builtin();
+    let mut choices = Vec::new();
+    for (index, entry) in chain.iter().enumerate() {
+        let Some(package) = catalogue
+            .packages()
+            .find(|package| package.answers_to(&entry.id))
+        else {
+            continue;
+        };
+        for param in &package.manifest.params {
+            if param.kind != ParamType::Enum || param.values.is_empty() {
+                continue;
+            }
+            let value = entry
+                .params
+                .get(&param.key)
+                .copied()
+                .unwrap_or(param.default);
+            let options: Vec<SharedString> = param
+                .values
+                .iter()
+                .enumerate()
+                .map(|(at, number)| {
+                    param
+                        .labels
+                        .get(at)
+                        .cloned()
+                        .unwrap_or_else(|| format!("{number}"))
+                        .into()
+                })
+                .collect();
+            choices.push(ChainChoiceData {
+                entry: index as i32,
+                key: param.key.as_str().into(),
+                label: param.label.as_str().into(),
+                options: ModelRc::new(VecModel::from(options)),
+                values: ModelRc::new(VecModel::from(
+                    param
+                        .values
+                        .iter()
+                        .map(|number| *number as f32)
+                        .collect::<Vec<_>>(),
+                )),
+                current: param
+                    .values
+                    .iter()
+                    .position(|number| (number - value).abs() < 1e-9)
+                    .unwrap_or(0) as i32,
+            });
+        }
+    }
+    choices
 }
 
 /// A chain as the inspector's stack draws it: one row per link, and one per
@@ -2226,12 +2298,11 @@ fn chain_rows(chain: &[AppliedFilter]) -> (Vec<AppliedEntryData>, Vec<AppliedPar
         }
         // A colour is a swatch of its own (see `chain_colours`), and a wheel
         // or a curve is drawn apart (see `chain_grading`).
-        for param in package
-            .manifest
-            .params
-            .iter()
-            .filter(|param| !param.kind.is_compound() && param.kind != ParamType::Color)
-        {
+        for param in package.manifest.params.iter().filter(|param| {
+            !param.kind.is_compound()
+                && param.kind != ParamType::Color
+                && param.kind != ParamType::Enum
+        }) {
             let step = if param.step > 0.0 {
                 param.step
             } else {
@@ -2687,6 +2758,7 @@ impl Studio {
             cutout_jobs: HashMap::new(),
             stabilize_jobs: HashMap::new(),
             stabilize_retry: HashSet::new(),
+            picking_colour: None,
             voice_jobs: HashMap::new(),
             voice_cancel: None,
             voice_failed: HashSet::new(),
@@ -8139,6 +8211,11 @@ impl Studio {
     /// of everything selected that is under the playhead. Empty stage
     /// clears the selection, as an empty lane does.
     pub fn stage_pressed(&mut self, x: f32, y: f32, additive: bool) {
+        if let Some(pick) = self.picking_colour.clone() {
+            self.gesture = Gesture::None;
+            self.pick_colour_at(pick, f64::from(x), f64::from(y));
+            return;
+        }
         if let Some(clip) = self.paint_target() {
             let point = self.stage_to_source(&clip, f64::from(x), f64::from(y));
             self.gesture = Gesture::Paint {
@@ -11132,6 +11209,7 @@ impl Studio {
         self.stabilize_jobs.clear();
         self.stabilize_retry.clear();
         self.cancel_voices();
+        self.picking_colour = None;
         self.region_job = None;
         self.autosave.stop();
         // The launch screen's card for this project is read again: the
@@ -12111,6 +12189,7 @@ impl Studio {
         editor.set_brush_tool(self.brush as i32);
         editor.set_brush_size(self.brush_size as f32);
         editor.set_painting(self.painting);
+        editor.set_picking_colour(self.picking_colour.is_some());
 
         editor.set_drop(match &self.drop {
             Some(plan) => DropData {
@@ -12354,9 +12433,24 @@ impl Studio {
             sync(
                 &models.visual_colours,
                 match self.sole_selection().and_then(|id| self.clip(&id)) {
-                    Some(clip) => chain_colours(&clip.video_effects),
+                    Some(clip) => chain_colours(
+                        &clip.video_effects,
+                        picks_colour(clip.kind),
+                        self.picking_colour
+                            .as_ref()
+                            .filter(|pick| pick.clip == clip.id)
+                            .map(|pick| (pick.entry, pick.key.as_str())),
+                    ),
                     None => Vec::new(),
                 },
+            );
+            sync_with(
+                &models.visual_choices,
+                match self.sole_selection().and_then(|id| self.clip(&id)) {
+                    Some(clip) => chain_choices(&clip.video_effects),
+                    None => Vec::new(),
+                },
+                same_chain_choice,
             );
             sync(&models.applied_audio, sound);
             sync(&models.audio_params, sound_params);
@@ -16520,7 +16614,7 @@ mod tests {
         let (_, knobs) = chain_rows(std::slice::from_ref(&link));
         assert!(knobs.iter().all(|knob| knob.key != "color"), "no slider");
         assert!(knobs.iter().any(|knob| knob.key == "similarity"));
-        let colours = chain_colours(std::slice::from_ref(&link));
+        let colours = chain_colours(std::slice::from_ref(&link), true, None);
         assert_eq!(colours.len(), 1);
         assert_eq!(colours[0].key, "color");
         assert_eq!(
@@ -16530,7 +16624,7 @@ mod tests {
         let blue = slint::Color::from_argb_u8(255, 0x00, 0x47, 0xbb);
         link.params.insert("color".to_owned(), packed(blue));
         assert_eq!(link.params["color"], f64::from(0x0047_bbffu32));
-        assert_eq!(chain_colours(&[link])[0].value, blue);
+        assert_eq!(chain_colours(&[link], false, None)[0].value, blue);
     }
 
     /// A typed frame is even on both sides and inside the limits.

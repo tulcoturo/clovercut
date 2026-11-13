@@ -3116,7 +3116,7 @@
     {
       "commit": "2b594e8e241719ef2b5dd6b6d0566426e385e7ec",
       "subject": "feat(effects): a chroma key that finds the screen itself, an eyedropper, Remove Black, and batch edits in the inspector (#543, #470)",
-      "status": "verify_current_behavior",
+      "status": "partially_adapted_batch_inspector_pending",
       "prior_audits": [
         "docs/audits/2026-11-04-polish-plan.md",
         "docs/audits/2026-11-04-remove-black.md"
@@ -3173,7 +3173,8 @@
         "src/crates/concat/ui/workspace/config-pane.slint",
         "src/crates/concat/ui/workspace/preview-pane.slint",
         "src/crates/concat/ui/workspace/seat.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-advanced-key.md"
     },
     {
       "commit": "9e69bbcf40d0f9b74e7d5accfc22a13047c87a00",
@@ -5779,14 +5780,15 @@
     {
       "commit": "1459eee24caa5b72ed5151c666ff86c1e18709bb",
       "subject": "fix(effects): Chroma Key's screen finder loops without a continue, the suspect in the Direct3D 12 device it lost (#673)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-face-effects.md",
         "docs/audits/2026-11-08-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-effects/packages/concat.chroma-key/effect.wgsl"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-advanced-key.md"
     },
     {
       "commit": "f1d59f3dbc759c6a7a31204c3c247f5273630762",
@@ -6048,13 +6050,14 @@
     {
       "commit": "ae32e16ceb464903228c43669ab2299251dd5dd0",
       "subject": "fix(effects): Chroma Key's plate and matte loops count from nought, and the plate's cell pitch is worked out, not asked of the texture (#673)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-11-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-effects/packages/concat.chroma-key/effect.wgsl"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-advanced-key.md"
     },
     {
       "commit": "604947492be892d7fb282dd49f534a5459ca207b",
@@ -6328,13 +6331,14 @@
     {
       "commit": "2a2fd238b0d898a7b528ab3d1520d028bd4a8bec",
       "subject": "fix(effects): Chroma Key's plate and matte passes have no loops (#673)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-11-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-effects/packages/concat.chroma-key/effect.wgsl"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-advanced-key.md"
     },
     {
       "commit": "6fea490d60d20f84372638a0ee3ab2b7225515db",
@@ -6742,14 +6746,15 @@
     {
       "commit": "817631a2a9ae54addd508a0003946fea17320684",
       "subject": "fix(effects): Chroma Key's matte is worked out in every pixel, with no early return ahead of the plate read, so WARP keeps its device (#673)",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-11-upstream-review.md"
       ],
       "files": [
         "src/crates/concat-effects/packages/concat.chroma-key/effect.wgsl",
         "src/crates/concat-render/src/gpu/tests.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-advanced-key.md"
     },
     {
       "commit": "71efe1f4ec1428723e98f75398ecf6167d7e9110",

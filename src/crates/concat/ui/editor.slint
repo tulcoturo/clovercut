@@ -3,7 +3,7 @@
 
 import { EffectData } from "demo/effects-panel.slint";
 import {
-    AppliedEntryData, AppliedParamData, CatalogueEntryData, ColourKnobData, TransitionChoiceData,
+    AppliedEntryData, AppliedParamData, CatalogueEntryData, ChainChoiceData, ColourKnobData, TransitionChoiceData,
 } from "inspector/clip-inspector.slint";
 import {
     CurveData, CurveGroupData, WheelData, WheelGroupData,
@@ -229,6 +229,10 @@ export global Editor {
     /// packed into the knob's number, see `Studio::chain_set_colour`.
     in-out property <[ColourKnobData]> visual-colours;
     callback chain-set-colour(index: int, key: string, value: color);
+    callback chain-pick-colour(index: int, key: string);
+    callback chain-auto-colour(index: int, key: string);
+    in-out property <bool> picking-colour;
+    in-out property <[ChainChoiceData]> visual-choices;
     callback curve-point(entry: int, key: string, point: int, x: float, y: float);
     callback curve-remove(entry: int, key: string, point: int);
 
