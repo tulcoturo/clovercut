@@ -1892,7 +1892,10 @@ fn clip_commands(id: &str, before: &Clip, after: &Clip, magnetic: bool) -> Vec<C
         });
     }
     if after.voice != before.voice {
-        commands.push(Command::SetClipVoice { clip_id: id.to_owned(), voice: after.voice });
+        commands.push(Command::SetClipVoice {
+            clip_id: id.to_owned(),
+            voice: after.voice,
+        });
     }
     if after.stabilize != before.stabilize {
         commands.push(Command::SetClipStabilize {
@@ -10909,7 +10912,7 @@ impl Studio {
                 self.request_preview();
                 self.ensure_cutouts();
                 self.ensure_stabilizers();
-        self.ensure_voices();
+                self.ensure_voices();
                 self.ensure_regions();
 
                 // Effects this build no longer has, named once as the project
@@ -16218,16 +16221,28 @@ mod tests {
 
     #[test]
     fn voice_inspector_echo_commits_both_ways_and_off() {
-        let before = super::Clip::blank("voice", "video", super::model::ClipKind::Video, "Voice", 0.0, 4.0);
-        for voice in [Some(super::model::VoiceMix::KEEP_VOICE), Some(super::model::VoiceMix::REMOVE_VOICE)] {
+        let before = super::Clip::blank(
+            "voice",
+            "video",
+            super::model::ClipKind::Video,
+            "Voice",
+            0.0,
+            4.0,
+        );
+        for voice in [
+            Some(super::model::VoiceMix::KEEP_VOICE),
+            Some(super::model::VoiceMix::REMOVE_VOICE),
+        ] {
             let mut after = before.clone();
             after.voice = voice;
             let commands = super::clip_commands("voice", &before, &after, false);
             assert!(commands.iter().any(|command| matches!(command,
                 super::Command::SetClipVoice { voice: actual, .. } if *actual == voice)));
             let commands = super::clip_commands("voice", &after, &before, false);
-            assert!(commands.iter().any(|command| matches!(command,
-                super::Command::SetClipVoice { voice: None, .. })));
+            assert!(commands.iter().any(|command| matches!(
+                command,
+                super::Command::SetClipVoice { voice: None, .. }
+            )));
         }
     }
     use super::{

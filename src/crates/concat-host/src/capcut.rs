@@ -412,7 +412,11 @@ mod tests {
         assert!(project.media[0].has_audio);
         assert_eq!(project.media[0].audio_tracks.len(), 1);
         assert_eq!(project.media[0].width, Some(32));
-        assert!(project.media[0].duration.is_some_and(|duration| duration > 0.0));
+        assert!(
+            project.media[0]
+                .duration
+                .is_some_and(|duration| duration > 0.0)
+        );
     }
 
     #[test]

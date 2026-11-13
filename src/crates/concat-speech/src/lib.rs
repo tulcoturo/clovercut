@@ -22,12 +22,12 @@
 pub mod chatterbox;
 #[cfg(feature = "isolate")]
 pub mod isolate;
-#[cfg(feature = "isolate")]
-pub mod vocals;
 pub mod languages;
 mod speech_reel;
 pub mod transcribe;
 pub mod tts;
+#[cfg(feature = "isolate")]
+pub mod vocals;
 
 pub use transcribe::Transcriber;
 pub use tts::Speech;

@@ -1583,14 +1583,22 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
     let Some(stems) = &clip.voice else {
         return audio_pieces_of(clip, &clip.path, clip.audio_stream, 1.0);
     };
-    [(&stems.voice, stems.voice_gain), (&stems.rest, stems.rest_gain)]
-        .into_iter()
-        .filter(|(_, gain)| gain.is_finite() && *gain > 0.0)
-        .flat_map(|(path, gain)| audio_pieces_of(clip, path, None, gain))
-        .collect()
+    [
+        (&stems.voice, stems.voice_gain),
+        (&stems.rest, stems.rest_gain),
+    ]
+    .into_iter()
+    .filter(|(_, gain)| gain.is_finite() && *gain > 0.0)
+    .flat_map(|(path, gain)| audio_pieces_of(clip, path, None, gain))
+    .collect()
 }
 
-fn audio_pieces_of(clip: &ExportClip, path: &str, stream: Option<u32>, gain: f64) -> Vec<AudioClip> {
+fn audio_pieces_of(
+    clip: &ExportClip,
+    path: &str,
+    stream: Option<u32>,
+    gain: f64,
+) -> Vec<AudioClip> {
     let chain = clip.filter_chain.clone();
     let track = volume_track(clip);
     let retime = clip.retime();
@@ -3667,15 +3675,22 @@ mod tests {
         clip.volume = 0.5;
         clip.fade_in = 0.3;
         clip.fade_out = 0.4;
-        clip.voice = Some(VoiceStems { voice: "voice.wav".into(), rest: "rest.wav".into(),
-            voice_gain: 0.8, rest_gain: 0.2 });
+        clip.voice = Some(VoiceStems {
+            voice: "voice.wav".into(),
+            rest: "rest.wav".into(),
+            voice_gain: 0.8,
+            rest_gain: 0.2,
+        });
         let parts = audio_pieces(&clip);
         assert_eq!(parts.len(), 2);
         assert_eq!(parts[0].path, PathBuf::from("voice.wav"));
         assert_eq!(parts[1].path, PathBuf::from("rest.wav"));
         assert_eq!((parts[0].volume, parts[1].volume), (0.4, 0.1));
         for part in &parts {
-            assert_eq!((part.start, part.duration, part.source_start), (2.0, 4.0, 1.5));
+            assert_eq!(
+                (part.start, part.duration, part.source_start),
+                (2.0, 4.0, 1.5)
+            );
             assert_eq!((part.fade_in, part.fade_out), (0.3, 0.4));
             assert_eq!(part.stream, None);
             assert_eq!(part.preserve_pitch, clip.preserve_pitch);
