@@ -5,11 +5,11 @@
 //! to look for it in.
 
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, atomic::AtomicBool};
 
 use concat_project::Command;
-use concat_project::model::MissingMedia;
+use concat_project::model::{MediaKind, MissingMedia};
 use slint::VecModel;
 
 use crate::i18n::{t, tf};
@@ -32,11 +32,21 @@ pub enum RelinkMsg {
     RelinkAll,
     /// The folder the picker answered with: look inside it.
     RelinkIn(PathBuf),
+    /// Pick one missing source, including a renamed file.
+    Locate(String),
+    /// A still-current project-owned file picker answered.
+    Located {
+        token: Arc<AtomicBool>,
+        id: String,
+        old_path: String,
+        path: PathBuf,
+    },
     /// A project-owned worker replied; only the current request may apply it.
     SearchFinished {
         token: Arc<AtomicBool>,
         items: Vec<(String, String)>,
         index: HashMap<String, PathBuf>,
+        chosen: Option<(String, PathBuf)>,
     },
     /// Remove a listed missing source and its clips as one undoable edit.
     Remove(String),
@@ -52,6 +62,7 @@ pub struct RelinkPane {
     /// again until they come back and go missing anew.
     dismissed: HashSet<String>,
     job: Option<search::Job>,
+    picker: Option<search::Job>,
 }
 
 impl RelinkPane {
@@ -67,6 +78,7 @@ impl RelinkPane {
             // The picker runs with the studio unborrowed and answers as a
             // message of its own; see `host::after_dialog`.
             RelinkMsg::RelinkAll => {
+                self.picker = None;
                 let title = t("relink.selectFolderContainingMedia");
                 crate::host::after_dialog_in_project(
                     move || platform::pick_folder(&title, ""),
@@ -80,7 +92,15 @@ impl RelinkPane {
                 token,
                 items,
                 index,
-            } => self.finish_relink(studio, token, items, index),
+                chosen,
+            } => self.finish_relink(studio, token, items, index, chosen),
+            RelinkMsg::Locate(id) => self.locate(studio, id),
+            RelinkMsg::Located {
+                token,
+                id,
+                old_path,
+                path,
+            } => self.located(studio, token, id, old_path, path),
             RelinkMsg::Remove(id) => self.remove(studio, &id),
             RelinkMsg::Dismiss => self.dismiss(),
         }
@@ -101,6 +121,7 @@ impl RelinkPane {
         // Cancel the old snapshot before applying an edit. Its queued reply
         // must never relink this source or the remaining dialog items.
         self.job = None;
+        self.picker = None;
         studio.apply(Command::RemoveMedia {
             media_id: id.to_owned(),
         });
@@ -121,6 +142,7 @@ impl RelinkPane {
     /// an earlier project is forgotten here.
     fn show(&mut self, items: Vec<MissingMedia>) {
         self.job = None;
+        self.picker = None;
         self.open = !items.is_empty();
         self.items = items;
         self.dismissed.clear();
@@ -143,6 +165,7 @@ impl RelinkPane {
             .eq(items.iter().map(|item| (&item.id, &item.path)))
         {
             self.job = None;
+            self.picker = None;
         }
         self.items = items;
         self.open = !self.items.is_empty();
@@ -152,6 +175,7 @@ impl RelinkPane {
     /// until those files are back and go missing again.
     fn dismiss(&mut self) {
         self.job = None;
+        self.picker = None;
         self.dismissed
             .extend(self.items.iter().map(|item| item.id.clone()));
         self.open = false;
@@ -162,6 +186,7 @@ impl RelinkPane {
     /// inside it. Successful relinks go through the editor as
     /// `UpdateMediaPath`, so undo covers the whole batch.
     fn relink_in(&mut self, studio: &mut Studio, folder: PathBuf) {
+        self.picker = None;
         if !self.open || studio.session.is_none() {
             return;
         }
@@ -198,6 +223,7 @@ impl RelinkPane {
                     token,
                     items,
                     index,
+                    chosen: None,
                 }));
             },
         );
@@ -209,11 +235,13 @@ impl RelinkPane {
         token: Arc<AtomicBool>,
         items: Vec<(String, String)>,
         index: HashMap<String, PathBuf>,
+        chosen: Option<(String, PathBuf)>,
     ) {
         if !self.job.as_ref().is_some_and(|job| job.accepts(&token)) {
             return;
         }
         self.job = None;
+        self.picker = None;
         if studio.session.is_none() || !self.open {
             return;
         }
@@ -224,7 +252,10 @@ impl RelinkPane {
             .into_iter()
             .map(|item| (item.id, item.path))
             .collect();
-        let proposed = search::replacements(&items, &missing, &index);
+        let proposed = match chosen {
+            Some((id, path)) => search::located_replacements(&items, &missing, &index, &id, &path),
+            None => search::replacements(&items, &missing, &index),
+        };
         let commands: Vec<_> = proposed
             .iter()
             .map(|(id, target)| Command::UpdateMediaPath {
@@ -266,6 +297,82 @@ impl RelinkPane {
         studio.request_preview();
     }
 
+    /// The picker is project-owned and separately cancellable from a folder
+    /// scan. Cancelling the native chooser never leaves a fake busy search.
+    fn locate(&mut self, studio: &mut Studio, id: String) {
+        if !self.open || studio.session.is_none() {
+            return;
+        }
+        let Some(item) = self.items.iter().find(|item| item.id == id) else {
+            return;
+        };
+        let old_path = item.path.clone();
+        let title = tf("relink.locateFile", &[&item.name]);
+        self.job = None;
+        let job = search::Job::default();
+        let token = job.token();
+        self.picker = Some(job);
+        crate::host::pick_files_in_project(title, None, move |studio, _, _, paths| {
+            if let Some(path) = paths.into_iter().next() {
+                studio.handle(crate::panes::Msg::Relink(RelinkMsg::Located {
+                    token,
+                    id,
+                    old_path,
+                    path,
+                }));
+            }
+        });
+    }
+
+    fn located(
+        &mut self,
+        studio: &mut Studio,
+        token: Arc<AtomicBool>,
+        id: String,
+        old_path: String,
+        path: PathBuf,
+    ) {
+        if !self.open || !self.picker.as_ref().is_some_and(|job| job.accepts(&token)) {
+            return;
+        }
+        self.picker = None;
+        if !path.is_file()
+            || !studio
+                .project()
+                .missing_media()
+                .iter()
+                .any(|item| item.id == id && item.path == old_path)
+        {
+            return;
+        }
+        let items: Vec<(String, String)> = self
+            .items
+            .iter()
+            .map(|item| (item.id.clone(), item.path.clone()))
+            .collect();
+        let wanted: HashSet<String> = items
+            .iter()
+            .filter(|(held, _)| held != &id)
+            .filter_map(|(_, path)| Path::new(path).file_name()?.to_str().map(str::to_owned))
+            .collect();
+        let folder = path.parent().unwrap_or_else(|| Path::new("")).to_owned();
+        let job = search::Job::default();
+        let token = job.token();
+        let cancel = Arc::clone(&token);
+        self.job = Some(job);
+        crate::host::spawn_in_project(
+            move || search::find_sibling_files(&folder, &wanted, &cancel),
+            move |studio, _, _, index| {
+                studio.handle(crate::panes::Msg::Relink(RelinkMsg::SearchFinished {
+                    token,
+                    items,
+                    index,
+                    chosen: Some((id, path)),
+                }));
+            },
+        );
+    }
+
     /// The dialog as Slint shows it.
     pub fn data(&self, studio: &Studio) -> RelinkData {
         let mut counts = HashMap::<&str, i32>::new();
@@ -286,12 +393,39 @@ impl RelinkPane {
                     .map(|item| MissingMediaItem {
                         id: item.id.clone().into(),
                         name: item.name.clone().into(),
-                        path: item.path.clone().into(),
+                        folder: shorten(
+                            &Path::new(&item.path)
+                                .parent()
+                                .unwrap_or_else(|| Path::new(""))
+                                .to_string_lossy(),
+                        )
+                        .into(),
+                        kind: studio
+                            .project()
+                            .media_by_id(&item.id)
+                            .map_or(0, |media| match media.kind {
+                                MediaKind::Audio => 1,
+                                MediaKind::Image => 2,
+                                _ => 0,
+                            }),
                         clips: counts.get(item.id.as_str()).copied().unwrap_or(0),
                     })
                     .collect::<Vec<_>>(),
             )),
         }
+    }
+}
+
+fn shorten(path: &str) -> String {
+    let Some(home) = std::env::home_dir() else {
+        return path.to_owned();
+    };
+    let home = home.to_string_lossy();
+    match path.strip_prefix(home.as_ref()) {
+        Some(rest) if rest.is_empty() || rest.starts_with(std::path::MAIN_SEPARATOR) => {
+            format!("~{rest}")
+        }
+        _ => path.to_owned(),
     }
 }
 

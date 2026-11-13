@@ -5330,7 +5330,7 @@
     {
       "commit": "3c6fc266f1b6b8c5054d80b3aeae9191796d8593",
       "subject": "fix(relink): the missing media dialog is sized to its files, closes from its ×, and finds a file one at a time",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
@@ -5365,7 +5365,8 @@
         "src/crates/concat/src/panes/relink.rs",
         "src/crates/concat/ui/app.slint",
         "src/crates/concat/ui/dialogs/relink.slint"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-relink-locate.md"
     },
     {
       "commit": "404030328d351087729c44d6efa850cf137acad8",

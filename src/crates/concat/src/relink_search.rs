@@ -95,6 +95,64 @@ pub fn find_named_files(
     index
 }
 
+/// Look only beside a manually located file; choosing one file must not
+/// launch an unbounded recursive search through the whole drive.
+pub fn find_sibling_files(
+    folder: &Path,
+    wanted: &HashSet<String>,
+    cancel: &AtomicBool,
+) -> HashMap<String, PathBuf> {
+    let mut found = HashMap::new();
+    if wanted.is_empty() || cancel.load(Ordering::Relaxed) {
+        return found;
+    }
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return found;
+    };
+    let mut entries: Vec<_> = entries
+        .take_while(|_| !cancel.load(Ordering::Relaxed))
+        .filter_map(Result::ok)
+        .collect();
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        if cancel.load(Ordering::Relaxed) {
+            return HashMap::new();
+        }
+        let path = entry.path();
+        if path.is_file()
+            && let Some(name) = path.file_name().and_then(|name| name.to_str())
+            && wanted.contains(name)
+        {
+            found.entry(name.to_owned()).or_insert(path);
+        }
+    }
+    found
+}
+
+/// A renamed file selected by hand plus still-valid sibling matches. If the
+/// picked source was removed/restored/relinked meanwhile, none of this applies.
+pub fn located_replacements(
+    items: &[(String, String)],
+    missing: &HashMap<String, String>,
+    found: &HashMap<String, PathBuf>,
+    id: &str,
+    path: &Path,
+) -> Vec<(String, String)> {
+    let Some((_, old)) = items.iter().find(|(held, _)| held == id) else {
+        return Vec::new();
+    };
+    if missing.get(id) != Some(old) || !path.is_file() {
+        return Vec::new();
+    }
+    let mut proposed = vec![(id.to_owned(), path.to_string_lossy().into_owned())];
+    proposed.extend(
+        replacements(items, missing, found)
+            .into_iter()
+            .filter(|(held, _)| held != id),
+    );
+    proposed
+}
+
 /// Keep only still-missing snapshot items with an unchanged path and a live target.
 /// A restored or independently relinked file must not be overwritten by a reply.
 pub fn replacements(
@@ -119,6 +177,42 @@ pub fn replacements(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_renamed_file_and_its_siblings_are_one_stale_safe_proposal() {
+        let root = Scratch::new();
+        let renamed = root.file("new-name.mov");
+        let sibling = root.file("b.mov");
+        root.file("nested/c.mov");
+        let items = vec![
+            ("a".into(), "/old/a.mov".into()),
+            ("b".into(), "/old/b.mov".into()),
+            ("c".into(), "/old/c.mov".into()),
+        ];
+        let mut missing: HashMap<String, String> = items.iter().cloned().collect();
+        let found = find_sibling_files(
+            &root.0,
+            &wanted(&["b.mov", "c.mov"]),
+            &AtomicBool::new(false),
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(found["b.mov"], sibling);
+        let proposed = located_replacements(&items, &missing, &found, "a", &renamed);
+        assert_eq!(
+            proposed,
+            vec![
+                ("a".into(), renamed.to_string_lossy().into_owned()),
+                ("b".into(), sibling.to_string_lossy().into_owned())
+            ]
+        );
+        missing.insert("a".into(), "/already/new.mov".into());
+        assert!(located_replacements(&items, &missing, &found, "a", &renamed).is_empty());
+        missing.remove("a");
+        assert!(located_replacements(&items, &missing, &found, "a", &renamed).is_empty());
+        assert!(
+            find_sibling_files(&root.0, &wanted(&["b.mov"]), &AtomicBool::new(true)).is_empty()
+        );
+    }
+
     use super::*;
     use std::sync::atomic::{AtomicU64, Ordering};
 

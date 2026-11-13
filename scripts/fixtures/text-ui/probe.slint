@@ -22,6 +22,7 @@ export component TextProbe inherits Window {
     in-out property <int> cursor;
     in-out property <int> selection-cursor;
     in-out property <int> dismisses;
+    in-out property <int> locates;
     in-out property <bool> opened: true;
     in-out property <bool> taking;
     in property <bool> resize: true;
@@ -63,7 +64,8 @@ export component TextProbe inherits Window {
     }
     if root.mode == 2: RelinkDialog {
         width: parent.width; height: parent.height;
-        data: {open: root.opened, items: [{id: "m", name: "missing", path: "/missing.mp4", clips: 1}]};
+        data: {open: root.opened, items: [{id: "m", name: "missing", folder: "/missing", kind: 0, clips: 1}]};
+        locate(id) => { root.locates += 1; }
         dismiss => { root.opened = false; root.dismisses += 1; }
     }
     if root.mode == 3: CaptionsDialog {

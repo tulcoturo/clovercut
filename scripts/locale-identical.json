@@ -75,6 +75,8 @@
     "export.hardware": "hardware",
     "libraries.groupAudio": "Audio",
     "paneSwitcher.inspector": "Inspector",
+    "relink.clips": "{0} clips",
+    "relink.oneClip": "1 clip",
     "settings.general": "General",
     "settings.logNormal": "Normal",
     "settings.token": "Token",
@@ -134,6 +136,8 @@
     "phone.fromPhotos": "Photos",
     "previewPane.pause": "Pause",
     "previewPane.source": "Source",
+    "relink.clips": "{0} clips",
+    "relink.oneClip": "1 clip",
     "settings.accent": "Accent",
     "settings.logNormal": "Normal",
     "settings.rose": "Rose",
@@ -226,6 +230,7 @@
     "grading.gamma": "Gamma",
     "libraries.groupAudio": "Audio",
     "paneSwitcher.timeline": "Timeline",
+    "relink.oneClip": "1 clip",
     "settings.logDebug": "Debug",
     "settings.token": "Token",
     "sounds.catWhoosh": "Whoosh",
@@ -269,6 +274,8 @@
     "phone.project": "Project",
     "previewPane.half": "Half",
     "project.project": "Project",
+    "relink.clips": "{0} clips",
+    "relink.oneClip": "1 clip",
     "settings.amber": "Amber",
     "settings.downloads": "Downloads",
     "settings.token": "Token",
@@ -347,6 +354,7 @@
   "vi": {
     "common.video": "Video",
     "grading.gamma": "Gamma",
+    "relink.oneClip": "1 clip",
     "speech.hindi": "Hindi"
   }
 }
