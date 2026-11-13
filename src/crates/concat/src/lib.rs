@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 
 // `DataTransfer` is what a drag carries. Slint keeps the platform's drag
 // object opaque and leaves building and reading one to the host language.
