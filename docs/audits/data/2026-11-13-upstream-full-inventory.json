@@ -4919,7 +4919,7 @@
     {
       "commit": "80ed94572d989c115e1d1b8c92816b5a0550c35a",
       "subject": "feat(api): concat --schema prints the whole API contract as JSON Schema",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-05-upstream-triage.md",
         "docs/audits/2026-11-07-upstream-issues-review.md",
@@ -4938,12 +4938,13 @@
         "src/crates/concat-project/src/model.rs",
         "src/crates/concat/src/launch.rs",
         "src/crates/concat/src/main.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-api-budget.md"
     },
     {
       "commit": "0b94e48fb1ed03628bc0da8dc06b18d186e90831",
       "subject": "chore: Cargo.lock for concat-host's optional schemars",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-05-upstream-triage.md",
         "docs/audits/2026-11-07-upstream-issues-review.md",
@@ -4951,7 +4952,8 @@
       ],
       "files": [
         "src/Cargo.lock"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-api-budget.md"
     },
     {
       "commit": "483c9d6afa7b272b816e44fdd5b21eba2d773be2",
@@ -5586,7 +5588,7 @@
     {
       "commit": "fc60f4eba9f3a7c2f40db265dd73236fbdbc9bc4",
       "subject": "fix(gpu): CONCAT_GPU_BUDGET lifts or moves the memory-budget gates, for a driver that misreads its budget",
-      "status": "verify_current_behavior",
+      "status": "adapted_candidate_native_validation_pending",
       "prior_audits": [
         "docs/audits/2026-11-08-upstream-review.md"
       ],
@@ -5594,7 +5596,8 @@
         "src/crates/concat-render/src/gpu.rs",
         "src/crates/concat-render/src/gpu/tests.rs",
         "src/crates/concat/src/gpu.rs"
-      ]
+      ],
+      "evidence": "docs/audits/2026-11-13-api-budget.md"
     },
     {
       "commit": "ec5538b4687385f490fdd335641129ff8b78bb3d",

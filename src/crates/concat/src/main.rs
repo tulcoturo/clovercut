@@ -27,6 +27,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let _ = writeln!(std::io::stdout(), "Clovercut {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+    // Machine-readable contract: no window, GPU or file logging.
+    if launch == Ok(Launch::Schema) {
+        use std::io::Write;
+        let text = serde_json::to_string_pretty(&concat_api::contract_schema())
+            .map_err(|error| slint::PlatformError::Other(error.to_string()))?;
+        let _ = writeln!(std::io::stdout(), "{text}");
+        return Ok(());
+    }
     // Before the log and the window too: what this proves is that whisper's
     // CPU kernels load on this CPU, and nothing else should be in the way.
     if launch == Ok(Launch::WhisperCpu) {
@@ -77,6 +85,6 @@ fn main() -> Result<(), slint::PlatformError> {
             log::error!("smoke: could not start: {error}");
         }),
         // Answered above, before the log was opened.
-        Launch::Version | Launch::WhisperCpu | Launch::Mcp(_) => Ok(()),
+        Launch::Version | Launch::Schema | Launch::WhisperCpu | Launch::Mcp(_) => Ok(()),
     }
 }

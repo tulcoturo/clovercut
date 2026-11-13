@@ -50,6 +50,7 @@ pub fn is_project(root: &Path) -> bool {
 const RECENTS: &str = "recents.json";
 
 /// Everything needed to reopen a project.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectInfo {

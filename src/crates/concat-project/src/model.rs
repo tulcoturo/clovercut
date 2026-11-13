@@ -48,6 +48,7 @@ pub enum MediaOrigin {
 
 /// What a clip can be - wider than [`MediaKind`] because a text clip has no
 /// file behind it; it *is* its own content.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ClipKind {
@@ -142,6 +143,7 @@ pub enum ColorRange {
 /// One entry in the media bin: a file the user imported, plus what the host's
 /// probe learned about it. The probe metadata is stored, not re-derived, so a
 /// document opens meaningfully even when the file itself is missing.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MediaItem {
@@ -261,6 +263,7 @@ impl TrackKind {
 }
 
 /// A timeline lane, identified by type.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Track {
@@ -1773,6 +1776,7 @@ impl From<KeyEase> for concat_core::animate::Ease {
 /// meaning the same thing after the clip's own scale or gain is changed
 /// underneath it; the conversion to relative happens on the way out, in
 /// `concat_export::flatten::export_keys`.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClipKey {
@@ -1813,6 +1817,7 @@ pub struct SpeedPoint {
 }
 
 /// A clip's Enhance, once it has a copy: see [`Clip::enhanced`].
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Enhanced {
@@ -2741,6 +2746,7 @@ pub mod ranges {
 /// One placed piece of a timeline: a stretch of media (or a title) with its
 /// timing, mix, transform, and effects. Everything an edit decision touches
 /// lives here, which is why most commands are clip commands.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Clip {
@@ -3469,6 +3475,7 @@ impl Clip {
 
 /// One timeline: a name and its lanes and clips. Every operation takes the
 /// project and works on whichever timeline is active.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Timeline {
@@ -3745,6 +3752,7 @@ impl VideoSettings {
 }
 
 /// A font the user added from disk.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomFont {
@@ -3757,6 +3765,7 @@ pub struct CustomFont {
 }
 
 /// A subtitle library asset. Its cues are relative to the file, not a timeline.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptionSource {
@@ -3846,6 +3855,7 @@ impl CaptionMotion {
 }
 
 /// The project document: shared libraries and its editable timelines.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
