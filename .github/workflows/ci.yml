@@ -189,7 +189,7 @@ jobs:
             -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
             -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 \
             libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libgl1-mesa-dev \
-            libgtk-3-dev libasound2-dev libclang-dev cmake \
+            libgtk-3-dev libasound2-dev libclang-dev cmake gdb \
             libvulkan1 mesa-vulkan-drivers
 
       # Ubuntu's packaged FFmpeg is older than the 7 the engine needs, so the
@@ -438,6 +438,25 @@ jobs:
       - name: Annotate test failures
         if: failure()
         run: python3 scripts/ci/annotate.py src/nextest-*.log
+      - name: Capture voice isolation abort stack
+        if: failure()
+        timeout-minutes: 5
+        working-directory: src
+        run: |
+          set -euo pipefail
+          if ! grep -q 'a_voice_comes_out_of_a_mix_and_the_stems_add_back_up' nextest-workspace.log 2>/dev/null || ! grep -q 'SIGABRT' nextest-workspace.log; then
+            exit 0
+          fi
+          binary=$(find target/debug/deps -maxdepth 1 -type f -name 'concat_speech-*' -executable | head -n 1)
+          test -n "$binary"
+          timeout 180s gdb --batch \
+            -ex 'set pagination off' \
+            -ex 'set debuginfod enabled off' \
+            -ex run -ex 'thread apply all backtrace 40' \
+            -ex 'info sharedlibrary' \
+            --args "$binary" \
+            isolate::tests::a_voice_comes_out_of_a_mix_and_the_stems_add_back_up \
+            --exact --nocapture --test-threads=1 2>&1 | tee voice-isolation-stack.log
       - name: Keep test results and timings
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -448,6 +467,7 @@ jobs:
             src/target/nextest/ci/*.xml
             src/nextest-*.log
             src/runtime-probe.*
+            src/voice-isolation-stack.log
             subject-probes/**
           if-no-files-found: ignore
       - name: Save native compilation progress
