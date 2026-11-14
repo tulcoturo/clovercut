@@ -4,7 +4,8 @@ use slint::{Model, ModelRc, SharedString, VecModel};
 slint::include_modules!();
 mod ui {
     pub use super::{
-        CaptionsSheetData, ExportData, RelinkData, SettingsData, StartData, TransitionChoiceData,
+        CaptionsSheetData, ChainChoiceData, ExportData, RelinkData, SettingsData, StartData,
+        TransitionChoiceData,
     };
 }
 include!("publish_helpers.rs");
@@ -33,6 +34,25 @@ fn main() {
         model.row_data(0).unwrap().current,
         1,
         "non-model fields still update"
+    );
+    let chain = |label: &str| ChainChoiceData {
+        options: ModelRc::new(VecModel::from(vec![SharedString::from(label)])),
+        values: ModelRc::new(VecModel::from(vec![1.0])),
+        ..Default::default()
+    };
+    let chain_model = VecModel::from(vec![chain("Matte")]);
+    let held = chain_model.row_data(0).unwrap().options;
+    sync_with(&chain_model, vec![chain("Matte")], same_chain_choice);
+    assert!(held == chain_model.row_data(0).unwrap().options);
+    sync_with(&chain_model, vec![chain("Result")], same_chain_choice);
+    assert_eq!(
+        chain_model
+            .row_data(0)
+            .unwrap()
+            .options
+            .row_data(0)
+            .unwrap(),
+        "Result"
     );
     let exporting = |codec| ExportData {
         codec,

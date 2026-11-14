@@ -50,7 +50,7 @@ appimage-runtime-aarch64     https://github.com/AppImage/type2-runtime/releases/
 # LLVM for Windows: libclang for bindgen, clang-cl on arm64, and
 # llvm-objdump for scripts/ci/isa-scan.sh.
 llvm-win64                   https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/LLVM-21.1.0-win64.exe            e751be8019b7500b100456c915b4b3c339d8d88b81b3aad49796d39f700e7ef3
-llvm-woa64                   https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/LLVM-21.1.0-woa64.exe            3f181aecc83d0eb40fb966ce18b97a3602871dbff83fc91745e7e0fd6661a7f7
+llvm-woa64                   https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.0/LLVM-22.1.0-woa64.exe            7ee9bcf18d69bcf23aa8bae631baa18388f50dfb92ee08361a5b956963e38009
 
 # Intel's Software Development Emulator, which the smoke tests run the
 # x86_64 bundles under posing as an Ivy Bridge (AVX, no AVX2): the CPU the
