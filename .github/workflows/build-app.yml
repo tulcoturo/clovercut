@@ -111,7 +111,7 @@ jobs:
           # consulted for *every* object in the process - DT_RUNPATH is
           # not transitive, so libavformat's own load of libavcodec would
           # ignore it and the staged binary would not stand alone.
-          echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,\$ORIGIN/lib -C link-arg=-Wl,--disable-new-dtags"
+          echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,\$ORIGIN/lib -C link-arg=-Wl,--disable-new-dtags -C link-arg=-Wl,--exclude-libs,ALL"
         } >> "$GITHUB_ENV"
     - name: ONNX Runtime (Linux)
       run: |

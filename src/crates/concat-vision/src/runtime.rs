@@ -58,11 +58,30 @@ pub struct Output {
 /// so does every model download: a gigabyte fetched for a runtime that
 /// cannot run it is a gigabyte wasted.
 ///
-/// Only an Intel Mac has anything to do. Its runtime is loaded now rather
+/// Linux loads its own shared runtime so a linked speech engine's static
+/// ONNX symbols cannot select a different implementation. On an Intel Mac
+/// the runtime is loaded now rather
 /// than at launch (see [`crate::onnx`]), and not at all on a macOS older
 /// than the one it is built for, where loading it is what closed the app.
 /// The answer is kept: neither changes while the process runs.
 pub fn ready() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        static LOADED: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
+        LOADED
+            .get_or_init(|| {
+                // A direct OrtGetApiBase call can bind to sherpa's static
+                // runtime, whose device discovery aborts in std::regex on
+                // the Linux CI binary. A library handle keeps the API and
+                // its C++ implementation in the same runtime.
+                let library = linux_library();
+                let _ = ort::init_from(&library)
+                    .map_err(|error| format!("could not load ONNX Runtime: {error}"))?
+                    .commit();
+                Ok(())
+            })
+            .clone()
+    }
     #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
     {
         static LOADED: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
@@ -81,8 +100,56 @@ pub fn ready() -> Result<(), String> {
             })
             .clone()
     }
-    #[cfg(not(all(target_os = "macos", target_arch = "x86_64")))]
+    #[cfg(not(any(target_os = "linux", all(target_os = "macos", target_arch = "x86_64"))))]
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn linux_library() -> std::path::PathBuf {
+    if let Some(path) = std::env::var_os("ORT_DYLIB_PATH").filter(|path| !path.is_empty()) {
+        return path.into();
+    }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(parent) = exe.parent()
+    {
+        let bundled = parent.join("lib/libonnxruntime.so");
+        if bundled.is_file() {
+            return bundled;
+        }
+    }
+    // ort checks beside the executable first, then the system loader;
+    // the CI and developer builds supply LD_LIBRARY_PATH.
+    "libonnxruntime.so".into()
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod linux_tests {
+    #[test]
+    fn api_table_belongs_to_the_shared_runtime() {
+        super::ready().expect("the shared runtime loads");
+        let address = ort::api() as *const _ as usize;
+        let maps = std::fs::read_to_string("/proc/self/maps").expect("process mappings");
+        let mapping = maps
+            .lines()
+            .find(|line| {
+                let Some((start, end)) = line
+                    .split_whitespace()
+                    .next()
+                    .and_then(|s| s.split_once('-'))
+                else {
+                    return false;
+                };
+                matches!(
+                    (usize::from_str_radix(start, 16), usize::from_str_radix(end, 16)),
+                    (Ok(start), Ok(end)) if (start..end).contains(&address)
+                )
+            })
+            .expect("the API table is mapped");
+        assert!(
+            mapping.contains("libonnxruntime.so"),
+            "API came from {mapping}"
+        );
+    }
 }
 
 /// A loaded model.
