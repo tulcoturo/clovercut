@@ -132,6 +132,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref }}
+      - name: Memory headroom for native test compilation
+        run: |
+          set -euo pipefail
+          # A single generated Slint test crate can exhaust RAM even at
+          # --build-jobs 1. Swap protects the runner's own agent as well.
+          sudo fallocate -l 8G /mnt/clovercut-ci.swap
+          sudo chmod 600 /mnt/clovercut-ci.swap
+          sudo mkswap /mnt/clovercut-ci.swap
+          sudo swapon /mnt/clovercut-ci.swap
+          free -h
+          df -h /mnt .
       # The toolchain src/rust-toolchain.toml pins, installed by name: every
       # cargo command below runs from src/, where the pin applies, so a
       # stable installed here would only be fetched and left.
@@ -291,6 +302,16 @@ jobs:
         if: inputs.desktop_only != true && inputs.tests_only != true
         timeout-minutes: 30
         working-directory: src
+
+      - name: Save lint compilation before the test build
+        if: inputs.desktop_only != true && inputs.tests_only != true
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src/target
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}-lint
 
       # The tests are compiled in a step of their own, so a slow compile
       # and a slow test are told apart by which step ran out of time. One

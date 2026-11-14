@@ -83,7 +83,9 @@ jobs:
     with:
       ref: ${{ needs.check.outputs.commit }}
   build:
-    needs: check
+    # Only build the six desktop packages after the source checks pass.
+    # A failed engine gate must not spend another complete package matrix.
+    needs: [check, engine, headless, effects, packaging]
     uses: ./.github/workflows/build-app.yml
     with:
       ref: ${{ needs.check.outputs.commit }}
