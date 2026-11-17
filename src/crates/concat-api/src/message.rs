@@ -311,6 +311,7 @@ pub struct ExportSpec {
 /// What a request hands back. Serialised as the payload alone: the variant
 /// is implied by the method, so a caller that sent `project.get` reads an
 /// editor view and nothing wraps it.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Serialize)]
 #[serde(untagged)]
 pub enum Reply {
@@ -343,6 +344,7 @@ pub enum Reply {
 }
 
 /// The build and the contract it speaks.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionInfo {
@@ -363,6 +365,7 @@ pub struct VersionInfo {
 }
 
 /// The app's directories, as paths.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dirs {
@@ -382,6 +385,7 @@ impl From<&AppDirs> for Dirs {
 }
 
 /// A file the API wrote.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Written {
@@ -394,6 +398,7 @@ pub struct Written {
 }
 
 /// A job the API has begun. Every event about it carries `job`.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Started {
@@ -406,6 +411,7 @@ pub struct Started {
 }
 
 /// Where a job is in its life.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum JobState {
@@ -420,6 +426,7 @@ pub enum JobState {
 }
 
 /// How one job stands: [`Request::ExportStatus`]'s reply.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobStatus {
@@ -480,6 +487,7 @@ impl JobStatus {
 }
 
 /// A frame handed back without touching the disk.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Picture {
@@ -492,6 +500,7 @@ pub struct Picture {
 }
 
 /// The empty reply, an object so every reply is one.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Done {
@@ -502,6 +511,7 @@ pub struct Done {
 }
 
 /// One effect package, as a caller building a chain needs it.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageInfo {
@@ -522,6 +532,7 @@ pub struct PackageInfo {
 }
 
 /// One parameter of a package.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParamInfo {
@@ -552,6 +563,7 @@ pub struct ParamInfo {
 
 /// Why a request has no reply, as a program reads it. The JSON-RPC number
 /// each maps to is [`ErrorCode::number`].
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ErrorCode {
@@ -598,6 +610,7 @@ impl ErrorCode {
 }
 
 /// A refusal: what kind, and the sentence a person would be shown.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiError {
@@ -637,6 +650,7 @@ impl std::error::Error for ApiError {}
 
 /// A request's outcome. `{"result": ...}` when it worked, `{"error":
 /// {"code": ..., "message": ...}}` when it did not.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(clippy::large_enum_variant)]
@@ -659,6 +673,7 @@ impl From<Result<Reply, ApiError>> for Response {
 /// Something that happened to a job. A transport forwards these to every
 /// caller as they come; each names its job and its project, so a caller
 /// keeps the ones it asked for and ignores the rest.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all_fields = "camelCase")]
 pub enum Event {

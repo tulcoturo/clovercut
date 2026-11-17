@@ -16,7 +16,7 @@ use crate::model::{
     AppliedFilter, AudioTrack, Background, Clip, ClipKind, ClipMotion, ColorRange, ColorSpace,
     Crop, CustomFont, Cutout, CutoutMode, Enhanced, Framing, KeyEase, KeyProperty, Mask, MediaItem,
     MediaKind, MediaOrigin, Project, RunStyle, ShapeStyle, SpeedPoint, Stabilize, Stroke,
-    TextStyle, Timeline, Track, TrackKind, Transition, VideoSettings,
+    TextStyle, Timeline, Track, TrackKind, Transition, VideoSettings, VoiceMix,
 };
 
 mod audio;
@@ -35,6 +35,9 @@ const DEFAULT_IMAGE_DURATION: f64 = 5.0;
 const DEFAULT_TEXT_DURATION: f64 = 4.0;
 /// How long a layer covers when first placed. Editorial default, not a fact.
 const DEFAULT_LAYER_DURATION: f64 = 5.0;
+/// How long a transition clip covers when first placed: a second, half
+/// either side of the cut it is centred on.
+const DEFAULT_TRANSITION_DURATION: f64 = 1.0;
 /// Default hold for a freeze frame when the caller omits duration.
 const DEFAULT_FREEZE_DURATION: f64 = 1.0;
 pub(crate) use crate::model::ranges::{
@@ -98,6 +101,8 @@ pub struct ClipPatch {
     pub fade_in: Option<f64>,
     /// New fade-out length in seconds, floored at 0.
     pub fade_out: Option<f64>,
+    /// Choose smooth quadratic fades or legacy linear ramps.
+    pub quadratic_fades: Option<bool>,
     /// Visual entrance/exit settings, independent of the audio ramps.
     #[serde(default)]
     pub visual_motion: Option<crate::model::CaptionMotion>,
@@ -168,6 +173,10 @@ pub struct ClipPatch {
     )]
     #[cfg_attr(feature = "schema", schemars(with = "Option<TextStyle>"))]
     pub text: Option<Option<TextStyle>>,
+    /// A shape clip's figure and paint, whole: absent leaves it alone. Only
+    /// a shape clip takes it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<ShapeStyle>,
     /// Which of the media's audio streams the clip plays, by stream index:
     /// absent leaves it alone, null goes back to the file's first, a value
     /// names one. See `Clip::audio_stream`.
@@ -490,6 +499,28 @@ pub enum Command {
         #[serde(default)]
         sound: bool,
     },
+    /// Places a transition as a clip of its own (#621): the package named,
+    /// at its defaults, acting on everything beneath it for its span - from
+    /// the outgoing picture into the incoming one across a cut under it,
+    /// or played over the one shot where there is no cut. See
+    /// [`crate::model::ClipKind::Transition`].
+    AddTransitionClip {
+        /// The lane to place it on. None picks the first free lane above
+        /// the highest one occupied over its span, as a layer does, minting
+        /// one at the top when every lane above is taken: a transition acts
+        /// on what is beneath it.
+        track_id: Option<String>,
+        /// Timeline position in seconds, floored at 0.
+        start: f64,
+        /// Seconds on the timeline; a second when absent, and never less
+        /// than [`crate::model::ranges::MIN_TRANSITION`].
+        #[serde(default)]
+        duration: Option<f64>,
+        /// The transition package, e.g. "concat.push".
+        transition_id: String,
+        /// What the lane calls it.
+        name: String,
+    },
     /// Gives a clip a speed curve, or takes it away. The source covered is
     /// held constant, as a speed change does, so the clip's timeline length
     /// follows the curve's mean; `speed` is kept at that mean.
@@ -639,6 +670,17 @@ pub enum Command {
         clip_id: String,
         /// The settings, or None to take stabilization off.
         stabilize: Option<Stabilize>,
+    },
+    /// Sets a clip's voice isolation - the voice and the rest at levels of
+    /// their own - or takes it off. Tidied on the way in; see
+    /// [`VoiceMix::tidy`]. A clip with no sound is left as it is. The two
+    /// parts are worked out by the host the first time a clip of the media
+    /// asks for them; until then the clip plays as recorded.
+    SetClipVoice {
+        /// The clip. An unknown id is a no-op.
+        clip_id: String,
+        /// The levels, or None to play the clip as recorded.
+        voice: Option<VoiceMix>,
     },
     /// Paints one stroke onto a clip's cutout. A clip with no cutout gets a
     /// custom one; an automatic cutout becomes custom, since a stroke is a
@@ -1265,13 +1307,7 @@ impl Command {
                 duration,
                 style,
                 ..
-            } => {
-                bad([*start])
-                    || bad(*duration)
-                    || style
-                        .iter()
-                        .any(|style| bad([style.size, style.stroke_width]))
-            }
+            } => bad([*start]) || bad(*duration) || style.iter().any(|style| bad(style.numbers())),
             Command::AddTextClip {
                 start,
                 duration,
@@ -1297,6 +1333,9 @@ impl Command {
             }
             Command::AddLayerClip {
                 start, duration, ..
+            }
+            | Command::AddTransitionClip {
+                start, duration, ..
             } => bad([*start]) || bad(*duration),
             Command::SetClipSpeedCurve { curve, .. } => bad(curve
                 .iter()
@@ -1316,6 +1355,9 @@ impl Command {
             Command::SetClipStabilize { stabilize, .. } => stabilize
                 .as_ref()
                 .is_some_and(|stabilize| bad([stabilize.smoothness, stabilize.max_zoom])),
+            Command::SetClipVoice { voice, .. } => voice
+                .as_ref()
+                .is_some_and(|voice| bad([voice.voice, voice.background])),
             Command::MoveClips { moves } => bad(moves.iter().map(|wanted| wanted.start)),
             Command::TrimClip { delta, .. } | Command::SlipClip { delta, .. } => bad([*delta]),
             Command::SplitClips { time, .. } | Command::SplitTextClip { time, .. } => bad([*time]),
@@ -1351,6 +1393,7 @@ impl Command {
                     // number that is not one from a new mask's - which is how
                     // a size the caller left out reads - and drops a key that
                     // is not, so none can land.
+                    || patch.shape.iter().any(|style| bad(style.numbers()))
                     || patch.filters.as_deref().is_some_and(bad_chain)
                     || patch.video_effects.as_deref().is_some_and(bad_chain)
                     || patch
@@ -1510,6 +1553,7 @@ pub fn apply_with_locks(
         | Command::AddTextClip { .. }
         | Command::AddShapeClip { .. }
         | Command::AddLayerClip { .. }
+        | Command::AddTransitionClip { .. }
         | Command::MoveClips { .. }
         | Command::TrimClip { .. }
         | Command::SlipClip { .. }
@@ -1531,6 +1575,7 @@ pub fn apply_with_locks(
         | Command::SetClipCutout { .. }
         | Command::AddCutoutStroke { .. }
         | Command::SetClipStabilize { .. }
+        | Command::SetClipVoice { .. }
         | Command::SetClipKey { .. }
         | Command::ClearClipKey { .. }
         | Command::ClearClipKeys { .. }

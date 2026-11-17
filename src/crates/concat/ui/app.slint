@@ -43,7 +43,7 @@ export { TemplateData } from "workspace/templates.slint";
 import { TitleBar } from "title-bar.slint";
 import { PhoneEditor } from "phone/editor.slint";
 import {
-    AppliedEntryData, AppliedParamData, CatalogueEntryData, Library, LibraryViewData,
+    AppliedEntryData, AppliedParamData, CatalogueEntryData, ChainChoiceData, Library, LibraryViewData,
     TransitionChoiceData,
 } from "inspector/clip-inspector.slint";
 import { ClipLuts, ClipLutData } from "inspector/lut-panel.slint";
@@ -71,7 +71,7 @@ export {
     Stickers, StickerCardData, ContentLibraries, TransitionPreview,
     CaptionsLibrary, CaptionRowData, CaptionSourceData,
     Curves, Fmt, Focus, Payload, Theme, Bezier, Editor, I18n,
-    AppliedEntryData, AppliedParamData, CatalogueEntryData, Library, LibraryViewData, ParamFormat,
+    AppliedEntryData, AppliedParamData, CatalogueEntryData, ChainChoiceData, Library, LibraryViewData, ParamFormat,
     TransitionChoiceData,
     DockDivider, DockSide, PaneKind, SeatBox,
     EffectData, FontSearch, Meters,
@@ -131,6 +131,11 @@ export component App inherits Window {
     // until a press lands on a pane's floor. Each of those teardowns hands
     // the focus back here on the way out.
     changed on-start => {
+        Editor.preview-held(false);
+        if (root.on-start && Editor.preview-fullscreen-seat >= 0) {
+            Editor.preview-fullscreen(-1);
+        }
+
         if (!root.on-start) {
             keys.focus();
         }
@@ -177,6 +182,8 @@ export component App inherits Window {
     callback start-create();
     /// Open a project that already exists, picked from disk.
     callback start-open();
+    /// Make a project of a CapCut draft (#477).
+    callback start-import-capcut();
     callback start-open-recent(path: string);
     callback start-forget-recent(path: string);
     callback start-reveal-recent(path: string);
@@ -198,6 +205,8 @@ export component App inherits Window {
     in property <string> app-version;
     /// A file can be dragged in from the system: a desk, not a phone.
     in property <bool> can-drop;
+    /// Desktop folder import is available, including drafts copied from another machine.
+    in property <bool> capcut;
 
     // Title bar. The drag/maximize pair must be handled in main.rs — a window
     // cannot drag itself from inside the scene graph; the rest are seams like
@@ -556,7 +565,21 @@ export component App inherits Window {
         // and the capture field in Settings > Shortcuts listens on this
         // same callback. False lets the key go on up, so Escape still
         // closes a popup and Tab still moves focus.
+        key-released(event) => {
+            if (event.text == Key.Shift || event.text == Key.ShiftR) {
+                Editor.preview-held(false);
+            }
+            return reject;
+        }
         key-pressed(event) => {
+            if (event.text == Key.Shift || event.text == Key.ShiftR) {
+                Editor.preview-held(true);
+            }
+
+            if (event.text == Key.F11 && !root.on-start && !root.sheet-up) {
+                Editor.preview-fullscreen(-2);
+                return accept;
+            }
             // Escape closes the sheet on top, as its × does. A sheet busy
             // with a job keeps itself - its × is gone then too - and the
             // key is spent on it, not passed to the editor underneath.
@@ -590,6 +613,10 @@ export component App inherits Window {
                 }
                 if (root.captions.open) {
                     if (!root.sheets-fill || !root.captions.running) { root.captions-closed(); }
+                    return accept;
+                }
+                if (Editor.preview-fullscreen-seat >= 0) {
+                    Editor.preview-fullscreen(-1);
                     return accept;
                 }
                 // A look being shown over the picture, and nothing above it.
@@ -632,7 +659,7 @@ export component App inherits Window {
             // No strip on a phone: its menus, its window buttons and its
             // drag region are all a desk's, and the phone shell's top bar
             // carries the two verbs that are not.
-            if !root.phone: TitleBar {
+            if !root.phone && Editor.preview-fullscreen-seat < 0: TitleBar {
                 macos: root.macos;
                 minimal: root.on-start;
                 deep: root.on-start;
@@ -685,9 +712,11 @@ export component App inherits Window {
                 phone: root.phone;
                 version: root.app-version;
                 can-drop: root.can-drop;
+                capcut: root.capcut;
 
                 compose => { root.start-compose(); }
                 open => { root.start-open(); }
+                import-capcut => { root.start-import-capcut(); }
                 open-settings => { root.open-settings(); }
                 open-recent(path) => { root.start-open-recent(path); }
                 forget-recent(path) => { root.start-forget-recent(path); }
@@ -981,6 +1010,7 @@ export component App inherits Window {
     in property <RelinkData> relink;
     callback relink-all();
     callback relink-remove(id: string);
+    callback relink-locate(id: string);
     callback relink-dismiss();
 
     ProjectDialog {
@@ -1042,6 +1072,7 @@ export component App inherits Window {
         data: root.relink;
         relink-all => { root.relink-all(); }
         remove(id) => { root.relink-remove(id); }
+        locate(id) => { root.relink-locate(id); }
         dismiss => { root.relink-dismiss(); }
     }
 

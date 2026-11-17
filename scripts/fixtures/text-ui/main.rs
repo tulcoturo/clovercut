@@ -177,6 +177,15 @@ fn main() {
     println!(
         "actual title/caption/speech/voiceover editors: long Unicode drafts, wheel, edit and recording guard passed"
     );
+    let located = app(2);
+    id(&located, "RelinkDialog::locate-file")
+        .mock_single_click(slint::platform::PointerEventButton::Left);
+    assert_eq!(located.get_locates(), 1);
+    assert!(
+        located.get_opened(),
+        "locating a file does not dismiss the dialog"
+    );
+    located.hide().unwrap();
     for scrim in [false, true] {
         let probe = app(2);
         if scrim {

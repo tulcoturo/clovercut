@@ -2,9 +2,9 @@ format = 2
 
 [effect]
 id = "concat.chroma-key"
-name = "Chroma Key"
+name = "Chroma Key (Classic)"
 kind = "effect"
-category = "Cutout"
+category = "Compatibility"
 order = 58
 intensity = "similarity"
 description = "Keys out the screen colour you pick, leaving the picture over whatever is beneath, its spill cleaned off."

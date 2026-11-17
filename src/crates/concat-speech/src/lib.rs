@@ -8,8 +8,9 @@
 //! - [`tts`] - Kokoro, through sherpa-onnx, turns typed narration into a
 //!   WAV in the project folder.
 //!
-//! Both download their models on demand into the app's data directory and
-//! never bundle them. Both are one-at-a-time: a [`concat_host::SingleFlight`]
+//! Transcription and TTS download their models on demand into the app's
+//! data directory. Voice isolation additionally bundles DeepFilterNet 3
+//! for speech; music separation downloads the pinned Spleeter networks. Both are one-at-a-time: a [`concat_host::SingleFlight`]
 //! refuses a second concurrent run rather than letting two share a cancel
 //! flag.
 //!
@@ -19,10 +20,15 @@
 
 #[cfg(feature = "chatterbox")]
 pub mod chatterbox;
+#[cfg(feature = "isolate")]
+pub mod isolate;
 pub mod languages;
 mod speech_reel;
+mod stock_voices;
 pub mod transcribe;
 pub mod tts;
+#[cfg(feature = "isolate")]
+pub mod vocals;
 
 pub use transcribe::Transcriber;
 pub use tts::Speech;

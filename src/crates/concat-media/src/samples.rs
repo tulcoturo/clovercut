@@ -679,6 +679,7 @@ mod tests {
             volume_curve: Default::default(),
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             filter_chain: String::new(),
         };
         crate::audio::mix_to_file(&[piece.clone()], 1.0, &output).expect("mixes plain WAV");

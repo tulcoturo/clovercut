@@ -23,6 +23,11 @@ png = "0.17"
 # the CPU provider is always there behind it.
 ort = { workspace = true, optional = true }
 
+# sherpa also carries a static ONNX runtime. Resolve the vision API from
+# its own shared-library handle, never the executable's static OrtGetApiBase.
+[target.'cfg(target_os = "linux")'.dependencies]
+ort = { workspace = true, optional = true, features = ["load-dynamic"] }
+
 [target.'cfg(target_vendor = "apple")'.dependencies]
 ort = { workspace = true, optional = true, features = ["coreml"] }
 

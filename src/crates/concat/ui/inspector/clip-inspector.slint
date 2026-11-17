@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Jareer and Concat contributors
 
 import { LutPanel } from "lut-panel.slint";
+import { FadeEnds, GainFader, StemRow } from "audio-controls.slint";
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
@@ -188,6 +189,27 @@ export struct ColourKnobData {
     key: string,
     label: string,
     value: color,
+    /// The colour is the package's to find - the knob at its default of no
+    /// colour at all - and whether it can be.
+    automatic: bool,
+    can-automatic: bool,
+    /// The colour can be taken off the clip's own picture, and the monitor
+    /// is waiting for the press that takes it.
+    pickable: bool,
+    picking: bool,
+}
+
+/// One knob of one link that is a choice among a few - a key's view of
+/// its matte - drawn as segments, as a transition's choices are.
+export struct ChainChoiceData {
+    /// Which link, as an index into the applied list.
+    entry: int,
+    key: string,
+    label: string,
+    options: [string],
+    /// The value each option stores, in the same order.
+    values: [float],
+    current: int,
 }
 
 /// The favourites chip: a star that filters the shelf down to what is on it.
@@ -223,6 +245,34 @@ component StarChip inherits Rectangle {
     }
 }
 
+/// One choice of a link, labelled, as segments. The segments are set again
+/// whenever the document's value changes: a press assigns `current` inside
+/// the control and ends a plain binding (#250).
+component ChainChoice inherits VerticalLayout {
+    in property <ChainChoiceData> data;
+
+    callback picked(value: float);
+
+    padding-left: Theme.pad;
+    padding-right: Theme.pad;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    spacing: 4px;
+
+    Text {
+        text: root.data.label;
+        color: Theme.fg-muted;
+        font-size: Theme.fs-sm;
+    }
+    SegmentedControl {
+        options: root.data.options;
+        property <int> shown: root.data.current;
+        current: self.shown;
+        changed shown => { self.current = self.shown; }
+        changed(index) => { root.picked(root.data.values[index]); }
+    }
+}
+
 /// A chain and its library: the links applied to the selected clip, each
 /// with a control per parameter its package declares, and under it the
 /// shelves of packages that can be added. One component serves effects,
@@ -242,6 +292,8 @@ export component PresetStack inherits VerticalLayout {
     in property <[CurveGroupData]> curve-groups;
     /// The links' colour knobs, a row each.
     in property <[ColourKnobData]> colours;
+    /// The links' choices, a row of segments each.
+    in property <[ChainChoiceData]> choices;
 
     /// Which of the three libraries this is: 0 filters, 1 effects, 2 audio.
     /// The index its view state and its callbacks are keyed by.
@@ -265,6 +317,10 @@ export component PresetStack inherits VerticalLayout {
     callback set-param(index: int, key: string, value: float);
     /// A colour knob picked, likewise.
     callback set-colour(index: int, key: string, value: color);
+    /// A colour knob's eyedropper pressed, and its way back to the colour
+    /// found by itself; each is a whole edit, with no commit to follow.
+    callback pick-colour(index: int, key: string);
+    callback auto-colour(index: int, key: string);
     /// A curve's point moved, or put down when `point` is -1, or taken off.
     callback curve-point(index: int, key: string, point: int, x: float, y: float);
     callback curve-remove(index: int, key: string, point: int);
@@ -441,8 +497,29 @@ export component PresetStack inherits VerticalLayout {
                                 label: c.label;
                                 value: c.value;
                                 alpha: false;
+                                automatic: c.automatic;
+                                can-automatic: c.can-automatic;
+                                pickable: c.pickable;
+                                picking: c.picking;
                                 changed(colour) => {
                                     root.set-colour(index, c.key, colour);
+                                    root.commit();
+                                }
+                                pick => { root.pick-colour(index, c.key); }
+                                automate => { root.auto-colour(index, c.key); }
+                            }
+                        }
+
+                        // The link's choices, as segments.
+                        for ch in root.choices: Rectangle {
+                            visible: ch.entry == index;
+                            height: ch.entry == index ? segments.preferred-height : 0;
+                            opacity: item.on ? 1.0 : 0.5;
+
+                            segments := ChainChoice {
+                                data: ch;
+                                picked(value) => {
+                                    root.set-param(index, ch.key, value);
                                     root.commit();
                                 }
                             }
@@ -1054,6 +1131,8 @@ export component VideoPanel inherits VerticalLayout {
     in property <[AppliedParamData]> params;
     /// The chain's colour knobs: the key's screen colour among them.
     in property <[ColourKnobData]> colours;
+    /// The chain's choices: the key's view among them.
+    in property <[ChainChoiceData]> choices;
     /// Fit and Fill under Transform, and the clip's Background section:
     /// the desk's. A phone has them on a Canvas sheet of their own.
     in property <bool> canvas: true;
@@ -1072,6 +1151,10 @@ export component VideoPanel inherits VerticalLayout {
     callback chain-remove(index: int);
     callback chain-set-param(index: int, key: string, value: float);
     callback chain-set-colour(index: int, key: string, value: color);
+    /// A colour knob's eyedropper, and its way back to the colour found by
+    /// itself; see PresetStack.
+    callback chain-pick-colour(index: int, key: string);
+    callback chain-auto-colour(index: int, key: string);
     /// The cutout: its mode (0 off, 1 automatic, 2 custom), and the brush.
     callback cutout-mode(mode: int);
     callback cutout-tool(index: int);
@@ -1101,7 +1184,8 @@ export component VideoPanel inherits VerticalLayout {
     }
     /// Where the chroma key is on the chain, -1 for nowhere; its screen
     /// colour is a knob of its own, drawn below as a swatch.
-    property <int> keyer-index: root.keyer-at("concat.chroma-key");
+    property <int> advanced-keyer: root.keyer-at("concat.chroma-key-advanced");
+    property <int> keyer-index: root.advanced-keyer >= 0 ? root.advanced-keyer : root.keyer-at("concat.chroma-key");
     /// 0 off, 1 on: whether the chroma key is.
     property <int> keyer: root.keyer-index >= 0 ? 1 : 0;
     /// The Mode row: 0 off, 1 automatic, 2 custom, 3 chroma key. A key on
@@ -1119,7 +1203,7 @@ export component VideoPanel inherits VerticalLayout {
         }
         root.cutout-mode(index == 1 ? 1 : index == 2 ? 2 : 0);
         if (index == 3) {
-            root.chain-add("concat.chroma-key");
+            root.chain-add("concat.chroma-key-advanced");
         }
         root.commit();
     }
@@ -1324,15 +1408,10 @@ export component VideoPanel inherits VerticalLayout {
         }
 
         if canvas.open: SectionBody {
+            // Several pictures selected together take what is picked
+            // here, every one of them: no Apply to all needed.
             BackgroundRows {
                 own: true;
-            }
-            // As in CapCut: this clip's background for every picture on
-            // the main lane, which is how the timeline's is set.
-            Button {
-                label: I18n.t("clipInspector.applyToAll");
-                block: true;
-                clicked => { Backdrop.apply-to-all(); }
             }
         }
     }
@@ -1624,8 +1703,9 @@ export component VideoPanel inherits VerticalLayout {
                 toggled(on) => { root.remove-by(on ? 3 : 0); }
             }
 
-            // The screen's colour: broadcast green to begin with, any
-            // colour at all from the picker.
+            // The screen's colour: found in the picture to begin with,
+            // picked off it with the eyedropper, or any colour at all from
+            // the picker.
             for c in root.colours: Rectangle {
                 visible: root.keyer-index >= 0 && c.entry == root.keyer-index;
                 height: root.keyer-index >= 0 && c.entry == root.keyer-index
@@ -1635,10 +1715,16 @@ export component VideoPanel inherits VerticalLayout {
                     label: I18n.t("common.color");
                     value: c.value;
                     alpha: false;
+                    automatic: c.automatic;
+                    can-automatic: c.can-automatic;
+                    pickable: c.pickable;
+                    picking: c.picking;
                     changed(colour) => {
                         root.chain-set-colour(root.keyer-index, c.key, colour);
                         root.commit();
                     }
+                    pick => { root.chain-pick-colour(root.keyer-index, c.key); }
+                    automate => { root.chain-auto-colour(root.keyer-index, c.key); }
                 }
             }
 
@@ -1662,6 +1748,21 @@ export component VideoPanel inherits VerticalLayout {
                     unit: p.unit;
                     changed(v) => {
                         root.chain-set-param(root.keyer-index, p.key, v);
+                        root.commit();
+                    }
+                }
+            }
+
+            // The keyer's choices: what the monitor shows of it.
+            for ch in root.choices: Rectangle {
+                visible: root.keyer-index >= 0 && ch.entry == root.keyer-index;
+                height: root.keyer-index >= 0 && ch.entry == root.keyer-index
+                    ? segments.preferred-height : 0;
+
+                segments := ChainChoice {
+                    data: ch;
+                    picked(value) => {
+                        root.chain-set-param(root.keyer-index, ch.key, value);
                         root.commit();
                     }
                 }
@@ -2314,6 +2415,30 @@ export component TransitionPanel inherits VerticalLayout {
     }
 }
 
+/// Voice isolation splitting the clip's file: what it is doing and how far,
+/// over a bar that fills as it goes.
+component VoiceRow inherits VerticalLayout {
+    in property <float> progress;
+    in property <bool> fetching;
+
+    padding-left: Theme.pad;
+    padding-right: Theme.pad;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    spacing: 6px;
+
+    Text {
+        text: I18n.t1(root.fetching ? "voice.downloading" : "voice.isolating",
+            "\{Math.round(root.progress * 100)}");
+        color: Theme.fg-muted;
+        font-size: Theme.fs;
+    }
+    Progress {
+        value: root.progress;
+        live: true;
+    }
+}
+
 /// Audio: the level, the fades, and whether the pitch follows the speed.
 /// The voice and room chain sits under it in the same tab; see config-pane.
 ///
@@ -2331,18 +2456,25 @@ export component AudioPanel inherits VerticalLayout {
     /// A file's colour range used to sit here too and is the media's now,
     /// in the bin card's menu: it is a fact about the file, not the cut.
     property <bool> choosing: !root.selected.batch-volume && root.audio-tracks.length > 1;
+    /// The rate goes in Playback beside the fades: a sound clip's, whose
+    /// rate has no other home. A picture's sound rides its picture's.
+
 
     callback set(field: ClipField, value: float);
     callback commit();
 
     /// A fade longer than half the clip would overlap the other one.
-    property <float> fade-limit: Math.max(0.1, Math.min(10, root.selected.duration / 2));
+    property <float> fade-limit: Math.max(0, Math.min(10, root.selected.duration / 2));
 
     property <float> level;
     property <float> fade-in;
     property <float> fade-out;
+    property <float> voice-level;
+    property <float> background-level;
 
     function seed() {
+        root.voice-level = root.selected.voice-level * 100;
+        root.background-level = root.selected.background-level * 100;
         root.level = InspectorFmt.to-decibels(root.selected.volume);
         root.fade-in = root.selected.fade-in;
         root.fade-out = root.selected.fade-out;
@@ -2375,39 +2507,17 @@ export component AudioPanel inherits VerticalLayout {
         }
     }
 
+    // The level, on a fader with its scale.
     Section {
         first: !root.choosing;
-        volume := SectionHeader {
-            title: I18n.t("clipInspector.volume");
-            collapsible: true;
-            summary: InspectorFmt.format(ParamFormat.gain, root.level);
 
-            ResetButton {
-                dirty: root.level != 0 || Keyframes.row(ClipField.volume).keyed;
-                reset => {
-                    Keyframes.clear(ClipField.volume);
-                    root.set(ClipField.volume, 1);
-                    root.commit();
-                }
-            }
-        }
-
-        if volume.open: SectionBody {
-            Param {
-                label: I18n.t("common.level");
+        SectionBody {
+            padding-top: 8px;
+            GainFader {
+                label: I18n.t("clipInspector.volumeLevel");
                 keyable: !root.selected.batch-volume;
                 field: ClipField.volume;
-                rail: true;
                 value <=> root.level;
-            // The bottom is silence, not -60. +24 at the top because quiet
-            // material genuinely needs it — a distant lavalier is routinely
-            // 15-20 dB under, and a limit that cannot fix that is in the
-            // wrong place.
-            minimum: -60;
-                maximum: 24;
-                step: 0.5;
-                default-value: 0;
-                fmt: ParamFormat.gain;
                 changed(v) => {
                     root.set(ClipField.volume, InspectorFmt.from-decibels(v));
                     root.commit();
@@ -2416,59 +2526,117 @@ export component AudioPanel inherits VerticalLayout {
         }
     }
 
+    // The fades, drawn where they happen: the clip's first and last
+    // seconds of sound with the ramp over each, its corner dragged.
     if !root.selected.batch-volume: Section {
-        fades := SectionHeader {
-            title: I18n.t("clipInspector.fades");
-            collapsible: true;
-            summary: (root.fade-in == 0 && root.fade-out == 0) ? I18n.t("common.none")
-                : InspectorFmt.format(ParamFormat.seconds2, root.fade-in)
-                + " / " + InspectorFmt.format(ParamFormat.seconds2, root.fade-out);
-
-            ResetButton {
-                dirty: root.fade-in != 0 || root.fade-out != 0;
-                reset => {
-                    root.set(ClipField.fade-in, 0);
-                    root.set(ClipField.fade-out, 0);
-                    root.commit();
+        SectionBody {
+            padding-top: 10px;
+            Row {
+                label: I18n.t("speedRamp.curve");
+                SegmentedControl {
+                    options: [I18n.t("keyframesPane.linear"), I18n.t("speedRamp.smooth")];
+                    property <int> shown: root.selected.quadratic-fades ? 1 : 0;
+                    current: self.shown;
+                    changed shown => { self.current = self.shown; }
+                    changed(index) => { root.set(ClipField.quadratic-fades, index); root.commit(); }
                 }
             }
-        }
-
-        if fades.open: SectionBody {
-            Param {
-                label: I18n.t("clipInspector.fadeIn");
-                rail: true;
-                value <=> root.fade-in;
-                minimum: 0;
-                maximum: root.fade-limit;
-                step: 0.05;
-                fmt: ParamFormat.seconds2;
-                unit: "s";
-                changed(v) => { root.set(ClipField.fade-in, v); root.commit(); }
-            }
-
-            Param {
-                label: I18n.t("clipInspector.fadeOut");
-                rail: true;
-                value <=> root.fade-out;
-                minimum: 0;
-                maximum: root.fade-limit;
-                step: 0.05;
-                fmt: ParamFormat.seconds2;
-                unit: "s";
-                changed(v) => { root.set(ClipField.fade-out, v); root.commit(); }
+            FadeEnds {
+                quadratic-fades: root.selected.quadratic-fades;
+                head-wave: root.selected.wave-head;
+                tail-wave: root.selected.wave-tail;
+                window: root.fade-limit;
+                fade-in <=> root.fade-in;
+                fade-out <=> root.fade-out;
+                in-changed(v) => { root.set(ClipField.fade-in, v); root.commit(); }
+                out-changed(v) => { root.set(ClipField.fade-out, v); root.commit(); }
             }
         }
     }
 
-    // Whether the voice keeps its pitch when the rate is not 1. Here and
-    // not on the Speed tab: the rate is the clip's, but what it does to the
-    // sound is the sound's business, beside the level it is mixed at.
+    // Voice isolation (#120): the clip's sound split once, in the
+    // background, into the voice and everything else, and played back as
+    // the two at levels of their own - the music under a talk brought down
+    // rather than off, the hiss taken out from under a voice. Its switch
+    // is its header; on, what the sound is, then the two parts.
     if !root.selected.batch-volume: Section {
-        SectionHeader {
-            title: I18n.t("clipInspector.pitch");
-        }
+        SectionBody {
+            HorizontalLayout {
+                padding-left: Theme.pad;
+                padding-right: Theme.pad;
+                spacing: 8px;
+                min-height: Theme.h;
 
+                Text {
+                    horizontal-stretch: 1;
+                    text: I18n.t("voice.title");
+                    color: Theme.fg;
+                    font-size: Theme.fs;
+                    font-weight: Theme.weight-title;
+                    vertical-alignment: center;
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Switch {
+                        property <bool> truth: root.selected.voice-mode != 0;
+                        changed truth => { self.checked = self.truth; }
+                        checked: self.truth;
+                        toggled(on) => {
+                            root.set(ClipField.voice-mode, on ? 1 : 0);
+                            root.commit();
+                        }
+                    }
+                }
+            }
+
+            // What the clip's sound is, which picks the model that splits
+            // it: speech apart from the noise, the room and any music bed
+            // behind it, or a song's singing apart from its music. Each
+            // names the two parts below in its own words.
+            if root.selected.voice-mode != 0: Row {
+                label: I18n.t("voice.sound");
+                label-width: 108px;
+                SegmentedControl {
+                    // Speech first: what most clips in an edit are, and
+                    // its model ships with the app; the song's downloads.
+                    options: [I18n.t("voice.speech"), I18n.t("voice.song")];
+                    property <int> shown: root.selected.voice-kind == 1 ? 0 : 1;
+                    current: self.shown;
+                    changed shown => { self.current = self.shown; }
+                    changed(index) => {
+                        root.set(ClipField.voice-kind, index == 0 ? 1 : 0);
+                        root.commit();
+                    }
+                }
+            }
+
+            // The two parts, one row each. The voice alone is the other
+            // row's mark pressed; the voice gone is its own.
+            if root.selected.voice-mode != 0: StemRow {
+                name: root.selected.voice-kind == 0 ? I18n.t("voice.vocals") : I18n.t("voice.voiceLevel");
+                glyph: Glyph.mic;
+                value <=> root.voice-level;
+                changed(v) => { root.set(ClipField.voice-level, v / 100); root.commit(); }
+            }
+            if root.selected.voice-mode != 0: StemRow {
+                name: root.selected.voice-kind == 0 ? I18n.t("voice.music") : I18n.t("voice.backgroundLevel");
+                glyph: root.selected.voice-kind == 0 ? Glyph.music : Glyph.waveform;
+                value <=> root.background-level;
+                changed(v) => { root.set(ClipField.background-level, v / 100); root.commit(); }
+            }
+
+            if root.selected.voice-progress >= 0: VoiceRow {
+                progress: root.selected.voice-progress;
+                fetching: root.selected.voice-fetching;
+            }
+        }
+    }
+
+    // The rate and the pitch, together: whether the voice keeps its pitch
+    // is a question about the rate. A sound clip's rate is set here; a
+    // picture's sound rides its picture's, set under Video.
+    if !root.selected.batch-volume: Section {
         SectionBody {
             SwitchRow {
                 label: I18n.t("clipInspector.changePitchWithSpeed");
@@ -2478,6 +2646,8 @@ export component AudioPanel inherits VerticalLayout {
                     root.commit();
                 }
             }
+
+
         }
     }
 }

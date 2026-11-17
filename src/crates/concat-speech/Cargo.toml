@@ -7,6 +7,7 @@ license.workspace = true
 description = "Speech in and out: on-device transcription with whisper.cpp, and text to speech with Kokoro."
 
 [dependencies]
+realfft = { version = "3.5", optional = true }
 concat-host.workspace = true
 concat-media.workspace = true
 serde = { version = "1", features = ["derive"] }
@@ -88,6 +89,7 @@ ort = { workspace = true, optional = true, features = ["coreml"] }
 ort = { workspace = true, optional = true, features = ["directml"] }
 
 [features]
+isolate = ["dep:concat-vision", "dep:realfft"]
 chatterbox = ["dep:ort", "dep:tokenizers", "dep:concat-vision"]
 
 [lints]

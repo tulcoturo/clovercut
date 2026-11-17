@@ -1,0 +1,168 @@
+{
+  "date": "2026-11-16",
+  "source": "a00e1cab65242fe6c865a95c474db1ca1316eac9",
+  "origin_main": "a00f692681d1ee9c24224e0a42f0ee4a0d02da38",
+  "previous_upstream_tip": "6584d34971ae5e168f12cb475bdf58055b67d780",
+  "upstream_tip": "a7cda105c55cf4a5413dd747e16b0980ff2555c1",
+  "new_commits": 26,
+  "upstream_only_ancestry_count": 414,
+  "note": "Ancestry counts are not missing-feature counts. Older 388-commit ledger remains incompletely reconciled after adapted ports. No code implementation or native build performed in this audit.",
+  "commits": [
+    {
+      "sha": "30b33fc1be1a9036b08f64d047945f1bd0313ed1",
+      "subject": "feat(ui): the notice is a card that wraps, waits under the pointer and keeps a failure up (#455)",
+      "status": "pending_or_partial",
+      "evidence": "Notification cards: wrapping, hover pause and persistent failures are absent from the current timed toast."
+    },
+    {
+      "sha": "6c9558aa2fd1d62ae75e891ef15817b5cd098aa7",
+      "subject": "fix(monitor): a preview of a missing file says which file, in a sentence (#455)",
+      "status": "pending_or_partial",
+      "evidence": "Missing-media preview explanatory message and its localization need adaptation."
+    },
+    {
+      "sha": "b8d66e36ab4992fc1fa8b06154a7ff3c70b4f256",
+      "subject": "Fix first character clipping in ResizeBox text fields",
+      "status": "pending_or_partial",
+      "evidence": "Text inputs still lack horizontal inset and use word-wrap; upstream changes four ResizeBox consumers."
+    },
+    {
+      "sha": "40f13a6adee75053812036b351130d48fdfa0a94",
+      "subject": "fix(timeline): dragging a group of clips laid end to end is no longer refused",
+      "status": "equivalent_approach_present",
+      "evidence": "MoveOrigin.start is already f64; clip_dragged adds a shared f64 shift and clamps the group at -earliest. Exact upstream helper/tests are not copied; targeted behavioral validation still advisable."
+    },
+    {
+      "sha": "e6e85769e2d42a5086227fc45527f8d1f06a0348",
+      "subject": "chore(github): the bug report is a form that asks for the version, the platform and the log (#560)",
+      "status": "repository_review",
+      "evidence": "Docs, issue/PR workflow or upstream identity; preserve Clovercut branding and fork policies."
+    },
+    {
+      "sha": "25e300e07653d29deba027cfc84c0bbf9208c8fd",
+      "subject": "Fix 0.2.8 runs being reported as crashes",
+      "status": "pending_or_partial",
+      "evidence": "Previous-run parser only accepts ENDED, not the successful event-loop marker."
+    },
+    {
+      "sha": "73ef32c15d8043a771e8f85b3cfcccb2f185cf8c",
+      "subject": "docs(mcp): the tool table lists `clip_masks`, `mask_key_set` and `timeline_linkage`",
+      "status": "repository_review",
+      "evidence": "Docs, issue/PR workflow or upstream identity; preserve Clovercut branding and fork policies."
+    },
+    {
+      "sha": "577e853225befcb3652d0ebf5df6f3c97054d89d",
+      "subject": "fix(media): a number format with a decimal comma no longer refuses every fractional filter value, and a refused graph says why (#762)",
+      "status": "pending_or_partial",
+      "evidence": "No per-thread numeric-locale guard found in media ffi/samples; upstream adds real decimal-comma filter tests."
+    },
+    {
+      "sha": "ff9f7e74e2881b032031b840ddbe93cf2b510c9c",
+      "subject": "fix(captions): a speech detector that throws away sound as loud as the speech is not taken, and whisper hears the whole clip (#763)",
+      "status": "pending_or_partial",
+      "evidence": "No Doubt/energy validation of rejected VAD spans found in transcription."
+    },
+    {
+      "sha": "de9a61929601e0ad717bf643f39bda4e53c3879f",
+      "subject": "ci(terms): a pull request closed unmerged is not locked, and a near-miss confirmation gets an answer",
+      "status": "repository_review",
+      "evidence": "Docs, issue/PR workflow or upstream identity; preserve Clovercut branding and fork policies."
+    },
+    {
+      "sha": "942194dcb9e1996d768e7c4b8c92804e130da442",
+      "subject": "fix(project): opening a project never drops what this build cannot read; it is kept in the file and the person is told",
+      "status": "pending_or_partial",
+      "evidence": "Some unknown JSON fields already survive, but the new unread project preservation module, diagnostics and editor warning are absent."
+    },
+    {
+      "sha": "9d77f43b7e3f95e2aecedddc717a9af45c5d0742",
+      "subject": "fix(start): the log says once why the window draws in software, and never claims a choice nobody can know was made",
+      "status": "pending_or_partial",
+      "evidence": "Startup renderer selection explanation needs comparison/adaptation; not verified equivalent."
+    },
+    {
+      "sha": "6d4b671025e801135c6135f425835a9cd9d25562",
+      "subject": "chore(brand): the Concat cat and mark in blue, dark and light, as SVG and PNG, and the X banners",
+      "status": "repository_review",
+      "evidence": "Docs, issue/PR workflow or upstream identity; preserve Clovercut branding and fork policies."
+    },
+    {
+      "sha": "ac843caa109750573015fe13db32d772ae6712ef",
+      "subject": "fix(android): starting an export or any long job no longer freezes the window, and a freeze is written to the next log (#747)",
+      "status": "pending_or_partial",
+      "evidence": "Android UI/background-job and freeze logging changes need adaptation."
+    },
+    {
+      "sha": "8b4979180c69b4acfaab8db5b1e7452dd8d3be0f",
+      "subject": "fix(export): nothing slow happens on the window's thread when an export starts, and titles are painted at the export's size",
+      "status": "pending_or_partial",
+      "evidence": "Export already runs a worker, but title rasterization and request construction still run before it, at timeline output size. New upstream fix moves setup and paints at export dimensions."
+    },
+    {
+      "sha": "e72afe4c365fd519219f2cfbbe4d7a6f5e4f3267",
+      "subject": "fix(log): the last-run warning quotes the last real error, not the warning before it about the run before that",
+      "status": "pending_or_partial",
+      "evidence": "Previous-run error extraction can pick the previous-run warning itself; latest upstream excludes it."
+    },
+    {
+      "sha": "f22453d8fe9bc86ba374481f93ee1fb2a1692e9e",
+      "subject": "ci(android): the phone build keeps its library's symbols as an artifact, so a hang's frames can be named",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "517ac579e37e6d81eca6c368a14d3a234a14877f",
+      "subject": "fix(locales): the lines added for unread project parts and export setup, in every language",
+      "status": "dependent_localization",
+      "evidence": "Translate/adapt after unread-project and export-setup changes; do not overwrite fork locale keys."
+    },
+    {
+      "sha": "020d8caddb8219c77a0bab809c73bc5ca7351509",
+      "subject": "ci: Bump the actions group across 1 directory with 3 updates (#728)",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "6f04670d5c1b52446f574a3b1230a36e9184f16c",
+      "subject": "ci(android): the phone build has room for its peak memory again",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "3a10dc47e63b704387de7f8ec597c347cbd545c2",
+      "subject": "ci(android): only the phone build that ships is compiled with line tables",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "552517cbe5e3ab5831512e58122ecf0b7f146219",
+      "subject": "fix(export): Android's encoder is no longer asked for its headers up front, which left it taking frames and never giving one back (#747, #786)",
+      "status": "pending_or_partial",
+      "evidence": "Android codec-header deferral fix needs adaptation; no physical Android validation claimed."
+    },
+    {
+      "sha": "76585480cd926c052acf5b6b305a3aa140f4171a",
+      "subject": "ci: the phones' smoke run exports, with keys pressed all through it, and a desktop can be told to export at launch",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "218247fcdf880d6818ba88bed053512be244b7a8",
+      "subject": "ci(android): the phone build links without line tables, which starved its runner off on both targets",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "9d26aac86cefa31c4fc0cf099da68e4cc9b8f433",
+      "subject": "ci: the Windows, Linux and macOS smoke runs export a project too",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    },
+    {
+      "sha": "a7cda105c55cf4a5413dd747e16b0980ff2555c1",
+      "subject": "ci: the desktop bundles can be built and started by hand, without a release",
+      "status": "ci_review",
+      "evidence": "Review against fork CI. Manual desktop package build already exists; export smoke coverage and Android memory/symbol handling require individual review."
+    }
+  ]
+}

@@ -21,8 +21,10 @@
 
 pub mod awake;
 pub mod brush;
+pub mod capcut;
 pub mod cards;
 pub mod clipboard;
+pub mod colour;
 pub mod consolidate;
 pub mod crash;
 pub mod cutout;
