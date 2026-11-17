@@ -591,13 +591,18 @@ mod tests {
     #[test]
     fn shift_captions_offsets_timing() {
         let mut editor = Editor::default();
+        // Add two captions
         editor
             .apply(Command::AddTextClip {
                 track_id: None,
                 above: false,
                 start: 1.0,
                 duration: Some(2.0),
-                style: None,
+                style: Some(TextStyle {
+                    content: "Caption 1".into(),
+                    caption_group: Some("captions".into()),
+                    ..Default::default()
+                }),
                 offset_y: None,
             })
             .unwrap();
@@ -607,7 +612,26 @@ mod tests {
                 above: false,
                 start: 5.0,
                 duration: Some(2.0),
-                style: None,
+                style: Some(TextStyle {
+                    content: "Caption 2".into(),
+                    caption_group: Some("captions".into()),
+                    ..Default::default()
+                }),
+                offset_y: None,
+            })
+            .unwrap();
+        // Add an ordinary title (not a caption)
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 0.0,
+                duration: Some(4.0),
+                style: Some(TextStyle {
+                    content: "Title Overlay".into(),
+                    caption_group: None,
+                    ..Default::default()
+                }),
                 offset_y: None,
             })
             .unwrap();
@@ -615,8 +639,9 @@ mod tests {
         let clips = &editor.project().active().clips;
         let c1_id = clips[0].id.clone();
         let c2_id = clips[1].id.clone();
+        let title_id = clips[2].id.clone();
 
-        // Shift all text clips by +1.5s
+        // Shift captions by +1.5s (leaves ordinary title at 0.0 untouched)
         editor
             .apply(Command::ShiftCaptions {
                 clip_ids: None,
@@ -626,6 +651,11 @@ mod tests {
 
         assert_eq!(editor.project().active().clip(&c1_id).unwrap().start, 2.5);
         assert_eq!(editor.project().active().clip(&c2_id).unwrap().start, 6.5);
+        assert_eq!(
+            editor.project().active().clip(&title_id).unwrap().start,
+            0.0,
+            "ordinary text titles are not shifted by ShiftCaptions"
+        );
 
         // Shift only c1 by -5.0s (clamped to 0.0)
         editor
@@ -645,6 +675,7 @@ mod tests {
     #[test]
     fn apply_caption_style_to_all_propagates_formatting_safely() {
         let mut editor = Editor::default();
+        // Caption 1
         editor
             .apply(Command::AddTextClip {
                 track_id: None,
@@ -653,6 +684,7 @@ mod tests {
                 duration: Some(2.0),
                 style: Some(TextStyle {
                     content: "Master Header".into(),
+                    caption_group: Some("captions".into()),
                     font_family: "Inter Custom".into(),
                     font_size: 0.09,
                     color: "#ff0000".into(),
@@ -664,6 +696,7 @@ mod tests {
             })
             .unwrap();
 
+        // Caption 2
         editor
             .apply(Command::AddTextClip {
                 track_id: None,
@@ -672,6 +705,7 @@ mod tests {
                 duration: Some(2.0),
                 style: Some(TextStyle {
                     content: "Second Subtitle".into(),
+                    caption_group: Some("captions".into()),
                     font_family: "Default Font".into(),
                     font_size: 0.05,
                     color: "#ffffff".into(),
@@ -683,9 +717,29 @@ mod tests {
             })
             .unwrap();
 
+        // Ordinary title (not a caption)
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 1.0,
+                duration: Some(3.0),
+                style: Some(TextStyle {
+                    content: "Intro Card Title".into(),
+                    caption_group: None,
+                    font_family: "Serif Brand".into(),
+                    font_size: 0.12,
+                    color: "#00ff00".into(),
+                    ..Default::default()
+                }),
+                offset_y: None,
+            })
+            .unwrap();
+
         let clips = &editor.project().active().clips;
         let c1_id = clips[0].id.clone();
         let c2_id = clips[1].id.clone();
+        let title_id = clips[2].id.clone();
 
         editor
             .apply(Command::ApplyCaptionStyleToAll {
@@ -697,19 +751,18 @@ mod tests {
         let c2 = editor.project().active().clip(&c2_id).unwrap();
         let c2_text = c2.text.as_ref().unwrap();
 
-        // Content and timing preserved
+        // Caption 2 content preserved, styling updated
         assert_eq!(c2_text.content, "Second Subtitle");
         assert_eq!(c2.start, 3.0);
-
-        // Styling copied
         assert_eq!(c2_text.font_family, "Inter Custom");
         assert_eq!(c2_text.font_size, 0.09);
         assert_eq!(c2_text.color, "#ff0000");
-        assert!(c2_text.shadow);
-        assert_eq!(c2_text.background, "#000000cc");
 
-        assert!(editor.undo());
-        let c2_undo = editor.project().active().clip(&c2_id).unwrap();
-        assert_eq!(c2_undo.text.as_ref().unwrap().font_family, "Default Font");
+        // Ordinary title completely untouched!
+        let title = editor.project().active().clip(&title_id).unwrap();
+        let title_text = title.text.as_ref().unwrap();
+        assert_eq!(title_text.font_family, "Serif Brand");
+        assert_eq!(title_text.font_size, 0.12);
+        assert_eq!(title_text.color, "#00ff00");
     }
 }

@@ -684,12 +684,21 @@ pub(super) fn apply(
                 return Ok(Outcome::default());
             }
             let timeline = project.active_mut();
+            let caption_track_ids: std::collections::HashSet<String> = timeline
+                .tracks
+                .iter()
+                .filter(|t| t.kind == TrackKind::Captions)
+                .map(|t| t.id.clone())
+                .collect();
+
             let mut changed = 0usize;
             for clip in &mut timeline.clips {
                 if clip.kind == ClipKind::Text {
+                    let is_target_caption = crate::captions::is_caption(clip)
+                        || caption_track_ids.contains(&clip.track_id);
                     let should_shift = match &clip_ids {
                         Some(ids) => ids.contains(&clip.id),
-                        None => true,
+                        None => is_target_caption,
                     };
                     if should_shift {
                         let new_start = (clip.start + delta).max(0.0);
@@ -711,21 +720,53 @@ pub(super) fn apply(
             source_clip_id,
             target_clip_ids,
         } => {
-            let timeline = project.active();
-            let Some(source_clip) = timeline.clip(&source_clip_id) else {
-                return Ok(Outcome::default());
+            let (template_style, source_is_caption, source_group) = {
+                let timeline = project.active();
+                let Some(source_clip) = timeline.clip(&source_clip_id) else {
+                    return Ok(Outcome::default());
+                };
+                let Some(source_style) = &source_clip.text else {
+                    return Ok(Outcome::default());
+                };
+                let is_caption = crate::captions::is_caption(source_clip)
+                    || timeline
+                        .track(&source_clip.track_id)
+                        .is_some_and(|t| t.kind == TrackKind::Captions);
+                (
+                    source_style.clone(),
+                    is_caption,
+                    source_style.caption_group.clone(),
+                )
             };
-            let Some(source_style) = &source_clip.text else {
-                return Ok(Outcome::default());
-            };
-            let template_style = source_style.clone();
+
             let timeline_mut = project.active_mut();
+            let caption_track_ids: std::collections::HashSet<String> = timeline_mut
+                .tracks
+                .iter()
+                .filter(|t| t.kind == TrackKind::Captions)
+                .map(|t| t.id.clone())
+                .collect();
+
             let mut changed = 0usize;
             for clip in &mut timeline_mut.clips {
                 if clip.kind == ClipKind::Text && clip.id != source_clip_id {
+                    let target_is_caption = crate::captions::is_caption(clip)
+                        || caption_track_ids.contains(&clip.track_id);
                     let should_apply = match &target_clip_ids {
                         Some(ids) => ids.contains(&clip.id),
-                        None => true,
+                        None => {
+                            if source_is_caption {
+                                target_is_caption
+                                    && (source_group.is_none()
+                                        || clip
+                                            .text
+                                            .as_ref()
+                                            .and_then(|t| t.caption_group.as_deref())
+                                            == source_group.as_deref())
+                            } else {
+                                !target_is_caption
+                            }
+                        }
                     };
                     if should_apply {
                         let clip_mut = Arc::make_mut(clip);
