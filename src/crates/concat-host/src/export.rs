@@ -69,8 +69,29 @@ pub fn request_range(
     titles: Vec<ExportClip>,
     time_range: Option<[f64; 2]>,
 ) -> ExportRequest {
-    let settings = session.settings();
-    let mut clips = session.flattened_clips();
+    request_for(
+        session.project(),
+        std::path::Path::new(session.path()),
+        session.video(),
+        session.settings(),
+        spec,
+        titles,
+        time_range,
+    )
+}
+
+/// Flattens a snapshot copy of the project and its folder rather than requiring
+/// an open session on the UI thread.
+pub fn request_for(
+    project: &concat_project::model::Project,
+    project_dir: &std::path::Path,
+    video: concat_project::model::VideoSettings,
+    settings: concat_project::DocumentSettings,
+    spec: &ExportSpec,
+    titles: Vec<ExportClip>,
+    time_range: Option<[f64; 2]>,
+) -> ExportRequest {
+    let mut clips = concat_export::flatten::flatten_timeline_in(project, None, Some(project_dir));
     clips.extend(titles);
     let mut offset = 0.0;
     if let Some([start, end]) = time_range {
@@ -107,10 +128,10 @@ pub fn request_range(
         rate_mode: spec.rate_mode,
         bitrate_kbps: spec.bitrate_kbps,
         color_range: spec.color_range,
-        color_space: session.video().color_space,
+        color_space: video.color_space,
         hdr: spec.hdr,
         effect_time_offset: offset,
-        canvas: session.video().canvas,
+        canvas: video.canvas,
         clips,
     }
 }

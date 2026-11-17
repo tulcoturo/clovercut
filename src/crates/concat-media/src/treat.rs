@@ -121,6 +121,7 @@ fn run(frame: &Frame, spec: &str) -> Result<Frame> {
 
 /// The graph for `spec` over RGBA pictures `width` by `height`.
 fn build(spec: &str, width: u32, height: u32) -> Result<filter::Graph> {
+    ffi::begin();
     // The graph has no file behind it; errors name the layer instead.
     let path = Path::new("layer");
     let mut graph = filter::Graph::new();

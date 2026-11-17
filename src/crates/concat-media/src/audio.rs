@@ -964,6 +964,7 @@ fn run_mix(
     // sources are described by what actually comes out of the decoders.
     let mut inputs: Vec<MixInput> = Vec::with_capacity(members.len());
     let mut first_frames: Vec<Audio> = Vec::with_capacity(members.len());
+    ffi::begin();
     let mut graph = filter::Graph::new();
     for (index, clip) in members.iter().enumerate() {
         if cancel.is_some_and(|flag| flag.load(Ordering::Relaxed)) {

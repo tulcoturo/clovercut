@@ -23,6 +23,28 @@ fn covers(a_start: f64, a_end: f64, b_start: f64, b_end: f64) -> bool {
     a_start < b_end - TOUCH && b_start < a_end - TOUCH
 }
 
+/// Where a dragged group begins once it has moved by `shift` seconds: every
+/// start moves by the one shift, and the group stops at zero as a whole, so
+/// it keeps its shape instead of piling its early clips on the edge.
+///
+/// `starts` and the sum are f64 on purpose. The shift comes from the pointer
+/// in f32, and rounding each start to f32 before adding it moves clips that
+/// butt by up to ~1e-5 s late in a long timeline - more than [`TOUCH`] - so a
+/// run laid end to end would look as if it covered itself and the drop would
+/// be refused. Adding one shift to exact starts keeps the spacing exact.
+pub fn shifted_starts(starts: &[f64], shift: f64) -> Vec<f64> {
+    let earliest = starts.iter().copied().fold(f64::INFINITY, f64::min);
+    let shift = if earliest.is_finite() {
+        shift.max(-earliest)
+    } else {
+        shift
+    };
+    starts
+        .iter()
+        .map(|start| (start + shift).max(0.0))
+        .collect()
+}
+
 impl Timeline {
     /// Whether `[start, start + duration)` on `track_id` is clear of every
     /// clip but the ones in `ignore`.
@@ -340,5 +362,15 @@ mod library_drop_tests {
         assert_eq!(timeline.audio_effect_drop_target("v", 2.0).unwrap().id, "b");
         assert!(timeline.audio_effect_drop_target("v", 4.0).is_none());
         assert!(timeline.audio_effect_drop_target("s", 1.0).is_none());
+    }
+
+    #[test]
+    fn a_dragged_group_stops_at_zero_as_a_whole() {
+        // Pulled left past the start, the early clip would stop at zero and
+        // the rest would go on: the group keeps its shape instead.
+        assert_eq!(shifted_starts(&[3.0, 13.0, 23.0], -5.0), [0.0, 10.0, 20.0]);
+        assert_eq!(shifted_starts(&[3.0, 13.0], -1.0), [2.0, 12.0]);
+        assert_eq!(shifted_starts(&[3.0, 13.0], 4.0), [7.0, 17.0]);
+        assert!(shifted_starts(&[], 4.0).is_empty());
     }
 }

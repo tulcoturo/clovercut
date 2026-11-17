@@ -140,6 +140,83 @@ pub fn linked_version() -> String {
         .into_owned()
 }
 
+/// `struct lconv` as far as its first field, which is all that is read of
+/// it. The `libc` crate has no `localeconv` for Windows; the UCRT exports
+/// it, and the field order is the C standard's everywhere.
+#[cfg(windows)]
+#[repr(C)]
+struct Lconv {
+    decimal_point: *mut c_char,
+}
+
+#[cfg(windows)]
+unsafe extern "C" {
+    fn localeconv() -> *mut Lconv;
+}
+
+#[cfg(unix)]
+use libc::localeconv;
+
+/// Puts the C runtime's number format back to C's when something loaded
+/// into the process has switched it, and says whether it had to.
+///
+/// FFmpeg reads every fractional value in a filter graph or an option -
+/// `atempo=1.500000`, `volume=0.5` - with the C runtime's `strtod`, which
+/// reads the decimal point the current `LC_NUMERIC` names. Under one that
+/// writes decimals with a comma, every such value is refused and the graph
+/// fails with "Invalid argument": a clip at any speed but 1x decoded to
+/// nothing (#762). Clovercut never sets the locale itself; this undoes it
+/// whoever did.
+pub(crate) fn keep_c_numbers() -> bool {
+    #[cfg(any(unix, windows))]
+    {
+        // SAFETY: `localeconv` returns the C runtime's own struct, valid
+        // until the next locale call; the point is copied out at once and
+        // the struct not touched again.
+        let point = unsafe {
+            let conv = localeconv();
+            if conv.is_null() || (*conv).decimal_point.is_null() {
+                return false;
+            }
+            CStr::from_ptr((*conv).decimal_point).to_bytes().to_vec()
+        };
+        if point == b"." {
+            return false;
+        }
+        let found = String::from_utf8_lossy(&point).into_owned();
+        // SAFETY: a constant, NUL-terminated locale name for one category.
+        let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c"C".as_ptr()) };
+        if set.is_null() {
+            log::warn!(
+                target: "ffmpeg",
+                "this process's number format had been switched to {found:?} for decimals by \
+                 something loaded into the process, and could not be set back: FFmpeg will refuse \
+                 every fractional value"
+            );
+        } else {
+            log::warn!(
+                target: "ffmpeg",
+                "this process's number format had been switched to {found:?} for decimals by \
+                 something loaded into the process; set back, since FFmpeg would refuse every \
+                 fractional value"
+            );
+        }
+        true
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        false
+    }
+}
+
+/// The start of an operation in which FFmpeg reads text - a filter graph
+/// built and configured, a codec opened with its options. Numbers are
+/// made to read as FFmpeg expects first ([`keep_c_numbers`]).
+pub(crate) fn begin() {
+    init();
+    keep_c_numbers();
+}
+
 /// Wraps a libav error with the operation and the file it happened to.
 pub(crate) fn fail(operation: &'static str, path: &Path, error: ffmpeg::Error) -> Error {
     Error::Ffi {

@@ -6511,9 +6511,12 @@ impl Studio {
 
                 let rows = target.row - anchor.row;
                 let count = self.timeline().tracks.len() as i32;
+                let starts: Vec<f64> = origins.iter().map(|origin| origin.start).collect();
+                let landed_at = concat_project::placement::shifted_starts(&starts, shift);
                 let moves: Vec<ClipMove> = origins
                     .iter()
-                    .filter_map(|origin| {
+                    .zip(landed_at)
+                    .filter_map(|(origin, landed_start)| {
                         let row = (origin.row + rows).clamp(0, count - 1);
                         let clip = self.clip(&origin.clip)?;
                         let is_caption = concat_project::captions::is_caption(clip);
@@ -6534,7 +6537,7 @@ impl Studio {
                         };
                         Some(ClipMove {
                             clip_id: origin.clip.clone(),
-                            start: (origin.start + shift).max(0.0),
+                            start: landed_start,
                             track_id,
                         })
                     })

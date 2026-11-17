@@ -541,17 +541,16 @@ impl ExportPane {
             color_range: ColorRange::Limited,
             hdr: self.hdr(studio),
         };
-        let (frame_w, frame_h) = studio.output_size();
+        let (width, height) = self.size(studio);
+        let (num, den) = self.rate(studio);
         let titles = studio
             .host
             .titles
-            .clips(session.project(), frame_w, frame_h)
+            .clips(session.project(), width, height)
             .into_iter()
             .map(|title| title.clip)
             .collect();
         let mut request = export::request(session, &spec, titles);
-        let (width, height) = self.size(studio);
-        let (num, den) = self.rate(studio);
         request.width = width;
         request.height = height;
         request.rate_num = num;
