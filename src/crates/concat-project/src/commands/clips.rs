@@ -16,7 +16,9 @@ pub(super) fn apply(
     locked: &[String],
 ) -> Result<Outcome, CommandError> {
     let target = match &command {
-        Command::TrimClip { clip_id, .. } | Command::FreezeFrame { clip_id, .. } => project
+        Command::TrimClip { clip_id, .. }
+        | Command::FreezeFrame { clip_id, .. }
+        | Command::SlipClip { clip_id, .. } => project
             .active()
             .clip(clip_id)
             .map(|clip| clip.track_id.as_str()),
@@ -493,6 +495,63 @@ pub(super) fn apply(
             Ok(Outcome {
                 created_id: None,
                 applied,
+            })
+        }
+
+        Command::SlipClip { clip_id, delta } => {
+            if delta.abs() < 1e-6 {
+                return Ok(Outcome::default());
+            }
+            let timeline = project.active();
+            let Some(clip) = timeline.clip(&clip_id) else {
+                return Ok(Outcome::default());
+            };
+            if clip.media_id.is_empty() {
+                return Ok(Outcome::default());
+            }
+            let max_duration = project
+                .media
+                .iter()
+                .find(|m| m.id == clip.media_id)
+                .and_then(|m| m.duration);
+
+            let old_source = clip.source_start;
+            let mut new_source = (old_source + delta).max(0.0);
+            if let Some(dur) = max_duration {
+                let required = clip.duration * clip.speed;
+                if new_source + required > dur {
+                    new_source = (dur - required).max(0.0);
+                }
+            }
+            let actual_delta = new_source - old_source;
+            if actual_delta.abs() < 1e-6 {
+                return Ok(Outcome::default());
+            }
+
+            // Keep any detached audio or video partner in sync
+            let detached_partner = if let Some(parent_id) = &clip.detached_from {
+                Some(parent_id.clone())
+            } else {
+                timeline
+                    .clips
+                    .iter()
+                    .find(|c| c.detached_from.as_deref() == Some(&clip_id))
+                    .map(|c| c.id.clone())
+            };
+
+            let timeline_mut = project.active_mut();
+            if let Some(clip_mut) = timeline_mut.clip_mut(&clip_id) {
+                clip_mut.source_start = new_source;
+            }
+            if let Some(partner_id) = detached_partner
+                && let Some(partner_mut) = timeline_mut.clip_mut(&partner_id)
+            {
+                partner_mut.source_start = (partner_mut.source_start + actual_delta).max(0.0);
+            }
+
+            Ok(Outcome {
+                created_id: None,
+                applied: true,
             })
         }
 

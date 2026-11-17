@@ -678,6 +678,16 @@ pub enum Command {
         #[serde(default)]
         ripple: bool,
     },
+    /// Slips the source media window inside `clip_id` by `delta` seconds without
+    /// moving its timeline position (`start`) or altering its timeline `duration`.
+    /// Clamps `source_start` within `[0.0, media_duration - clip.duration * clip.speed]`.
+    /// Also keeps linked detached audio in sync.
+    SlipClip {
+        /// The clip to slip.
+        clip_id: String,
+        /// Signed seconds of source to shift the window by: positive moves later in the source media.
+        delta: f64,
+    },
     /// Cuts each named clip in two at one playhead time. The head keeps the
     /// id and the transition; the tail is minted fresh and stays
     /// source-continuous. A clip the time misses (or grazes within the
@@ -1307,7 +1317,7 @@ impl Command {
                 .as_ref()
                 .is_some_and(|stabilize| bad([stabilize.smoothness, stabilize.max_zoom])),
             Command::MoveClips { moves } => bad(moves.iter().map(|wanted| wanted.start)),
-            Command::TrimClip { delta, .. } => bad([*delta]),
+            Command::TrimClip { delta, .. } | Command::SlipClip { delta, .. } => bad([*delta]),
             Command::SplitClips { time, .. } | Command::SplitTextClip { time, .. } => bad([*time]),
             Command::BatchReplaceCaptions { .. } | Command::ApplyCaptionStyleToAll { .. } => false,
             Command::ShiftCaptions { delta, .. } => bad([*delta]),
@@ -1502,6 +1512,7 @@ pub fn apply_with_locks(
         | Command::AddLayerClip { .. }
         | Command::MoveClips { .. }
         | Command::TrimClip { .. }
+        | Command::SlipClip { .. }
         | Command::SplitClips { .. }
         | Command::SplitTextClip { .. }
         | Command::BatchReplaceCaptions { .. }

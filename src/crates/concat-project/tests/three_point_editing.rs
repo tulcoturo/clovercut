@@ -218,3 +218,72 @@ fn overwrite_mode_replaces_entire_covered_clip() {
     assert_eq!(editor.project().active().clips[0].start, 3.0);
     assert_eq!(editor.project().active().clips[0].duration, 2.0);
 }
+
+#[test]
+fn slip_clip_shifts_source_window_preserving_timeline_placement() {
+    let (mut editor, track_id, media_id) = setup_studio();
+
+    let clip_id = editor
+        .apply(Command::PlaceMediaRange {
+            media_id: media_id.clone(),
+            track_id,
+            start: 2.0,
+            source_start: Some(3.0),
+            duration: Some(5.0),
+            overwrite: false,
+        })
+        .unwrap()
+        .created_id
+        .unwrap();
+
+    // Slip forward by +4.0s
+    editor
+        .apply(Command::SlipClip {
+            clip_id: clip_id.clone(),
+            delta: 4.0,
+        })
+        .unwrap();
+
+    let clip = editor.project().active().clip(&clip_id).unwrap();
+    assert_eq!(clip.start, 2.0, "timeline start must not move");
+    assert_eq!(clip.duration, 5.0, "timeline duration must not change");
+    assert_eq!(clip.source_start, 7.0, "source start slips forward");
+
+    // Slip forward beyond media duration (total media is 20s, clip length 5s, max source start is 15s)
+    editor
+        .apply(Command::SlipClip {
+            clip_id: clip_id.clone(),
+            delta: 50.0,
+        })
+        .unwrap();
+
+    let clip = editor.project().active().clip(&clip_id).unwrap();
+    assert_eq!(
+        clip.source_start, 15.0,
+        "source start clamped to media limit"
+    );
+    assert_eq!(clip.start, 2.0);
+
+    // Slip backward below zero
+    editor
+        .apply(Command::SlipClip {
+            clip_id: clip_id.clone(),
+            delta: -100.0,
+        })
+        .unwrap();
+
+    let clip = editor.project().active().clip(&clip_id).unwrap();
+    assert_eq!(clip.source_start, 0.0, "source start clamped to zero");
+
+    // Undo restores previous position
+    assert!(editor.undo());
+    assert_eq!(
+        editor
+            .project()
+            .active()
+            .clip(&clip_id)
+            .unwrap()
+            .source_start,
+        15.0
+    );
+}
