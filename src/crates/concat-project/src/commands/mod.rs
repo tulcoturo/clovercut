@@ -726,10 +726,30 @@ pub enum Command {
     /// Rejoins split pieces into the earliest piece, which keeps its id.
     /// Errs with a user-facing sentence ([`why_not_merge`]) unless the
     /// pieces sit on one track, come from one file at one speed, touch
-    /// within a microsecond, and are still in source order.
+    /// within a microsecond, and are still in source order. For text/captions,
+    /// combines contents and spans continuously.
     MergeClips {
         /// The pieces to rejoin, any order.
         clip_ids: Vec<String>,
+    },
+    /// Splits a text or caption clip into head and tail at `time`, optionally
+    /// splitting the text content at character boundary `cursor_char_index`.
+    SplitTextClip {
+        /// The text clip to split.
+        clip_id: String,
+        /// Timeline time to split at.
+        time: f64,
+        /// Character offset within text to split the content at. None keeps text unchanged.
+        cursor_char_index: Option<usize>,
+    },
+    /// Searches and replaces text across all captions and titles in the active timeline.
+    BatchReplaceCaptions {
+        /// Text to find.
+        search: String,
+        /// Replacement text.
+        replacement: String,
+        /// Whether the match is case-sensitive.
+        match_case: bool,
     },
     /// Replaces selected video clips with their host-rendered media, as one
     /// undoable edit. Keeps the earliest clip's id, track and timeline span;
@@ -1243,7 +1263,8 @@ impl Command {
                 .is_some_and(|stabilize| bad([stabilize.smoothness, stabilize.max_zoom])),
             Command::MoveClips { moves } => bad(moves.iter().map(|wanted| wanted.start)),
             Command::TrimClip { delta, .. } => bad([*delta]),
-            Command::SplitClips { time, .. } => bad([*time]),
+            Command::SplitClips { time, .. } | Command::SplitTextClip { time, .. } => bad([*time]),
+            Command::BatchReplaceCaptions { .. } => false,
             Command::FreezeFrame { time, duration, .. } => bad([*time]) || bad(*duration),
             Command::ReplaceClipMedia {
                 item,
@@ -1435,6 +1456,8 @@ pub fn apply_with_locks(
         | Command::MoveClips { .. }
         | Command::TrimClip { .. }
         | Command::SplitClips { .. }
+        | Command::SplitTextClip { .. }
+        | Command::BatchReplaceCaptions { .. }
         | Command::FreezeFrame { .. }
         | Command::ReplaceClipMedia { .. }
         | Command::SetClipEnhanced { .. }

@@ -17,6 +17,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use concat_project::{DocumentSettings, from_document, to_document};
 use serde::{Deserialize, Serialize};
 
 const MANIFEST: &str = "concat.json";
@@ -553,6 +554,107 @@ pub fn read_document(path: &str) -> Result<Option<serde_json::Value>, String> {
     serde_json::from_slice(&bytes)
         .map(Some)
         .map_err(|error| format!("{} is not a Clovercut project: {error}", manifest.display()))
+}
+
+/// Bundles an existing project folder and all referenced media into a self-contained portable directory.
+///
+/// Copies external media items and fonts into `<target_dir>/assets/`, rewrites
+/// their paths to be relative (`assets/...`), and writes a self-contained manifest `concat.json`.
+pub fn bundle_project(
+    source_project_dir: &Path,
+    target_dir: &Path,
+    new_name: Option<&str>,
+) -> Result<(), String> {
+    let manifest_file = manifest_path(source_project_dir);
+    if !manifest_file.is_file() {
+        return Err(format!(
+            "No project manifest found in {}",
+            source_project_dir.display()
+        ));
+    }
+    let data = std::fs::read(&manifest_file)
+        .map_err(|e| format!("Could not read project manifest: {e}"))?;
+    let doc: serde_json::Value =
+        serde_json::from_slice(&data).map_err(|e| format!("Could not parse manifest JSON: {e}"))?;
+
+    let mut project =
+        from_document(&doc).ok_or_else(|| "Could not decode project document".to_string())?;
+
+    let assets_dir = target_dir.join("assets");
+    std::fs::create_dir_all(&assets_dir).map_err(|e| {
+        format!(
+            "Could not create assets directory {}: {e}",
+            assets_dir.display()
+        )
+    })?;
+
+    // Copy media files and make relative
+    for item in &mut project.media {
+        if item.placeholder || item.path.trim().is_empty() {
+            continue;
+        }
+        let src_path = if Path::new(&item.path).is_relative() {
+            source_project_dir.join(&item.path)
+        } else {
+            PathBuf::from(&item.path)
+        };
+        if !src_path.is_file() {
+            return Err(format!(
+                "Media file '{}' ({}) not found on disk at {}",
+                item.name,
+                item.id,
+                src_path.display()
+            ));
+        }
+        let file_stem = src_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("media");
+        let dest_filename = format!("{}-{}", item.id, file_stem);
+        let dest_path = assets_dir.join(&dest_filename);
+        std::fs::copy(&src_path, &dest_path).map_err(|e| {
+            format!(
+                "Failed to copy {} to {}: {e}",
+                src_path.display(),
+                dest_path.display()
+            )
+        })?;
+        item.path = format!("assets/{dest_filename}");
+    }
+
+    // Copy fonts and make relative
+    for (idx, font) in project.fonts.iter_mut().enumerate() {
+        if font.path.trim().is_empty() {
+            continue;
+        }
+        let src_path = if Path::new(&font.path).is_relative() {
+            source_project_dir.join(&font.path)
+        } else {
+            PathBuf::from(&font.path)
+        };
+        if src_path.is_file() {
+            let file_stem = src_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("font.ttf");
+            let dest_filename = format!("font{idx}-{file_stem}");
+            let dest_path = assets_dir.join(&dest_filename);
+            let _ = std::fs::copy(&src_path, &dest_path);
+            font.path = format!("assets/{dest_filename}");
+        }
+    }
+
+    let mut settings = DocumentSettings::from_document(&doc);
+    if let Some(name) = new_name {
+        settings.name = name.to_owned();
+    }
+    let new_doc = to_document(&settings, &project);
+    let encoded = serde_json::to_vec_pretty(&new_doc)
+        .map_err(|e| format!("Could not encode bundled project: {e}"))?;
+    std::fs::write(target_dir.join(MANIFEST), encoded)
+        .map_err(|e| format!("Could not write bundled manifest: {e}"))?;
+
+    Ok(())
 }
 
 /// Reads an existing project's settings.
@@ -1326,5 +1428,52 @@ mod durability_tests {
             Saved::Written
         );
         sync_directory(scratch.path()).unwrap();
+    }
+
+    #[test]
+    fn bundle_project_packs_media_and_rewrites_paths() {
+        let temp = tempfile::tempdir().unwrap();
+        let src_dir = temp.path().join("src_project");
+        let dest_dir = temp.path().join("bundled_project");
+        std::fs::create_dir_all(&src_dir).unwrap();
+
+        // Create a dummy media file
+        let media_file = temp.path().join("video1.mp4");
+        std::fs::write(&media_file, b"fake video bytes").unwrap();
+
+        let mut project = concat_project::model::Project::new();
+        project.media.push(concat_project::model::MediaItem {
+            id: "m1".into(),
+            path: media_file.to_string_lossy().into_owned(),
+            name: "video1.mp4".into(),
+            kind: concat_project::model::MediaKind::Video,
+            duration: Some(5.0),
+            ..Default::default()
+        });
+        let settings = DocumentSettings {
+            name: "Original Name".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+            canvas: [0, 0, 0, 255],
+        };
+        let doc = to_document(&settings, &project);
+        std::fs::write(src_dir.join(MANIFEST), serde_json::to_vec(&doc).unwrap()).unwrap();
+
+        // Bundle into dest_dir with new name
+        bundle_project(&src_dir, &dest_dir, Some("Bundled Name")).unwrap();
+
+        assert!(dest_dir.join(MANIFEST).is_file());
+        assert!(dest_dir.join("assets/m1-video1.mp4").is_file());
+        assert_eq!(
+            std::fs::read(dest_dir.join("assets/m1-video1.mp4")).unwrap(),
+            b"fake video bytes"
+        );
+
+        let bundled_doc = read_document(dest_dir.to_str().unwrap()).unwrap().unwrap();
+        assert_eq!(bundled_doc["name"], "Bundled Name");
+        let bundled_proj = from_document(&bundled_doc).unwrap();
+        assert_eq!(bundled_proj.media[0].path, "assets/m1-video1.mp4");
     }
 }

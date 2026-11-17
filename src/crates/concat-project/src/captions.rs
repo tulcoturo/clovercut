@@ -327,4 +327,264 @@ mod tests {
                 .contains_key("captionGroup")
         );
     }
+
+    #[test]
+    fn text_clips_can_be_merged_combining_content() {
+        let mut project = Project::new();
+        let mut clip1 = Clip::blank("c1", "T1", ClipKind::Text, "Hello", 0.0, 2.0);
+        clip1.text = Some(TextStyle {
+            content: "Hello".into(),
+            ..Default::default()
+        });
+        let mut clip2 = Clip::blank("c2", "T1", ClipKind::Text, "World", 2.0, 3.0);
+        clip2.text = Some(TextStyle {
+            content: "World".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(clip1.into());
+        project.active_mut().clips.push(clip2.into());
+
+        let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
+            name: "Text Merge".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+        };
+        let mut editor = Editor::from_document(&to_document(&settings, &project)).unwrap();
+
+        let outcome = editor
+            .apply(Command::MergeClips {
+                clip_ids: vec!["c1".into(), "c2".into()],
+            })
+            .unwrap();
+        assert!(outcome.applied);
+        assert_eq!(editor.project().active().clips.len(), 1);
+
+        let merged = &editor.project().active().clips[0];
+        assert_eq!(merged.id, "c1");
+        assert_eq!(merged.start, 0.0);
+        assert_eq!(merged.duration, 5.0);
+        assert_eq!(merged.text.as_ref().unwrap().content, "Hello World");
+
+        assert!(editor.undo());
+        assert_eq!(editor.project().active().clips.len(), 2);
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c1")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Hello"
+        );
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c2")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "World"
+        );
+
+        assert!(editor.redo());
+        assert_eq!(editor.project().active().clips.len(), 1);
+        assert_eq!(
+            editor.project().active().clips[0]
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Hello World"
+        );
+    }
+
+    #[test]
+    fn text_clip_can_be_split_at_cursor_index() {
+        let mut project = Project::new();
+        let mut clip = Clip::blank("c1", "T1", ClipKind::Text, "Hello World", 0.0, 4.0);
+        clip.text = Some(TextStyle {
+            content: "Hello World".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(clip.into());
+
+        let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
+            name: "Text Split".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+        };
+        let mut editor = Editor::from_document(&to_document(&settings, &project)).unwrap();
+
+        // Split at timeline time 2.0 with cursor between "Hello" and "World" (char 5)
+        let outcome = editor
+            .apply(Command::SplitTextClip {
+                clip_id: "c1".into(),
+                time: 2.0,
+                cursor_char_index: Some(5),
+            })
+            .unwrap();
+        assert!(outcome.applied);
+        assert_eq!(editor.project().active().clips.len(), 2);
+
+        let head = editor.project().active().clip("c1").unwrap();
+        assert_eq!(head.start, 0.0);
+        assert_eq!(head.duration, 2.0);
+        assert_eq!(head.text.as_ref().unwrap().content, "Hello");
+
+        let tail_id = outcome.created_id.unwrap();
+        let tail = editor.project().active().clip(&tail_id).unwrap();
+        assert_eq!(tail.start, 2.0);
+        assert_eq!(tail.duration, 2.0);
+        assert_eq!(tail.text.as_ref().unwrap().content, "World");
+
+        assert!(editor.undo());
+        assert_eq!(editor.project().active().clips.len(), 1);
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c1")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Hello World"
+        );
+
+        assert!(editor.redo());
+        assert_eq!(editor.project().active().clips.len(), 2);
+    }
+
+    #[test]
+    fn batch_replace_captions_across_timeline() {
+        let mut project = Project::new();
+        let mut clip1 = Clip::blank("c1", "T1", ClipKind::Text, "Apple Pie", 0.0, 2.0);
+        clip1.text = Some(TextStyle {
+            content: "I like apple pie".into(),
+            ..Default::default()
+        });
+        let mut clip2 = Clip::blank("c2", "T1", ClipKind::Text, "Apple Cider", 2.0, 2.0);
+        clip2.text = Some(TextStyle {
+            content: "Warm APPLE cider is great".into(),
+            ..Default::default()
+        });
+        let mut clip3 = Clip::blank("c3", "T1", ClipKind::Text, "Orange Juice", 4.0, 2.0);
+        clip3.text = Some(TextStyle {
+            content: "Orange juice only".into(),
+            ..Default::default()
+        });
+        project.active_mut().clips.push(clip1.into());
+        project.active_mut().clips.push(clip2.into());
+        project.active_mut().clips.push(clip3.into());
+
+        let settings = DocumentSettings {
+            canvas: [0, 0, 0, 255],
+            name: "Batch Replace".into(),
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+        };
+        let mut editor = Editor::from_document(&to_document(&settings, &project)).unwrap();
+
+        // Case-insensitive search for "apple" -> "cherry"
+        let outcome = editor
+            .apply(Command::BatchReplaceCaptions {
+                search: "apple".into(),
+                replacement: "cherry".into(),
+                match_case: false,
+            })
+            .unwrap();
+        assert!(outcome.applied);
+
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c1")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "I like cherry pie"
+        );
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c2")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Warm cherry cider is great"
+        );
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c3")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Orange juice only"
+        );
+
+        assert!(editor.undo());
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c1")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "I like apple pie"
+        );
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c2")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "Warm APPLE cider is great"
+        );
+
+        assert!(editor.redo());
+        assert_eq!(
+            editor
+                .project()
+                .active()
+                .clip("c1")
+                .unwrap()
+                .text
+                .as_ref()
+                .unwrap()
+                .content,
+            "I like cherry pie"
+        );
+    }
 }

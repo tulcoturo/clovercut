@@ -306,6 +306,57 @@ pub struct DocumentSettings {
 }
 
 impl DocumentSettings {
+    /// Extracts settings from a document JSON, using defaults if fields are missing.
+    pub fn from_document(document: &Value) -> Self {
+        let name = document
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("Untitled")
+            .to_owned();
+        let video = document.get("video");
+        let width = video
+            .and_then(|v| v.get("width"))
+            .and_then(Value::as_u64)
+            .unwrap_or(1920) as u32;
+        let height = video
+            .and_then(|v| v.get("height"))
+            .and_then(Value::as_u64)
+            .unwrap_or(1080) as u32;
+        let rate_num = video
+            .and_then(|v| v.get("rateNum"))
+            .and_then(Value::as_i64)
+            .unwrap_or(30);
+        let rate_den = video
+            .and_then(|v| v.get("rateDen"))
+            .and_then(Value::as_i64)
+            .unwrap_or(1);
+        let canvas = video
+            .and_then(|v| v.get("canvas"))
+            .and_then(|c| {
+                let arr = c.as_array()?;
+                if arr.len() == 4 {
+                    Some([
+                        arr[0].as_u64()? as u8,
+                        arr[1].as_u64()? as u8,
+                        arr[2].as_u64()? as u8,
+                        arr[3].as_u64()? as u8,
+                    ])
+                } else {
+                    None
+                }
+            })
+            .unwrap_or([0, 0, 0, 255]);
+
+        DocumentSettings {
+            name,
+            width,
+            height,
+            rate_num,
+            rate_den,
+            canvas,
+        }
+    }
+
     /// The frame and rate, as the first timeline of a fresh project gets
     /// them.
     pub fn video(&self) -> VideoSettings {

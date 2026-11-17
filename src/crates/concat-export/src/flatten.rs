@@ -107,9 +107,15 @@ pub fn flatten_timeline_in(
                 | ModelClipKind::SoundLayer
                 | ModelClipKind::Shape => return None,
             };
+            let path = match project_dir {
+                Some(dir) if Path::new(&media.path).is_relative() => {
+                    dir.join(&media.path).to_string_lossy().into_owned()
+                }
+                _ => media.path.clone(),
+            };
             Some(ExportClip {
                 caption_motion: clip.visual_motion,
-                path: media.path.clone(),
+                path,
                 audio_stream: clip.audio_stream,
                 color_range: media.color_range,
                 source_start: clip.source_start,
@@ -172,7 +178,7 @@ pub fn flatten_timeline_in(
                 has_audio: Some(media.has_audio),
                 backdrop: timeline
                     .background_on(clip, lane)
-                    .and_then(|background| backdrop_of(project, background)),
+                    .and_then(|background| backdrop_of(project, background, project_dir)),
                 cutout: clip.cutout.clone(),
                 // Pictures only: a mask on a clip that is all sound would
                 // keep part of nothing.
@@ -233,7 +239,11 @@ pub fn flatten_timeline_in(
 /// found in the bin. None for black, and for a still that is no longer in
 /// the bin or is not a still - a background that cannot be drawn is no
 /// background, never a failed frame.
-fn backdrop_of(project: &Project, background: &Background) -> Option<ExportBackdrop> {
+fn backdrop_of(
+    project: &Project,
+    background: &Background,
+    project_dir: Option<&Path>,
+) -> Option<ExportBackdrop> {
     match background {
         Background::None => None,
         Background::Blur { amount } => Some(ExportBackdrop::Blur { amount: *amount }),
@@ -241,10 +251,18 @@ fn backdrop_of(project: &Project, background: &Background) -> Option<ExportBackd
         Background::Image { media_id } => project
             .media_by_id(media_id)
             .filter(|item| item.kind == MediaKind::Image)
-            .map(|item| ExportBackdrop::Image {
-                path: item.path.clone(),
-                width: item.width,
-                height: item.height,
+            .map(|item| {
+                let path = match project_dir {
+                    Some(dir) if Path::new(&item.path).is_relative() => {
+                        dir.join(&item.path).to_string_lossy().into_owned()
+                    }
+                    _ => item.path.clone(),
+                };
+                ExportBackdrop::Image {
+                    path,
+                    width: item.width,
+                    height: item.height,
+                }
             }),
     }
 }
@@ -568,5 +586,23 @@ mod tests {
         // by asking for a timeline that does not exist.
         assert!(flatten_timeline(editor.project(), None).is_empty());
         assert!(flatten_timeline(editor.project(), Some("nope")).len() <= 1);
+    }
+
+    #[test]
+    fn relative_media_paths_resolve_against_project_dir() {
+        let (mut editor, media_id, _) = project_with_clip();
+        editor
+            .apply(Command::UpdateMediaPath {
+                media_id,
+                new_path: "assets/sample.mp4".into(),
+            })
+            .expect("updates path");
+        let project_dir = Path::new("/workspace/project1");
+        let flat = flatten_timeline_in(editor.project(), None, Some(project_dir));
+        assert_eq!(flat[0].path, "/workspace/project1/assets/sample.mp4");
+
+        // When project_dir is None, relative path remains relative:
+        let flat_none = flatten_timeline_in(editor.project(), None, None);
+        assert_eq!(flat_none[0].path, "assets/sample.mp4");
     }
 }

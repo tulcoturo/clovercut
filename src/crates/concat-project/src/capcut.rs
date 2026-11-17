@@ -17,8 +17,8 @@ use aes_gcm::aead::consts::U16;
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::aes::Aes256;
 use aes_gcm::{AesGcm, Nonce};
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde_json::Value;
 
 type Aes256Gcm16 = AesGcm<Aes256, U16>;
@@ -181,8 +181,8 @@ fn decode_embedded(source: &str) -> Result<CapcutDecodedDraft, CapcutError> {
     let text_str = String::from_utf8(plaintext).map_err(|_| CapcutError::InvalidUtf8)?;
     let normalized = text_str.trim().trim_start_matches('\u{feff}').trim();
 
-    let parsed: Value = serde_json::from_str(normalized)
-        .map_err(|e| CapcutError::JsonParse(e.to_string()))?;
+    let parsed: Value =
+        serde_json::from_str(normalized).map_err(|e| CapcutError::JsonParse(e.to_string()))?;
     if !parsed.is_object() {
         return Err(CapcutError::NotAnObject);
     }
@@ -196,8 +196,8 @@ fn decode_embedded(source: &str) -> Result<CapcutDecodedDraft, CapcutError> {
 /// Imports and converts a CapCut draft (raw JSON or encrypted carrier) into a Clovercut [`Project`].
 pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutError> {
     let decoded = decode_capcut_draft(input)?;
-    let root: Value = serde_json::from_str(&decoded.text)
-        .map_err(|e| CapcutError::JsonParse(e.to_string()))?;
+    let root: Value =
+        serde_json::from_str(&decoded.text).map_err(|e| CapcutError::JsonParse(e.to_string()))?;
 
     let draft = root.as_object().ok_or(CapcutError::NotAnObject)?;
 
@@ -237,14 +237,24 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
         .unwrap_or(0) as u32;
 
     let has_explicit_canvas = raw_w > 0 && raw_h > 0;
-    let mut canvas_w = if has_explicit_canvas { raw_w.clamp(16, 7680) } else { 1920 };
-    let mut canvas_h = if has_explicit_canvas { raw_h.clamp(16, 7680) } else { 1080 };
+    let mut canvas_w = if has_explicit_canvas {
+        raw_w.clamp(16, 7680)
+    } else {
+        1920
+    };
+    let mut canvas_h = if has_explicit_canvas {
+        raw_h.clamp(16, 7680)
+    } else {
+        1080
+    };
 
     let fps_raw = draft.get("fps").and_then(Value::as_i64).unwrap_or(30);
     let fps = if [24, 25, 30, 50, 60].contains(&fps_raw) {
         fps_raw
     } else {
-        warnings.push(format!("Frame rate {fps_raw} not standard, defaulted to 30 fps."));
+        warnings.push(format!(
+            "Frame rate {fps_raw} not standard, defaulted to 30 fps."
+        ));
         30
     };
 
@@ -294,8 +304,13 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
     let mut track_render_indices = Vec::new();
 
     for track_val in tracks_val {
-        let Some(track_obj) = track_val.as_object() else { continue; };
-        let track_type = track_obj.get("type").and_then(Value::as_str).unwrap_or("video");
+        let Some(track_obj) = track_val.as_object() else {
+            continue;
+        };
+        let track_type = track_obj
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("video");
         let (t_kind, default_name) = match track_type {
             "video" => (TrackKind::Video, "Video"),
             "audio" => (TrackKind::Audio, "Audio"),
@@ -332,19 +347,34 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
         });
 
         for seg_val in segments {
-            let Some(seg) = seg_val.as_object() else { continue; };
-            let Some(mat_id) = seg.get("material_id").and_then(Value::as_str) else { continue; };
+            let Some(seg) = seg_val.as_object() else {
+                continue;
+            };
+            let Some(mat_id) = seg.get("material_id").and_then(Value::as_str) else {
+                continue;
+            };
             let Some(&(cat, mat_obj)) = material_by_id.get(mat_id) else {
-                warnings.push(format!("Clip references missing material {mat_id}, skipped"));
+                warnings.push(format!(
+                    "Clip references missing material {mat_id}, skipped"
+                ));
                 continue;
             };
 
             let target = seg.get("target_timerange").and_then(Value::as_object);
             let source = seg.get("source_timerange").and_then(Value::as_object);
 
-            let start_us = target.and_then(|t| t.get("start")).and_then(Value::as_i64).unwrap_or(0);
-            let dur_us = target.and_then(|t| t.get("duration")).and_then(Value::as_i64).unwrap_or(0);
-            let src_in_us = source.and_then(|s| s.get("start")).and_then(Value::as_i64).unwrap_or(0);
+            let start_us = target
+                .and_then(|t| t.get("start"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let dur_us = target
+                .and_then(|t| t.get("duration"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
+            let src_in_us = source
+                .and_then(|s| s.get("start"))
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
 
             if dur_us <= 0 {
                 continue;
@@ -407,7 +437,11 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                     media_id_map.insert(mat_id.to_owned(), new_mid.clone());
 
                     let m_dur_us = mat_obj.get("duration").and_then(Value::as_i64).unwrap_or(0);
-                    let m_dur = if m_dur_us > 0 { Some((m_dur_us as f64) / 1_000_000.0) } else { None };
+                    let m_dur = if m_dur_us > 0 {
+                        Some((m_dur_us as f64) / 1_000_000.0)
+                    } else {
+                        None
+                    };
                     let m_name = mat_obj
                         .get("material_name")
                         .and_then(Value::as_str)
@@ -421,8 +455,14 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                         name: m_name,
                         duration: m_dur,
                         kind: m_kind,
-                        width: mat_obj.get("width").and_then(Value::as_u64).map(|v| v as u32),
-                        height: mat_obj.get("height").and_then(Value::as_u64).map(|v| v as u32),
+                        width: mat_obj
+                            .get("width")
+                            .and_then(Value::as_u64)
+                            .map(|v| v as u32),
+                        height: mat_obj
+                            .get("height")
+                            .and_then(Value::as_u64)
+                            .map(|v| v as u32),
                         frame_rate: Some(fps as f64),
                         frame_rate_fraction: Some(format!("{fps}/1")),
                         video_codec: None,
@@ -466,7 +506,10 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                 if clip_kind == ClipKind::Image || clip_kind == ClipKind::Text {
                     1.0
                 } else {
-                    let src_dur = source.and_then(|s| s.get("duration")).and_then(Value::as_i64).unwrap_or(dur_us);
+                    let src_dur = source
+                        .and_then(|s| s.get("duration"))
+                        .and_then(Value::as_i64)
+                        .unwrap_or(dur_us);
                     if src_dur > 0 && dur_us > 0 {
                         ((src_dur as f64) / (dur_us as f64)).clamp(0.1, 8.0)
                     } else {
@@ -475,28 +518,61 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                 }
             });
 
-            let volume = seg.get("volume").and_then(Value::as_f64).unwrap_or(1.0).clamp(0.0, 4.0);
+            let volume = seg
+                .get("volume")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0)
+                .clamp(0.0, 4.0);
 
             // Transform mapping
             let clip_obj = seg.get("clip").and_then(Value::as_object);
-            let transform = clip_obj.and_then(|c| c.get("transform")).and_then(Value::as_object);
-            let scale_obj = clip_obj.and_then(|c| c.get("scale")).and_then(Value::as_object);
-            let flip_obj = clip_obj.and_then(|c| c.get("flip")).and_then(Value::as_object);
+            let transform = clip_obj
+                .and_then(|c| c.get("transform"))
+                .and_then(Value::as_object);
+            let scale_obj = clip_obj
+                .and_then(|c| c.get("scale"))
+                .and_then(Value::as_object);
+            let flip_obj = clip_obj
+                .and_then(|c| c.get("flip"))
+                .and_then(Value::as_object);
 
-            let raw_x = transform.and_then(|t| t.get("x")).and_then(Value::as_f64).unwrap_or(0.0);
-            let raw_y = transform.and_then(|t| t.get("y")).and_then(Value::as_f64).unwrap_or(0.0);
+            let raw_x = transform
+                .and_then(|t| t.get("x"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0);
+            let raw_y = transform
+                .and_then(|t| t.get("y"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0);
 
             // CapCut raw.x in [-1, 1] relative to center -> Clovercut offset_x is [-0.5, 0.5] fraction of frame
             // CapCut raw.y is inverted (-y)
             let offset_x = raw_x * 0.5;
             let offset_y = -raw_y * 0.5;
 
-            let scale = scale_obj.and_then(|s| s.get("x")).and_then(Value::as_f64).unwrap_or(1.0).clamp(0.05, 10.0);
-            let rotation = clip_obj.and_then(|c| c.get("rotation")).and_then(Value::as_f64).unwrap_or(0.0);
-            let opacity = clip_obj.and_then(|c| c.get("alpha")).and_then(Value::as_f64).unwrap_or(1.0).clamp(0.0, 1.0);
+            let scale = scale_obj
+                .and_then(|s| s.get("x"))
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0)
+                .clamp(0.05, 10.0);
+            let rotation = clip_obj
+                .and_then(|c| c.get("rotation"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0);
+            let opacity = clip_obj
+                .and_then(|c| c.get("alpha"))
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0)
+                .clamp(0.0, 1.0);
 
-            let flip_h = flip_obj.and_then(|f| f.get("horizontal")).and_then(Value::as_bool).unwrap_or(false);
-            let flip_v = flip_obj.and_then(|f| f.get("vertical")).and_then(Value::as_bool).unwrap_or(false);
+            let flip_h = flip_obj
+                .and_then(|f| f.get("horizontal"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let flip_v = flip_obj
+                .and_then(|f| f.get("vertical"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
 
             let clip_id = format!("c{}", next_c_idx);
             next_c_idx += 1;
@@ -564,7 +640,11 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
 
     let timeline = Timeline {
         id: "TL1".to_owned(),
-        name: draft.get("name").and_then(Value::as_str).unwrap_or("Timeline 1").to_owned(),
+        name: draft
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("Timeline 1")
+            .to_owned(),
         video: VideoSettings {
             width: canvas_w,
             height: canvas_h,
@@ -591,10 +671,8 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
 mod tests {
     use super::*;
 
-    const KNOWN_PLAINTEXT: &str =
-        "{\"tracks\":[],\"materials\":{},\"canvas_config\":{\"width\":640,\"height\":360},\"name\":\"synthetic known answer\"}";
-    const KNOWN_CARRIER: &str =
-        "0123IzU4567wv7PB7ea189abC6CoWBHy7cdefVJ60123MXE4567d+5y6i4k89ab0lycdefdHue9DabcdzpVgix4FTefghgXdTnoijklRGF8I+juVz/ImvyrNR6yRZG0mnop9K7b2dxceBMXzzDO6Xez5ExE37K0QXfSadgw97nrkaKdBMXsIqZzT42SY9G39Zqw6uAgTdt74UfU=";
+    const KNOWN_PLAINTEXT: &str = "{\"tracks\":[],\"materials\":{},\"canvas_config\":{\"width\":640,\"height\":360},\"name\":\"synthetic known answer\"}";
+    const KNOWN_CARRIER: &str = "0123IzU4567wv7PB7ea189abC6CoWBHy7cdefVJ60123MXE4567d+5y6i4k89ab0lycdefdHue9DabcdzpVgix4FTefghgXdTnoijklRGF8I+juVz/ImvyrNR6yRZG0mnop9K7b2dxceBMXzzDO6Xez5ExE37K0QXfSadgw97nrkaKdBMXsIqZzT42SY9G39Zqw6uAgTdt74UfU=";
 
     #[test]
     fn decodes_known_carrier_envelope() {

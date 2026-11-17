@@ -464,6 +464,136 @@ pub(super) fn apply(
             })
         }
 
+        Command::SplitTextClip {
+            clip_id,
+            time,
+            cursor_char_index,
+        } => {
+            let timeline = project.active_mut();
+            let Some(index) = timeline.clips.iter().position(|clip| clip.id == clip_id) else {
+                return Ok(Outcome::default());
+            };
+            let clip = &timeline.clips[index];
+            if clip.kind != ClipKind::Text {
+                return Ok(Outcome::default());
+            }
+            let offset = time - clip.start;
+            if offset <= MIN_CLIP_DURATION || offset >= clip.duration - MIN_CLIP_DURATION {
+                return Ok(Outcome::default());
+            }
+            let whole = clip.duration;
+            let mut tail = (**clip).clone();
+            tail.id = mint.next("c");
+            tail.start = clip.start + offset;
+            tail.duration = clip.duration - offset;
+            tail.transition_in = None;
+            tail.fade_in = 0.0;
+            tail.visual_motion.entrance = 0;
+            tail.rewindow_keys(whole, offset, whole);
+
+            let head = timeline.clip_at_mut(index);
+            head.duration = offset;
+            head.fade_out = 0.0;
+            head.visual_motion.exit = 0;
+            head.rewindow_keys(whole, 0.0, offset);
+
+            if let Some(char_idx) = cursor_char_index {
+                if let Some(head_text) = &mut head.text {
+                    let full_str = head_text.content.clone();
+                    let char_count = full_str.chars().count();
+                    let split_idx = char_idx.min(char_count);
+                    let head_chars: String = full_str.chars().take(split_idx).collect();
+                    let tail_chars: String = full_str.chars().skip(split_idx).collect();
+
+                    head_text.content = head_chars.trim().to_owned();
+                    head.name = head_text
+                        .content
+                        .lines()
+                        .next()
+                        .unwrap_or("Text")
+                        .chars()
+                        .take(30)
+                        .collect();
+
+                    if let Some(tail_text) = &mut tail.text {
+                        tail_text.content = tail_chars.trim().to_owned();
+                        tail.name = tail_text
+                            .content
+                            .lines()
+                            .next()
+                            .unwrap_or("Text")
+                            .chars()
+                            .take(30)
+                            .collect();
+                    }
+                }
+            }
+
+            let tail_id = tail.id.clone();
+            timeline.clips.insert(index + 1, Arc::new(tail));
+            Ok(Outcome {
+                created_id: Some(tail_id),
+                applied: true,
+            })
+        }
+
+        Command::BatchReplaceCaptions {
+            search,
+            replacement,
+            match_case,
+        } => {
+            if search.is_empty() {
+                return Ok(Outcome::default());
+            }
+            let timeline = project.active_mut();
+            let mut changed = 0usize;
+            for clip in &mut timeline.clips {
+                if clip.kind == ClipKind::Text {
+                    if let Some(text_style) = &clip.text {
+                        let original = &text_style.content;
+                        let needs_replace = if match_case {
+                            original.contains(&search)
+                        } else {
+                            original.to_lowercase().contains(&search.to_lowercase())
+                        };
+                        if needs_replace {
+                            let clip_mut = Arc::make_mut(clip);
+                            if let Some(style_mut) = &mut clip_mut.text {
+                                let new_content = if match_case {
+                                    style_mut.content.replace(&search, &replacement)
+                                } else {
+                                    let pattern = search.to_lowercase();
+                                    let mut result = String::new();
+                                    let mut remainder = style_mut.content.as_str();
+                                    while let Some(pos) = remainder.to_lowercase().find(&pattern) {
+                                        result.push_str(&remainder[..pos]);
+                                        result.push_str(&replacement);
+                                        remainder = &remainder[pos + search.len()..];
+                                    }
+                                    result.push_str(remainder);
+                                    result
+                                };
+                                style_mut.content = new_content;
+                                clip_mut.name = style_mut
+                                    .content
+                                    .lines()
+                                    .next()
+                                    .unwrap_or("Text")
+                                    .chars()
+                                    .take(30)
+                                    .collect();
+                                changed += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(Outcome {
+                created_id: None,
+                applied: changed > 0,
+            })
+        }
+
         Command::ReplaceClipMedia {
             clip_id,
             item,
@@ -741,6 +871,30 @@ pub(super) fn apply(
                 .clip_mut(&first.id)
                 .expect("the first piece survives the retain");
             survivor.duration = merged_duration;
+
+            if survivor.kind == ClipKind::Text {
+                if let Some(text_style) = &mut survivor.text {
+                    let mut combined_content = text_style.content.clone();
+                    for piece in ordered.iter().skip(1) {
+                        if let Some(other_text) = &piece.text {
+                            if !combined_content.is_empty() && !other_text.content.is_empty() {
+                                combined_content.push(' ');
+                            }
+                            combined_content.push_str(&other_text.content);
+                        }
+                    }
+                    text_style.content = combined_content;
+                    survivor.name = text_style
+                        .content
+                        .lines()
+                        .next()
+                        .unwrap_or("Text")
+                        .chars()
+                        .take(30)
+                        .collect();
+                }
+            }
+
             // Every piece's keys land where they were on the picture; the
             // way out is the last piece's, as the way in is the first's.
             survivor.rewindow_keys(first.duration, 0.0, merged_duration);
@@ -1331,7 +1485,9 @@ pub fn why_not_merge(timeline: &Timeline, clip_ids: &[String]) -> Option<String>
     if clips.iter().any(|clip| clip.track_id != clips[0].track_id) {
         return Some("Merged clips must be on the same track.".to_owned());
     }
-    if clips.iter().any(|clip| clip.media_id != clips[0].media_id) {
+    if clips[0].kind != ClipKind::Text
+        && clips.iter().any(|clip| clip.media_id != clips[0].media_id)
+    {
         return Some("Merged clips must come from the same file.".to_owned());
     }
     if clips.iter().any(|clip| clip.speed != clips[0].speed) {
@@ -1343,9 +1499,10 @@ pub fn why_not_merge(timeline: &Timeline, clip_ids: &[String]) -> Option<String>
     if clips.iter().any(|clip| clip.speed_curve.is_some()) {
         return Some("A clip with a speed curve cannot be merged.".to_owned());
     }
-    if clips
-        .iter()
-        .any(|clip| clip.audio_stream != clips[0].audio_stream)
+    if clips[0].kind != ClipKind::Text
+        && clips
+            .iter()
+            .any(|clip| clip.audio_stream != clips[0].audio_stream)
     {
         return Some("Merged clips must play the same audio track.".to_owned());
     }
@@ -1357,11 +1514,13 @@ pub fn why_not_merge(timeline: &Timeline, clip_ids: &[String]) -> Option<String>
         if (current.start - (previous.start + previous.duration)).abs() > JOIN_EPSILON {
             return Some("Merged clips must touch, with no gap or overlap.".to_owned());
         }
-        // The next piece starts where the last one's source ended.
-        let continuous =
-            current.source_start - (previous.source_start + previous.duration * previous.speed);
-        if continuous.abs() > JOIN_EPSILON {
-            return Some("These pieces are no longer in their original order.".to_owned());
+        // Video and audio must follow the source file continuously; text clips have no source file.
+        if clips[0].kind != ClipKind::Text {
+            let continuous =
+                current.source_start - (previous.source_start + previous.duration * previous.speed);
+            if continuous.abs() > JOIN_EPSILON {
+                return Some("These pieces are no longer in their original order.".to_owned());
+            }
         }
     }
     None
