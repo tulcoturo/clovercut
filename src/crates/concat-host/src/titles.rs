@@ -26,7 +26,7 @@ use concat_core::shader::RevealMap;
 
 use concat_export::{ClipKind, ExportClip};
 use concat_project::model::{
-    ClipKind as ModelClipKind, Project, ShapeKind, ShapeStyle, TextAlign, TextStyle,
+    ClipKind as ModelClipKind, ColorRange, Project, ShapeKind, ShapeStyle, TextAlign, TextStyle,
 };
 use concat_text::{Align, Figure, Fonts, TitleRun, TitleStyle, WordRect};
 
@@ -467,6 +467,7 @@ impl Titles {
                         Painting::Title(_) => Some(Arc::clone(&art.reveal)),
                         Painting::Shape(_) => None,
                     },
+                    color_range: Some(ColorRange::Full),
                     ..ExportClip::blank(ClipKind::Image, clip.start, clip.duration, index)
                 },
                 block: art.block,

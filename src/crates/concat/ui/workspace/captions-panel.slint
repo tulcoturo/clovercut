@@ -444,7 +444,10 @@ export component CaptionEditor inherits Rectangle {
                 background: cue.selected ? Theme.field-active : Theme.well;
                 border-radius: Theme.r;
                 VerticalLayout {
-                    padding: 6px;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
                     spacing: 4px;
                     Button {
                         label: cue.time;
@@ -459,7 +462,7 @@ export component CaptionEditor inherits Rectangle {
                         single-line: false;
                         wrap: word-wrap;
                         horizontal-stretch: 1;
-                        vertical-alignment: center;
+                        vertical-alignment: top;
                         selection-background-color: Theme.accent;
                         selection-foreground-color: Theme.on-accent;
                         accepted => {

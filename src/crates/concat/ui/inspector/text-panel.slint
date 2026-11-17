@@ -213,7 +213,7 @@ export component TextPanel inherits VerticalLayout {
                 body := TextInput {
                     x: body-box.pad-x;
                     y: body-box.pad-y;
-                    width: parent.width - self.x - 2 * body-box.pad-x;
+                    width: parent.width - 2 * body-box.pad-x;
                     height: Math.max(self.preferred-height, body-box.view-height);
                     accessible-label: I18n.t("textPanel.content");
                     cursor-position-changed(at) => { body-box.reveal(at.y, self.font-size * 1.4); }
@@ -223,7 +223,7 @@ export component TextPanel inherits VerticalLayout {
                     // Multi-line: a lower third is routinely two lines, and a
                     // single-line field would silently eat the break.
                     single-line: false;
-                    wrap: char-wrap;
+                    wrap: word-wrap;
                     selection-background-color: Theme.accent;
                     selection-foreground-color: Theme.on-accent;
 
