@@ -147,7 +147,7 @@ fn decode_embedded(source: &str) -> Result<CapcutDecodedDraft, CapcutError> {
     }
     body.push_str(&source[cursor..]);
 
-    if body.is_empty() || body.len() % 4 != 0 {
+    if body.is_empty() || !body.len().is_multiple_of(4) {
         return Err(CapcutError::OpaqueCarrier);
     }
 
@@ -212,7 +212,7 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
         && draft
             .get("materials")
             .and_then(Value::as_object)
-            .map_or(false, |m| m.is_empty());
+            .is_some_and(|m| m.is_empty());
 
     let tracks_val = match draft.get("tracks") {
         Some(Value::Array(arr)) => arr.as_slice(),
@@ -262,10 +262,10 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
     for (category, items) in materials {
         if let Some(arr) = items.as_array() {
             for item in arr {
-                if let Some(obj) = item.as_object() {
-                    if let Some(id_str) = obj.get("id").and_then(Value::as_str) {
-                        material_by_id.insert(id_str.to_owned(), (category.as_str(), obj));
-                    }
+                if let Some(obj) = item.as_object()
+                    && let Some(id_str) = obj.get("id").and_then(Value::as_str)
+                {
+                    material_by_id.insert(id_str.to_owned(), (category.as_str(), obj));
                 }
             }
         }
@@ -282,7 +282,7 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
     if !has_explicit_canvas {
         for (_cat, obj) in material_by_id.values() {
             let mtype = obj.get("type").and_then(Value::as_str).unwrap_or("");
-            if mtype == "video" || mtype == "" {
+            if mtype == "video" || mtype.is_empty() {
                 let w = obj.get("width").and_then(Value::as_u64).unwrap_or(0) as u32;
                 let h = obj.get("height").and_then(Value::as_u64).unwrap_or(0) as u32;
                 if w > 0 && h > 0 {
@@ -411,9 +411,10 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                     clip_name = "Text".to_owned();
                 }
 
-                let mut style = TextStyle::default();
-                style.content = text_parsed;
-                text_style = Some(style);
+                text_style = Some(TextStyle {
+                    content: text_parsed,
+                    ..Default::default()
+                });
             } else {
                 let path = mat_obj.get("path").and_then(Value::as_str).unwrap_or("");
                 let mtype = mat_obj.get("type").and_then(Value::as_str).unwrap_or("");
@@ -491,12 +492,11 @@ pub fn import_capcut_draft(input: &str) -> Result<CapcutImportResult, CapcutErro
                 .and_then(Value::as_array)
                 .and_then(|refs| {
                     for r in refs {
-                        if let Some(r_str) = r.as_str() {
-                            if let Some(&("speeds", s_obj)) = material_by_id.get(r_str) {
-                                if let Some(sp) = s_obj.get("speed").and_then(Value::as_f64) {
-                                    return Some(sp);
-                                }
-                            }
+                        if let Some(r_str) = r.as_str()
+                            && let Some(&("speeds", s_obj)) = material_by_id.get(r_str)
+                            && let Some(sp) = s_obj.get("speed").and_then(Value::as_f64)
+                        {
+                            return Some(sp);
                         }
                     }
                     None

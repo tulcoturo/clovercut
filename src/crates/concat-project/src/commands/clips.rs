@@ -497,16 +497,28 @@ pub(super) fn apply(
             head.visual_motion.exit = 0;
             head.rewindow_keys(whole, 0.0, offset);
 
-            if let Some(char_idx) = cursor_char_index {
-                if let Some(head_text) = &mut head.text {
-                    let full_str = head_text.content.clone();
-                    let char_count = full_str.chars().count();
-                    let split_idx = char_idx.min(char_count);
-                    let head_chars: String = full_str.chars().take(split_idx).collect();
-                    let tail_chars: String = full_str.chars().skip(split_idx).collect();
+            if let Some(char_idx) = cursor_char_index
+                && let Some(head_text) = &mut head.text
+            {
+                let full_str = head_text.content.clone();
+                let char_count = full_str.chars().count();
+                let split_idx = char_idx.min(char_count);
+                let head_chars: String = full_str.chars().take(split_idx).collect();
+                let tail_chars: String = full_str.chars().skip(split_idx).collect();
 
-                    head_text.content = head_chars.trim().to_owned();
-                    head.name = head_text
+                head_text.content = head_chars.trim().to_owned();
+                head.name = head_text
+                    .content
+                    .lines()
+                    .next()
+                    .unwrap_or("Text")
+                    .chars()
+                    .take(30)
+                    .collect();
+
+                if let Some(tail_text) = &mut tail.text {
+                    tail_text.content = tail_chars.trim().to_owned();
+                    tail.name = tail_text
                         .content
                         .lines()
                         .next()
@@ -514,18 +526,6 @@ pub(super) fn apply(
                         .chars()
                         .take(30)
                         .collect();
-
-                    if let Some(tail_text) = &mut tail.text {
-                        tail_text.content = tail_chars.trim().to_owned();
-                        tail.name = tail_text
-                            .content
-                            .lines()
-                            .next()
-                            .unwrap_or("Text")
-                            .chars()
-                            .take(30)
-                            .collect();
-                    }
                 }
             }
 
@@ -548,42 +548,42 @@ pub(super) fn apply(
             let timeline = project.active_mut();
             let mut changed = 0usize;
             for clip in &mut timeline.clips {
-                if clip.kind == ClipKind::Text {
-                    if let Some(text_style) = &clip.text {
-                        let original = &text_style.content;
-                        let needs_replace = if match_case {
-                            original.contains(&search)
-                        } else {
-                            original.to_lowercase().contains(&search.to_lowercase())
-                        };
-                        if needs_replace {
-                            let clip_mut = Arc::make_mut(clip);
-                            if let Some(style_mut) = &mut clip_mut.text {
-                                let new_content = if match_case {
-                                    style_mut.content.replace(&search, &replacement)
-                                } else {
-                                    let pattern = search.to_lowercase();
-                                    let mut result = String::new();
-                                    let mut remainder = style_mut.content.as_str();
-                                    while let Some(pos) = remainder.to_lowercase().find(&pattern) {
-                                        result.push_str(&remainder[..pos]);
-                                        result.push_str(&replacement);
-                                        remainder = &remainder[pos + search.len()..];
-                                    }
-                                    result.push_str(remainder);
-                                    result
-                                };
-                                style_mut.content = new_content;
-                                clip_mut.name = style_mut
-                                    .content
-                                    .lines()
-                                    .next()
-                                    .unwrap_or("Text")
-                                    .chars()
-                                    .take(30)
-                                    .collect();
-                                changed += 1;
-                            }
+                if clip.kind == ClipKind::Text
+                    && let Some(text_style) = &clip.text
+                {
+                    let original = &text_style.content;
+                    let needs_replace = if match_case {
+                        original.contains(&search)
+                    } else {
+                        original.to_lowercase().contains(&search.to_lowercase())
+                    };
+                    if needs_replace {
+                        let clip_mut = Arc::make_mut(clip);
+                        if let Some(style_mut) = &mut clip_mut.text {
+                            let new_content = if match_case {
+                                style_mut.content.replace(&search, &replacement)
+                            } else {
+                                let pattern = search.to_lowercase();
+                                let mut result = String::new();
+                                let mut remainder = style_mut.content.as_str();
+                                while let Some(pos) = remainder.to_lowercase().find(&pattern) {
+                                    result.push_str(&remainder[..pos]);
+                                    result.push_str(&replacement);
+                                    remainder = &remainder[pos + search.len()..];
+                                }
+                                result.push_str(remainder);
+                                result
+                            };
+                            style_mut.content = new_content;
+                            clip_mut.name = style_mut
+                                .content
+                                .lines()
+                                .next()
+                                .unwrap_or("Text")
+                                .chars()
+                                .take(30)
+                                .collect();
+                            changed += 1;
                         }
                     }
                 }
@@ -872,27 +872,27 @@ pub(super) fn apply(
                 .expect("the first piece survives the retain");
             survivor.duration = merged_duration;
 
-            if survivor.kind == ClipKind::Text {
-                if let Some(text_style) = &mut survivor.text {
-                    let mut combined_content = text_style.content.clone();
-                    for piece in ordered.iter().skip(1) {
-                        if let Some(other_text) = &piece.text {
-                            if !combined_content.is_empty() && !other_text.content.is_empty() {
-                                combined_content.push(' ');
-                            }
-                            combined_content.push_str(&other_text.content);
+            if survivor.kind == ClipKind::Text
+                && let Some(text_style) = &mut survivor.text
+            {
+                let mut combined_content = text_style.content.clone();
+                for piece in ordered.iter().skip(1) {
+                    if let Some(other_text) = &piece.text {
+                        if !combined_content.is_empty() && !other_text.content.is_empty() {
+                            combined_content.push(' ');
                         }
+                        combined_content.push_str(&other_text.content);
                     }
-                    text_style.content = combined_content;
-                    survivor.name = text_style
-                        .content
-                        .lines()
-                        .next()
-                        .unwrap_or("Text")
-                        .chars()
-                        .take(30)
-                        .collect();
                 }
+                text_style.content = combined_content;
+                survivor.name = text_style
+                    .content
+                    .lines()
+                    .next()
+                    .unwrap_or("Text")
+                    .chars()
+                    .take(30)
+                    .collect();
             }
 
             // Every piece's keys land where they were on the picture; the
