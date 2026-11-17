@@ -92,6 +92,7 @@ impl<'a> SpeechReel<'a> {
 
     /// Backward-compatible constructor that creates a cut reel from speech spans,
     /// or returns the whole audio if no valid speech spans are found.
+    #[allow(dead_code)]
     pub(crate) fn new(samples: &'a [f32], speech: &[(f64, f64)]) -> Self {
         let reel = Self::cut(samples, speech);
         if reel.pieces.is_empty() {

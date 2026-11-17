@@ -1099,7 +1099,7 @@ mod tests {
     /// the whole of it.
     #[test]
     fn no_speech_heard_is_taken_only_of_a_quiet_sound() {
-        use crate::speech_reel::{SAMPLE_RATE, SpeechReel};
+        use crate::speech_reel::SAMPLE_RATE;
 
         for quiet in [hiss(60.0, -65.0), vec![0.0; 30 * SAMPLE_RATE as usize]] {
             let (reel, _) = hear(&quiet, Some(Vec::new()));
