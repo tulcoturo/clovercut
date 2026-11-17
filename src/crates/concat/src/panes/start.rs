@@ -499,6 +499,11 @@ impl StartPane {
         if self.busy {
             return;
         }
+        let folder = if folder.is_file() {
+            folder.parent().unwrap_or(folder)
+        } else {
+            folder
+        };
         if !projects::is_project(folder) && concat_host::capcut::is_draft(folder) {
             self.import_capcut(folder);
             return;

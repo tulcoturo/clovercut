@@ -11,7 +11,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use concat_project::capcut::{DRAFT_FILES, Draft, DraftTimeline};
+use concat_project::capcut::{DRAFT_FILES, Draft, DraftTimeline, decode_capcut_draft};
 use serde_json::Value;
 
 use crate::projects::{self, ProjectInfo};
@@ -45,23 +45,76 @@ pub fn drafts_folder() -> Option<PathBuf> {
 
 /// Whether `folder` is a CapCut draft.
 pub fn is_draft(folder: &Path) -> bool {
+    if folder.is_file() {
+        let is_draft_name = folder
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|name| DRAFT_FILES.contains(&name) || name.ends_with(".json"))
+            .unwrap_or(false);
+        if is_draft_name {
+            return true;
+        }
+    }
     DRAFT_FILES.iter().any(|file| folder.join(file).is_file())
 }
 
 /// A JSON file of the draft's, or `None` when it is missing.
+/// Decodes both plaintext JSON and encrypted 12-split AES-256-GCM carriers.
 fn json(path: &Path) -> Option<Result<Value, String>> {
     let bytes = std::fs::read(path).ok()?;
-    Some(serde_json::from_slice(&bytes).map_err(|_| {
-        // Not JSON: CapCut encrypts the drafts of some of its builds and
-        // every draft made from one of its templates.
-        "this CapCut draft is encrypted or is not valid JSON; try an unencrypted draft from CapCut"
-            .to_owned()
-    }))
+    // 1. Try parsing as plain JSON first
+    if let Ok(value) = serde_json::from_slice::<Value>(&bytes)
+        && value.is_object()
+    {
+        return Some(Ok(value));
+    }
+    // 2. Try decoding as UTF-8 string or lossy through decode_capcut_draft
+    let text = match String::from_utf8(bytes.clone()) {
+        Ok(s) => s,
+        Err(_) => String::from_utf8_lossy(&bytes).into_owned(),
+    };
+    match decode_capcut_draft(&text) {
+        Ok(decoded) => match serde_json::from_str::<Value>(&decoded.text) {
+            Ok(value) => Some(Ok(value)),
+            Err(e) => Some(Err(format!("CapCut draft JSON parse failed: {e}"))),
+        },
+        Err(err) => {
+            // Also attempt direct serde_json parse in case bytes had other quirks
+            match serde_json::from_slice::<Value>(&bytes) {
+                Ok(value) => Some(Ok(value)),
+                Err(_) => Some(Err(format!(
+                    "this CapCut draft is encrypted or is not valid JSON: {err}"
+                ))),
+            }
+        }
+    }
 }
 
-/// The edit in `folder`: its first draft file there.
+/// The edit in `folder`: prefers the draft file that has tracks/materials.
 fn edit_in(folder: &Path) -> Option<Result<Value, String>> {
-    DRAFT_FILES.iter().find_map(|file| json(&folder.join(file)))
+    let target = if folder.is_file() {
+        folder.parent().unwrap_or(folder)
+    } else {
+        folder
+    };
+    if folder.is_file() {
+        return json(folder);
+    }
+    // First pass: find the draft file that contains "tracks" or "materials"
+    for file in DRAFT_FILES {
+        let path = target.join(file);
+        if let Some(res) = json(&path) {
+            let has_content = match res {
+                Ok(ref val) => val.get("tracks").is_some() || val.get("materials").is_some(),
+                Err(_) => false,
+            };
+            if has_content {
+                return Some(res);
+            }
+        }
+    }
+    // Fall back to first readable draft file
+    DRAFT_FILES.iter().find_map(|file| json(&target.join(file)))
 }
 
 /// Reads the draft in `folder`: its name and every timeline it has, the
@@ -69,7 +122,14 @@ fn edit_in(folder: &Path) -> Option<Result<Value, String>> {
 pub fn read(folder: &Path) -> Result<Draft, String> {
     let main =
         edit_in(folder).ok_or_else(|| format!("{} is not a CapCut draft", folder.display()))??;
-    let meta = json(&folder.join("draft_meta_info.json")).and_then(Result::ok);
+    let target = if folder.is_file() {
+        folder.parent().unwrap_or(folder)
+    } else {
+        folder
+    };
+    let meta = json(&target.join("draft_meta_info.json"))
+        .or_else(|| json(&target.join("root_draft_meta_info.json")))
+        .and_then(Result::ok);
     let name = meta
         .as_ref()
         .and_then(|meta| meta.get("draft_name"))
@@ -77,7 +137,7 @@ pub fn read(folder: &Path) -> Result<Draft, String> {
         .filter(|name| !name.trim().is_empty())
         .map(str::to_owned)
         .or_else(|| {
-            folder
+            target
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
         })
@@ -86,7 +146,7 @@ pub fn read(folder: &Path) -> Result<Draft, String> {
     // A draft of several timelines lists them in `Timelines/project.json`,
     // each in a folder of its own; the draft's own file is the main one's.
     let mut timelines = Vec::new();
-    let listed = json(&folder.join("Timelines").join("project.json")).and_then(Result::ok);
+    let listed = json(&target.join("Timelines").join("project.json")).and_then(Result::ok);
     if let Some(listed) = listed {
         let main_id = listed
             .get("main_timeline_id")
@@ -116,7 +176,7 @@ pub fn read(folder: &Path) -> Result<Draft, String> {
             let edit = if id == main_id {
                 Some(Ok(main.clone()))
             } else {
-                edit_in(&folder.join("Timelines").join(id))
+                edit_in(&target.join("Timelines").join(id))
             };
             if let Some(Ok(edit)) = edit {
                 timelines.push(DraftTimeline {
@@ -138,7 +198,7 @@ pub fn read(folder: &Path) -> Result<Draft, String> {
     }
     Ok(Draft {
         name,
-        folder: folder.to_string_lossy().into_owned(),
+        folder: target.to_string_lossy().into_owned(),
         timelines,
     })
 }
@@ -431,6 +491,18 @@ mod tests {
                 .contains("encrypted")
         );
         assert!(!location.exists());
+    }
+
+    #[test]
+    fn encrypted_aes_gcm_carrier_draft_is_decrypted_and_read() {
+        const KNOWN_CARRIER: &str = "0123IzU4567wv7PB7ea189abC6CoWBHy7cdefVJ60123MXE4567d+5y6i4k89ab0lycdefdHue9DabcdzpVgix4FTefghgXdTnoijklRGF8I+juVz/ImvyrNR6yRZG0mnop9K7b2dxceBMXzzDO6Xez5ExE37K0QXfSadgw97nrkaKdBMXsIqZzT42SY9G39Zqw6uAgTdt74UfU=";
+        let root = tempfile::tempdir().unwrap();
+        let source = draft_folder(root.path());
+        std::fs::write(source.join("draft_content.json"), KNOWN_CARRIER).unwrap();
+        let location = root.path().join("Projects");
+        let err = import(&source, location.to_str().unwrap()).unwrap_err();
+        // It successfully decrypted the carrier, reaching the clip validation step rather than failing on JSON/encryption!
+        assert!(err.contains("the CapCut draft has no clip Clovercut can read"));
     }
 
     /// Every draft CapCut has on this machine imports, into a scratch

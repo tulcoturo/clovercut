@@ -35,7 +35,12 @@ use crate::model::{
 use crate::placement::TOUCH;
 
 /// The file a draft folder's edit is in, newest builds first.
-pub const DRAFT_FILES: [&str; 2] = ["draft_info.json", "draft_content.json"];
+pub const DRAFT_FILES: [&str; 4] = [
+    "draft_content.json",
+    "draft_info.json",
+    "template_draft_content.json",
+    "root_draft_meta_info.json",
+];
 
 /// What a draft folder starts every media path with when the file was
 /// copied into the draft: `##_draftpath_placeholder_<id>_##/...`.
@@ -204,7 +209,12 @@ fn decode_embedded(source: &str) -> Result<CapcutDecodedDraft, CapcutError> {
     }
     body.push_str(&source[cursor..]);
 
-    if body.is_empty() || !body.len().is_multiple_of(4) {
+    body.retain(|c| !c.is_whitespace());
+    while !body.len().is_multiple_of(4) {
+        body.push('=');
+    }
+
+    if body.is_empty() {
         return Err(CapcutError::OpaqueCarrier);
     }
 
@@ -219,11 +229,6 @@ fn decode_embedded(source: &str) -> Result<CapcutDecodedDraft, CapcutError> {
         Ok(b) if b.len() >= 16 => b,
         _ => return Err(CapcutError::OpaqueCarrier),
     };
-
-    // Canonical Base64 check (reject non-canonical padding/spaces)
-    if STANDARD.encode(&decoded_bytes) != body {
-        return Err(CapcutError::OpaqueCarrier);
-    }
 
     let key = &material[..32];
     let iv = &material[32..48];
