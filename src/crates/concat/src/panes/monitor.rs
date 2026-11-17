@@ -332,7 +332,7 @@ impl MonitorPane {
                 self.record_observed(spec, &bytes, width, height);
                 if !self.told_slow && studio.host.monitor.drawn_slowly() {
                     self.told_slow = true;
-                    studio.warn(&t("monitor.drawnSlowly"));
+                    studio.notify(&t("monitor.drawnSlowly"), false);
                 }
                 let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
                     &bytes, width, height,

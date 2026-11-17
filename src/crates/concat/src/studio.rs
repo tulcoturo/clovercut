@@ -11945,6 +11945,11 @@ impl Studio {
         self.toast.failed = failed;
     }
 
+    /// Raises a failed/warning notice.
+    pub fn warn(&mut self, message: &str) {
+        self.notify(message, true);
+    }
+
     // ── publishing ──
 
     /// Publish only saved state and notifications; autosave does not rebuild dialogs.
