@@ -62,11 +62,38 @@ pub struct Progress {
     pub stage: &'static str,
 }
 
-/// The session flattened into a request the engine can render.
-pub fn request(session: &Session, spec: &ExportSpec, titles: Vec<ExportClip>) -> ExportRequest {
+/// The session flattened into a request the engine can render, bounded by an optional time range `[start, end]`.
+pub fn request_range(
+    session: &Session,
+    spec: &ExportSpec,
+    titles: Vec<ExportClip>,
+    time_range: Option<[f64; 2]>,
+) -> ExportRequest {
     let settings = session.settings();
     let mut clips = session.flattened_clips();
     clips.extend(titles);
+    let mut offset = 0.0;
+    if let Some([start, end]) = time_range {
+        if end > start && start >= 0.0 {
+            offset = start;
+            clips.retain_mut(|clip| {
+                let clip_end = clip.start + clip.duration;
+                if clip_end <= start || clip.start >= end {
+                    return false;
+                }
+                let orig_start = clip.start;
+                let bounded_start = orig_start.max(start);
+                let bounded_end = clip_end.min(end);
+                clip.start = bounded_start - start;
+                clip.duration = (bounded_end - bounded_start).max(0.001);
+                let head_trimmed = bounded_start - orig_start;
+                if head_trimmed > 1e-6 {
+                    clip.source_start += head_trimmed * clip.speed;
+                }
+                true
+            });
+        }
+    }
     ExportRequest {
         output: spec.output.clone(),
         width: settings.width,
@@ -82,10 +109,15 @@ pub fn request(session: &Session, spec: &ExportSpec, titles: Vec<ExportClip>) ->
         color_range: spec.color_range,
         color_space: session.video().color_space,
         hdr: spec.hdr,
-        effect_time_offset: 0.0,
+        effect_time_offset: offset,
         canvas: session.video().canvas,
         clips,
     }
+}
+
+/// The session flattened into a request the engine can render.
+pub fn request(session: &Session, spec: &ExportSpec, titles: Vec<ExportClip>) -> ExportRequest {
+    request_range(session, spec, titles, None)
 }
 
 /// Renders `request` and returns the path written, reporting through

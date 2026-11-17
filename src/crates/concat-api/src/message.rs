@@ -302,6 +302,10 @@ pub struct ExportSpec {
     /// SDR timeline.
     #[serde(default)]
     pub hdr: Option<bool>,
+    /// Optional selection time range `[start, end]` in seconds to export.
+    /// When None, exports the whole timeline.
+    #[serde(default)]
+    pub time_range: Option<[f64; 2]>,
 }
 
 /// What a request hands back. Serialised as the payload alone: the variant

@@ -751,7 +751,7 @@ impl Api {
                 .filter(|(_, request)| !Stabilizers::outstanding(request).is_empty())
                 .collect();
         let titles = self.title_clips(session, width, height);
-        let mut request = export::request(session, &host_spec, titles);
+        let mut request = export::request_range(session, &host_spec, titles, spec.time_range);
         request.width = width;
         request.height = height;
         request.rate_num = rate_num;
@@ -1564,6 +1564,14 @@ mod tests {
         }));
         assert_eq!(missing.code, ErrorCode::NotFound);
         assert_eq!(api.running(), 0);
+    }
+
+    #[test]
+    fn export_spec_accepts_time_range() {
+        let json_spec = r#"{"output":"test.mp4","timeRange":[1.5, 4.5]}"#;
+        let spec: ExportSpec = serde_json::from_str(json_spec).unwrap();
+        assert_eq!(spec.output, "test.mp4");
+        assert_eq!(spec.time_range, Some([1.5, 4.5]));
     }
 
     #[test]
