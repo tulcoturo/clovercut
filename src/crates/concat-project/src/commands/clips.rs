@@ -20,7 +20,9 @@ pub(super) fn apply(
             .active()
             .clip(clip_id)
             .map(|clip| clip.track_id.as_str()),
-        Command::AddClip { track_id, .. } => Some(track_id.as_str()),
+        Command::AddClip { track_id, .. } | Command::PlaceMediaRange { track_id, .. } => {
+            Some(track_id.as_str())
+        }
         Command::AddClipsInSequence { track_id, .. } => track_id.as_deref(),
         _ => None,
     };
@@ -128,6 +130,89 @@ pub(super) fn apply(
             }
             Ok(Outcome {
                 created_id: first,
+                applied: true,
+            })
+        }
+
+        Command::PlaceMediaRange {
+            media_id,
+            track_id,
+            start,
+            source_start,
+            duration,
+            overwrite,
+        } => {
+            let media = project
+                .media_by_id(&media_id)
+                .ok_or(CommandError::MediaGone)?
+                .clone();
+            let timeline = project.active_mut();
+            if timeline.track(&track_id).is_none() {
+                return Err(CommandError::TrackGone);
+            }
+
+            let start = start.max(0.0);
+            let src_in = source_start.unwrap_or(0.0).max(0.0);
+            let full_dur = clip_length(&media);
+            let dur = duration
+                .unwrap_or_else(|| (full_dur - src_in).max(MIN_CLIP_DURATION))
+                .max(MIN_CLIP_DURATION);
+            let end = start + dur;
+
+            if overwrite {
+                let mut new_clips = Vec::new();
+                for clip in &timeline.clips {
+                    if clip.track_id != track_id {
+                        new_clips.push(clip.clone());
+                        continue;
+                    }
+                    let clip_end = clip.start + clip.duration;
+                    if clip_end <= start + 1e-6 || clip.start >= end - 1e-6 {
+                        new_clips.push(clip.clone());
+                    } else if clip.start < start - 1e-6 && clip_end > end + 1e-6 {
+                        let mut head = (**clip).clone();
+                        head.duration = start - head.start;
+                        new_clips.push(Arc::new(head));
+
+                        let mut tail = (**clip).clone();
+                        tail.id = mint.next("c");
+                        let tail_offset = end - clip.start;
+                        tail.start = end;
+                        tail.duration = clip_end - end;
+                        tail.source_start = clip.source_start + tail_offset * clip.speed;
+                        tail.transition_in = None;
+                        new_clips.push(Arc::new(tail));
+                    } else if clip.start < start - 1e-6 {
+                        let mut trimmed = (**clip).clone();
+                        trimmed.duration = start - trimmed.start;
+                        new_clips.push(Arc::new(trimmed));
+                    } else if clip_end > end + 1e-6 {
+                        let mut trimmed = (**clip).clone();
+                        let cut_offset = end - trimmed.start;
+                        trimmed.start = end;
+                        trimmed.duration = clip_end - end;
+                        trimmed.source_start += cut_offset * trimmed.speed;
+                        trimmed.transition_in = None;
+                        new_clips.push(Arc::new(trimmed));
+                    }
+                }
+                timeline.clips = new_clips;
+            } else {
+                for other in
+                    timeline.clips_where(|c| c.track_id == track_id && c.start >= start - 1e-6)
+                {
+                    other.start += dur;
+                }
+            }
+
+            let id = mint.next("c");
+            let mut clip = default_clip(id.clone(), track_id, &media, start);
+            clip.source_start = src_in;
+            clip.duration = dur;
+            timeline.clips.push(Arc::new(clip));
+
+            Ok(Outcome {
+                created_id: Some(id),
                 applied: true,
             })
         }

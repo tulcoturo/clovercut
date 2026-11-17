@@ -372,6 +372,27 @@ pub enum Command {
         /// Timeline position in seconds, floored at 0.
         start: f64,
     },
+    /// Places media onto `track_id` with an explicit source range (`source_start`, `duration`).
+    /// In Insert mode (`overwrite: false`), ripples later clips forward to make room.
+    /// In Overwrite mode (`overwrite: true`), cuts into, trims, or replaces overlapping clips on this track.
+    PlaceMediaRange {
+        /// The bin item to cut from.
+        media_id: String,
+        /// The track to place it on.
+        track_id: String,
+        /// Timeline position in seconds.
+        start: f64,
+        /// In-point in the source media. Defaults to 0.0 when None.
+        #[serde(default)]
+        source_start: Option<f64>,
+        /// Duration of the cut in seconds. Defaults to full remaining source duration when None.
+        #[serde(default)]
+        duration: Option<f64>,
+        /// When true, overwrites any existing clips in `[start, start + duration)` on this track.
+        /// When false, ripples later clips forward to make room (Insert).
+        #[serde(default)]
+        overwrite: bool,
+    },
     /// Several bin items one after another on one lane, as one step: what
     /// a selection of cards dragged from the bin, or added at the playhead,
     /// lands as. Each clip starts where the one before it ends. Naming a
@@ -1205,6 +1226,12 @@ impl Command {
             Command::AddClip { start, .. }
             | Command::AddClipAtFirstFree { start, .. }
             | Command::AddClipsInSequence { start, .. } => bad([*start]),
+            Command::PlaceMediaRange {
+                start,
+                source_start,
+                duration,
+                ..
+            } => bad([*start]) || bad(*source_start) || bad(*duration),
             Command::AddShapeClip {
                 start,
                 duration,
@@ -1450,6 +1477,7 @@ pub fn apply_with_locks(
         command @ (Command::AddClip { .. }
         | Command::AddClipAtFirstFree { .. }
         | Command::AddClipsInSequence { .. }
+        | Command::PlaceMediaRange { .. }
         | Command::AddTextClip { .. }
         | Command::AddShapeClip { .. }
         | Command::AddLayerClip { .. }
