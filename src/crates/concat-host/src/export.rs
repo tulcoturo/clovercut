@@ -94,26 +94,27 @@ pub fn request_for(
     let mut clips = concat_export::flatten::flatten_timeline_in(project, None, Some(project_dir));
     clips.extend(titles);
     let mut offset = 0.0;
-    if let Some([start, end]) = time_range {
-        if end > start && start >= 0.0 {
-            offset = start;
-            clips.retain_mut(|clip| {
-                let clip_end = clip.start + clip.duration;
-                if clip_end <= start || clip.start >= end {
-                    return false;
-                }
-                let orig_start = clip.start;
-                let bounded_start = orig_start.max(start);
-                let bounded_end = clip_end.min(end);
-                clip.start = bounded_start - start;
-                clip.duration = (bounded_end - bounded_start).max(0.001);
-                let head_trimmed = bounded_start - orig_start;
-                if head_trimmed > 1e-6 {
-                    clip.source_start += head_trimmed * clip.speed;
-                }
-                true
-            });
-        }
+    if let Some([start, end]) = time_range
+        && end > start
+        && start >= 0.0
+    {
+        offset = start;
+        clips.retain_mut(|clip| {
+            let clip_end = clip.start + clip.duration;
+            if clip_end <= start || clip.start >= end {
+                return false;
+            }
+            let orig_start = clip.start;
+            let bounded_start = orig_start.max(start);
+            let bounded_end = clip_end.min(end);
+            clip.start = bounded_start - start;
+            clip.duration = (bounded_end - bounded_start).max(0.001);
+            let head_trimmed = bounded_start - orig_start;
+            if head_trimmed > 1e-6 {
+                clip.source_start += head_trimmed * clip.speed;
+            }
+            true
+        });
     }
     ExportRequest {
         output: spec.output.clone(),
