@@ -11946,6 +11946,7 @@ impl Studio {
     }
 
     /// Raises a failed/warning notice.
+    #[allow(dead_code)]
     pub fn warn(&mut self, message: &str) {
         self.notify(message, true);
     }
