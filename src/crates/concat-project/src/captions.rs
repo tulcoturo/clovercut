@@ -587,4 +587,129 @@ mod tests {
             "I like cherry pie"
         );
     }
+
+    #[test]
+    fn shift_captions_offsets_timing() {
+        let mut editor = Editor::default();
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 1.0,
+                duration: Some(2.0),
+                style: None,
+                offset_y: None,
+            })
+            .unwrap();
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 5.0,
+                duration: Some(2.0),
+                style: None,
+                offset_y: None,
+            })
+            .unwrap();
+
+        let clips = &editor.project().active().clips;
+        let c1_id = clips[0].id.clone();
+        let c2_id = clips[1].id.clone();
+
+        // Shift all text clips by +1.5s
+        editor
+            .apply(Command::ShiftCaptions {
+                clip_ids: None,
+                delta: 1.5,
+            })
+            .unwrap();
+
+        assert_eq!(editor.project().active().clip(&c1_id).unwrap().start, 2.5);
+        assert_eq!(editor.project().active().clip(&c2_id).unwrap().start, 6.5);
+
+        // Shift only c1 by -5.0s (clamped to 0.0)
+        editor
+            .apply(Command::ShiftCaptions {
+                clip_ids: Some(vec![c1_id.clone()]),
+                delta: -5.0,
+            })
+            .unwrap();
+
+        assert_eq!(editor.project().active().clip(&c1_id).unwrap().start, 0.0);
+        assert_eq!(editor.project().active().clip(&c2_id).unwrap().start, 6.5);
+
+        assert!(editor.undo());
+        assert_eq!(editor.project().active().clip(&c1_id).unwrap().start, 2.5);
+    }
+
+    #[test]
+    fn apply_caption_style_to_all_propagates_formatting_safely() {
+        let mut editor = Editor::default();
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 0.0,
+                duration: Some(2.0),
+                style: Some(TextStyle {
+                    content: "Master Header".into(),
+                    font_family: "Inter Custom".into(),
+                    font_size: 0.09,
+                    color: "#ff0000".into(),
+                    shadow: true,
+                    background: "#000000cc".into(),
+                    ..Default::default()
+                }),
+                offset_y: None,
+            })
+            .unwrap();
+
+        editor
+            .apply(Command::AddTextClip {
+                track_id: None,
+                above: false,
+                start: 3.0,
+                duration: Some(2.0),
+                style: Some(TextStyle {
+                    content: "Second Subtitle".into(),
+                    font_family: "Default Font".into(),
+                    font_size: 0.05,
+                    color: "#ffffff".into(),
+                    shadow: false,
+                    background: "".into(),
+                    ..Default::default()
+                }),
+                offset_y: None,
+            })
+            .unwrap();
+
+        let clips = &editor.project().active().clips;
+        let c1_id = clips[0].id.clone();
+        let c2_id = clips[1].id.clone();
+
+        editor
+            .apply(Command::ApplyCaptionStyleToAll {
+                source_clip_id: c1_id,
+                target_clip_ids: None,
+            })
+            .unwrap();
+
+        let c2 = editor.project().active().clip(&c2_id).unwrap();
+        let c2_text = c2.text.as_ref().unwrap();
+
+        // Content and timing preserved
+        assert_eq!(c2_text.content, "Second Subtitle");
+        assert_eq!(c2.start, 3.0);
+
+        // Styling copied
+        assert_eq!(c2_text.font_family, "Inter Custom");
+        assert_eq!(c2_text.font_size, 0.09);
+        assert_eq!(c2_text.color, "#ff0000");
+        assert!(c2_text.shadow);
+        assert_eq!(c2_text.background, "#000000cc");
+
+        assert!(editor.undo());
+        let c2_undo = editor.project().active().clip(&c2_id).unwrap();
+        assert_eq!(c2_undo.text.as_ref().unwrap().font_family, "Default Font");
+    }
 }

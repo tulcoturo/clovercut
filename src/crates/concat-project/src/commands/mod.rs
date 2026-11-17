@@ -772,6 +772,24 @@ pub enum Command {
         /// Whether the match is case-sensitive.
         match_case: bool,
     },
+    /// Shifts the timing of text or caption clips on the active timeline by `delta` seconds.
+    /// Clamps `start` to `>= 0.0`.
+    ShiftCaptions {
+        /// Optional specific clip ids to shift. None shifts all text clips.
+        #[serde(default)]
+        clip_ids: Option<Vec<String>>,
+        /// Time offset in seconds (positive shifts later, negative earlier).
+        delta: f64,
+    },
+    /// Copies typography, stroke, background, shadow and motion styling from `source_clip_id`
+    /// to other text clips on the active timeline, keeping their distinct text content and timing.
+    ApplyCaptionStyleToAll {
+        /// The clip whose style will be copied.
+        source_clip_id: String,
+        /// Optional specific target clip ids. None applies to all other text clips on the active timeline.
+        #[serde(default)]
+        target_clip_ids: Option<Vec<String>>,
+    },
     /// Replaces selected video clips with their host-rendered media, as one
     /// undoable edit. Keeps the earliest clip's id, track and timeline span;
     /// resets baked properties. The host must render only these clips first.
@@ -1291,7 +1309,8 @@ impl Command {
             Command::MoveClips { moves } => bad(moves.iter().map(|wanted| wanted.start)),
             Command::TrimClip { delta, .. } => bad([*delta]),
             Command::SplitClips { time, .. } | Command::SplitTextClip { time, .. } => bad([*time]),
-            Command::BatchReplaceCaptions { .. } => false,
+            Command::BatchReplaceCaptions { .. } | Command::ApplyCaptionStyleToAll { .. } => false,
+            Command::ShiftCaptions { delta, .. } => bad([*delta]),
             Command::FreezeFrame { time, duration, .. } => bad([*time]) || bad(*duration),
             Command::ReplaceClipMedia {
                 item,
@@ -1486,6 +1505,8 @@ pub fn apply_with_locks(
         | Command::SplitClips { .. }
         | Command::SplitTextClip { .. }
         | Command::BatchReplaceCaptions { .. }
+        | Command::ShiftCaptions { .. }
+        | Command::ApplyCaptionStyleToAll { .. }
         | Command::FreezeFrame { .. }
         | Command::ReplaceClipMedia { .. }
         | Command::SetClipEnhanced { .. }

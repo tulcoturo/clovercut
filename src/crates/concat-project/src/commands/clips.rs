@@ -679,6 +679,69 @@ pub(super) fn apply(
             })
         }
 
+        Command::ShiftCaptions { clip_ids, delta } => {
+            if delta.abs() < 1e-6 {
+                return Ok(Outcome::default());
+            }
+            let timeline = project.active_mut();
+            let mut changed = 0usize;
+            for clip in &mut timeline.clips {
+                if clip.kind == ClipKind::Text {
+                    let should_shift = match &clip_ids {
+                        Some(ids) => ids.contains(&clip.id),
+                        None => true,
+                    };
+                    if should_shift {
+                        let new_start = (clip.start + delta).max(0.0);
+                        if (new_start - clip.start).abs() > 1e-6 {
+                            let clip_mut = Arc::make_mut(clip);
+                            clip_mut.start = new_start;
+                            changed += 1;
+                        }
+                    }
+                }
+            }
+            Ok(Outcome {
+                created_id: None,
+                applied: changed > 0,
+            })
+        }
+
+        Command::ApplyCaptionStyleToAll {
+            source_clip_id,
+            target_clip_ids,
+        } => {
+            let timeline = project.active();
+            let Some(source_clip) = timeline.clip(&source_clip_id) else {
+                return Ok(Outcome::default());
+            };
+            let Some(source_style) = &source_clip.text else {
+                return Ok(Outcome::default());
+            };
+            let template_style = source_style.clone();
+            let timeline_mut = project.active_mut();
+            let mut changed = 0usize;
+            for clip in &mut timeline_mut.clips {
+                if clip.kind == ClipKind::Text && clip.id != source_clip_id {
+                    let should_apply = match &target_clip_ids {
+                        Some(ids) => ids.contains(&clip.id),
+                        None => true,
+                    };
+                    if should_apply {
+                        let clip_mut = Arc::make_mut(clip);
+                        if let Some(text) = &mut clip_mut.text {
+                            text.copy_presentation_from(&template_style);
+                            changed += 1;
+                        }
+                    }
+                }
+            }
+            Ok(Outcome {
+                created_id: None,
+                applied: changed > 0,
+            })
+        }
+
         Command::ReplaceClipMedia {
             clip_id,
             item,

@@ -32,6 +32,7 @@ pub mod placement;
 pub mod runs;
 pub mod speed;
 pub mod srt;
+pub mod template;
 
 pub use capcut::{
     CapcutDecodedDraft, CapcutEncoding, CapcutError, CapcutImportResult, decode_capcut_draft,
@@ -44,6 +45,7 @@ pub use commands::{
 pub use doc::{DOCUMENT_VERSION, DocumentSettings, document_version, from_document, to_document};
 pub use editor::{Editor, RetiredFields};
 pub use model::Project;
+pub use template::{ProjectTemplate, TemplateSlot, TemplateSlotKind};
 
 #[cfg(test)]
 mod tests {

@@ -2194,6 +2194,36 @@ pub struct TextStyle {
 }
 
 impl TextStyle {
+    /// Copies all typography, coloring, outline, background and motion styling from `source`,
+    /// leaving `content` and `runs` untouched.
+    pub fn copy_presentation_from(&mut self, source: &TextStyle) {
+        self.caption_group = source.caption_group.clone();
+        self.caption_motion = source.caption_motion;
+        self.font_family = source.font_family.clone();
+        self.font_size = source.font_size;
+        self.font_weight = source.font_weight;
+        self.italic = source.italic;
+        self.underline = source.underline;
+        self.text_case = source.text_case;
+        self.strikethrough = source.strikethrough;
+        self.vertical_align = source.vertical_align;
+        self.vertical = source.vertical;
+        self.color = source.color.clone();
+        self.align = source.align;
+        self.opacity = source.opacity;
+        self.stroke_width = source.stroke_width;
+        self.stroke_color = source.stroke_color.clone();
+        self.shadow = source.shadow;
+        self.background = source.background.clone();
+        self.background_radius = source.background_radius;
+        self.background_padding_x = source.background_padding_x;
+        self.background_padding_y = source.background_padding_y;
+        self.line_height = source.line_height;
+        self.tracking = source.tracking;
+        self.max_width = source.max_width;
+        self.max_height = source.max_height;
+    }
+
     /// The words as they are painted: the content in the style's case,
     /// leaving the content itself - what is typed, saved and exported as
     /// subtitles - as it was written. See [`TextStyle::display`] for the
