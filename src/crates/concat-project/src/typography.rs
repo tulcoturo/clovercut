@@ -3,7 +3,7 @@
 
 //! Built-in typographic styling recipes and title presets.
 //!
-//! Inspired by creative NLE workflows (such as CapCut and ReaCut title recipes),
+//! Inspired by creative desktop NLE workflows,
 //! these presets give creators instantaneous, professional-grade styling for
 //! chapters, movie titles, lower-thirds, quotes, and broadcast captions.
 

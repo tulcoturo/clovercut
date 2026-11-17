@@ -1,6 +1,6 @@
 //! Project templates with replaceable placeholder slots.
 //!
-//! Inspired by modern NLE workflows (such as CapCut and ReaCut templates),
+//! Inspired by modern desktop NLE workflows,
 //! a [`ProjectTemplate`] captures an entire project structure while designating
 //! specific media assets and text titles as replacement slots.
 //!

@@ -51,7 +51,7 @@ Its main additions and workflow differences are:
 - **CapCut Desktop draft import.** Directly decrypt and import modern CapCut
   Desktop drafts (`draft_content.json`), converting tracks, media, text, speed
   curves, and transitions into a native Clovercut project.
-- **Curated title presets.** Bundled ReaCut text presets for cinematic titles,
+- **Curated title presets.** Bundled text presets for cinematic titles,
   minimalist editorials, lower thirds, quotes, and neon glow effects.
 - **Export range selection.** Choose between exporting the entire timeline or
   only selected clips and In-Out ranges, with real-time size and duration calculations.
