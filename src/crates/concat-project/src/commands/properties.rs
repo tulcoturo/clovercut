@@ -55,6 +55,9 @@ pub(super) fn apply(
             if let Some(fade_out) = patch.fade_out {
                 applied |= assign(&mut clip.fade_out, fade_out.max(0.0));
             }
+            if let Some(curved) = patch.quadratic_fades {
+                applied |= assign(&mut clip.quadratic_fades, curved);
+            }
             if let Some(motion) = patch.visual_motion {
                 applied |= assign(&mut clip.visual_motion, motion.tidy());
             }
@@ -109,6 +112,11 @@ pub(super) fn apply(
                     applied |= assign(&mut clip.name, first_line(&style.content));
                 }
                 applied |= assign(&mut clip.text, text);
+            }
+            if let Some(shape) = patch.shape
+                && clip.kind == crate::model::ClipKind::Shape
+            {
+                applied |= assign(&mut clip.shape, Some(shape.tidy()));
             }
             if let Some(stream) = patch.audio_stream {
                 applied |= assign(&mut clip.audio_stream, stream);
@@ -222,6 +230,22 @@ pub(super) fn apply(
                 return Ok(Outcome::default());
             }
             let applied = assign(&mut clip.stabilize, stabilize.map(Stabilize::tidy));
+            Ok(Outcome {
+                created_id: None,
+                applied,
+            })
+        }
+
+        Command::SetClipVoice { clip_id, voice } => {
+            let timeline = project.active_mut();
+            let Some(clip) = timeline.clip_mut(&clip_id) else {
+                return Ok(Outcome::default());
+            };
+            // Only what plays sound has a voice in it: footage and sound.
+            if !matches!(clip.kind, ClipKind::Video | ClipKind::Audio) && voice.is_some() {
+                return Ok(Outcome::default());
+            }
+            let applied = assign(&mut clip.voice, voice.map(VoiceMix::tidy));
             Ok(Outcome {
                 created_id: None,
                 applied,

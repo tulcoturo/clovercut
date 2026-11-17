@@ -123,6 +123,7 @@ export struct ClipData {
     fade-handles: bool,
     fade-in: float,
     fade-out: float,
+    quadratic-fades: bool,
     /// Shade endpoints after clipping long geometry to the published window.
     fade-in-start: float,
     fade-in-end: float,
@@ -187,7 +188,7 @@ export enum TextAlignment { left, center, right }
 /// one per control.
 export enum ClipField {
     scale, offset-x, offset-y, rotation, stretch-x, stretch-y, opacity,
-    volume, speed, preserve-pitch, fade-in, fade-out,
+    volume, speed, preserve-pitch, fade-in, fade-out, quadratic-fades,
     flip-h, flip-v, blend, crop-left, crop-top, crop-right, crop-bottom,
     font-size, font-weight, italic, underline, strikethrough, text-case, vertical-align, text-vertical, text-color, text-green-key, text-blue-key, stroke-color-key, stroke-green-key, stroke-blue-key, text-opacity, align,
     stroke-width, shadow, line-height, tracking, text-width, text-height,
@@ -202,6 +203,11 @@ export enum ClipField {
     /// stabilization: on (1) or off (0), how smooth, the most it may zoom,
     /// and tripod (1) or following the camera's move (0)
     stabilize, stabilize-smoothness, stabilize-max-zoom, stabilize-tripod,
+    /// voice isolation: off (0), the voice alone (1) or the voice taken
+    /// out (2); and the voice's and the rest's gains, 0 to 2
+    voice-mode, voice-level, background-level,
+    /// and what the voice is set apart from: music (0) or noise (1)
+    voice-kind,
     /// which of the media's audio tracks the clip plays, as a row of
     /// Editor.audio-tracks
     audio-track,
@@ -223,6 +229,18 @@ export enum ClipField {
     motion-loop, motion-loop-seconds, motion-loop-amount,
     mask-x, mask-y, mask-width, mask-height, mask-rotation, mask-roundness, mask-feather,
     mask-expand, mask-opacity,
+    /// a shape: its figure as a place in ShapeKind::ALL, its box as
+    /// fractions of frame height, corners 0..1, a polygon's sides and a
+    /// star's points and inner radius; its fill on (1) or off, the blend
+    /// (0 none, 1 straight, 2 round) and its angle; its outline on, its
+    /// thickness, where it sits (0 centre, 1 inside, 2 outside) and its
+    /// pattern (0 solid, 1 dashed, 2 dotted); a line's ends as places in
+    /// LineHead::ALL; how much of it is drawn; and its shadow
+    shape-kind, shape-width, shape-height, shape-radius, shape-sides, shape-points, shape-inner,
+    shape-fill-on, shape-gradient, shape-gradient-angle,
+    shape-stroke-on, shape-stroke-width, shape-stroke-align, shape-dash,
+    shape-start-head, shape-end-head, shape-trim-start, shape-trim-end,
+    shape-shadow-on, shape-shadow-blur, shape-shadow-distance, shape-shadow-angle,
 }
 
 /// One keyable property's state at the playhead, as the inspector needs it.
@@ -418,6 +436,7 @@ export struct SelectedClipData {
     frame-height: int,
     name: string,
     kind: ClipKind,
+    transition-layer: bool,
     /// Seconds, and the ceiling on a fade: longer than half the clip and the
     /// two ramps would overlap.
     duration: float,
@@ -486,8 +505,11 @@ export struct SelectedClipData {
     mask-feather: float,
     mask-expand: float,
     mask-opacity: float,
+    wave-head: string,
+    wave-tail: string,
     fade-in: float,
     fade-out: float,
+    quadratic-fades: bool,
 
     // the cutout: 0 none, 1 automatic, 2 custom; what it keeps, 0 auto,
     // 1 person, 2 object; how soft its edge is; how many strokes it
@@ -517,6 +539,19 @@ export struct SelectedClipData {
     stabilize-zoom: float,
     stabilize-needed: float,
 
+    // Voice isolation: off (0), the voice alone (1), the voice taken out
+    // (2), or levels of one's own (3); the voice's and the rest's gains;
+    // and the split of the media's sound, -1 when none is running, else
+    // how far along
+    voice-mode: int,
+    voice-level: float,
+    background-level: float,
+    voice-progress: float,
+    // the split is the vocal model still downloading
+    voice-fetching: bool,
+    // vocals apart from music (0), or speech apart from noise (1)
+    voice-kind: int,
+
     // Enhance writing this clip's enhanced copy: -1 when it is not, else
     // how far along, and whether that is the model downloading rather
     // than frames being restored
@@ -535,6 +570,36 @@ export struct SelectedClipData {
     /// `enhance-auto` is what Auto comes to here; a size that would pass
     /// the longest-side limit is greyed, `enhance-size-note` saying why
     enhance-size: int,
+    /// A shape clip's figure and paint, as the Shape section shows them;
+    /// see ClipField's shape fields for what each number means. The box's
+    /// height is the one drawn, its own or the figure's proportion.
+    shape-kind: int,
+    shape-is-line: bool,
+    shape-width: float,
+    shape-height: float,
+    shape-radius: float,
+    shape-sides: int,
+    shape-points: int,
+    shape-inner: float,
+    shape-fill-on: bool,
+    shape-fill: color,
+    shape-gradient: int,
+    shape-gradient-color: color,
+    shape-gradient-angle: float,
+    shape-stroke-on: bool,
+    shape-stroke: color,
+    shape-stroke-width: float,
+    shape-stroke-align: int,
+    shape-dash: int,
+    shape-start-head: int,
+    shape-end-head: int,
+    shape-trim-start: float,
+    shape-trim-end: float,
+    shape-shadow-on: bool,
+    shape-shadow-color: color,
+    shape-shadow-blur: float,
+    shape-shadow-distance: float,
+    shape-shadow-angle: float,
     enhance-auto: int,
     enhance-fits-2x: bool,
     enhance-fits-4x: bool,

@@ -48,6 +48,7 @@ pub enum MediaOrigin {
 
 /// What a clip can be - wider than [`MediaKind`] because a text clip has no
 /// file behind it; it *is* its own content.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ClipKind {
@@ -80,6 +81,16 @@ pub enum ClipKind {
     /// media behind it; what it is and how it is painted lives in
     /// [`Clip::shape`], and it is placed and scaled like a still.
     Shape,
+    /// A transition placed on the timeline as a clip of its own (#621),
+    /// acting on everything beneath it for as long as it runs: across a cut
+    /// under it, the outgoing picture into the incoming one, each carried
+    /// into the span by its own footage or a held frame; over a single
+    /// shot, the package played over that shot. No media behind it; the
+    /// package and its knobs are the one link in [`Clip::video_effects`],
+    /// and its length is the clip's. Unlike [`Clip::transition_in`], which
+    /// ties a transition to the cut into one clip, it is placed, moved and
+    /// trimmed like any clip.
+    Transition,
 }
 
 impl ClipKind {
@@ -142,6 +153,7 @@ pub enum ColorRange {
 /// One entry in the media bin: a file the user imported, plus what the host's
 /// probe learned about it. The probe metadata is stored, not re-derived, so a
 /// document opens meaningfully even when the file itself is missing.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MediaItem {
@@ -254,13 +266,14 @@ impl TrackKind {
             ClipKind::Text if is_caption => TrackKind::Captions,
             ClipKind::Text => TrackKind::Text,
             ClipKind::Shape => TrackKind::Sticker,
-            ClipKind::Layer | ClipKind::SoundLayer => TrackKind::Filter,
+            ClipKind::Layer | ClipKind::SoundLayer | ClipKind::Transition => TrackKind::Filter,
             ClipKind::Video | ClipKind::Image => TrackKind::Video,
         }
     }
 }
 
 /// A timeline lane, identified by type.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Track {
@@ -609,6 +622,79 @@ impl Stroke {
             point[1] = point[1].clamp(-0.5, 1.5);
         }
         (!self.points.is_empty()).then_some(self)
+    }
+}
+
+/// Voice isolation on a clip's sound: how loud the voice in it plays, and
+/// how loud everything else does - music, noise, the room. Each is a gain,
+/// `0..=MAX_VOICE_GAIN`, 1 as recorded; both at 1 is the clip as it was,
+/// voice alone is a background of 0, and the voice taken out is a voice of
+/// 0. The two parts are worked out by the host the first time a clip of
+/// the media asks for them; until then the clip plays as recorded.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VoiceMix {
+    /// The voice's gain.
+    pub voice: f64,
+    /// The gain of everything but the voice.
+    pub background: f64,
+    /// What the voice is set apart from: a song's music, or a recording's
+    /// noise.
+    pub kind: VoiceKind,
+}
+
+/// The two kinds of voice isolation, each its own model.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum VoiceKind {
+    /// Singing apart from the music under it: a song's vocals and its
+    /// instrumental. Deezer's Spleeter.
+    Vocals,
+    /// Speech apart from the noise, the room and the music bed behind it:
+    /// dialogue cleaned. DeepFilterNet 3.
+    #[default]
+    Speech,
+}
+
+/// The loudest either part of a [`VoiceMix`] may be made: twice as loud.
+pub const MAX_VOICE_GAIN: f64 = 2.0;
+
+impl Default for VoiceMix {
+    fn default() -> Self {
+        VoiceMix::KEEP_VOICE
+    }
+}
+
+impl VoiceMix {
+    /// The voice alone.
+    pub const KEEP_VOICE: VoiceMix = VoiceMix {
+        voice: 1.0,
+        background: 0.0,
+        kind: VoiceKind::Speech,
+    };
+    /// Everything but the voice.
+    pub const REMOVE_VOICE: VoiceMix = VoiceMix {
+        voice: 0.0,
+        background: 1.0,
+        kind: VoiceKind::Speech,
+    };
+
+    /// Both gains in range; a gain that is not a number is as recorded.
+    pub fn tidy(self) -> VoiceMix {
+        let gain = |value: f64| {
+            if value.is_finite() {
+                value.clamp(0.0, MAX_VOICE_GAIN)
+            } else {
+                1.0
+            }
+        };
+        VoiceMix {
+            voice: gain(self.voice),
+            background: gain(self.background),
+            kind: self.kind,
+        }
     }
 }
 
@@ -1773,6 +1859,7 @@ impl From<KeyEase> for concat_core::animate::Ease {
 /// meaning the same thing after the clip's own scale or gain is changed
 /// underneath it; the conversion to relative happens on the way out, in
 /// `concat_export::flatten::export_keys`.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClipKey {
@@ -1813,6 +1900,7 @@ pub struct SpeedPoint {
 }
 
 /// A clip's Enhance, once it has a copy: see [`Clip::enhanced`].
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Enhanced {
@@ -1877,24 +1965,48 @@ pub enum TextAlign {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ShapeKind {
-    /// Four equal sides; the default, and what the reader falls back to.
+    /// A rectangle: square until it is given a height of its own, with
+    /// corners as round as `corner_radius` says. The default, and what the
+    /// reader falls back to.
     #[default]
     Square,
-    /// A disc.
+    /// An ellipse: a disc until it is given a height of its own.
     Circle,
-    /// Equilateral, point up.
+    /// Point up, its base the box's bottom.
     Triangle,
     /// A slanted rectangle, leaning right.
     Parallelogram,
     /// A rectangle narrower at the top.
     Trapezoid,
-    /// A horizontal rule, `stroke_width` thick.
+    /// A straight stroke `stroke_width` thick, with what `start_head` and
+    /// `end_head` put on its ends.
     Line,
-    /// A horizontal rule with a head on its right end.
+    /// A line whose end wears an arrowhead unless told otherwise.
     Arrow,
+    /// A regular polygon of `sides` sides, a point up.
+    Polygon,
+    /// A star of `points` points, its inner corners `inner_radius` of the
+    /// way out.
+    Star,
+    /// A heart.
+    Heart,
 }
 
 impl ShapeKind {
+    /// Every figure, in the order the inspector lists them.
+    pub const ALL: [ShapeKind; 10] = [
+        ShapeKind::Square,
+        ShapeKind::Circle,
+        ShapeKind::Triangle,
+        ShapeKind::Polygon,
+        ShapeKind::Star,
+        ShapeKind::Heart,
+        ShapeKind::Parallelogram,
+        ShapeKind::Trapezoid,
+        ShapeKind::Line,
+        ShapeKind::Arrow,
+    ];
+
     /// The name a document writes, and what a library payload carries.
     pub fn id(self) -> &'static str {
         match self {
@@ -1905,23 +2017,142 @@ impl ShapeKind {
             ShapeKind::Trapezoid => "trapezoid",
             ShapeKind::Line => "line",
             ShapeKind::Arrow => "arrow",
+            ShapeKind::Polygon => "polygon",
+            ShapeKind::Star => "star",
+            ShapeKind::Heart => "heart",
         }
     }
 
     /// The figure `id` names, if this build knows it.
     pub fn parse(id: &str) -> Option<ShapeKind> {
-        [
-            ShapeKind::Square,
-            ShapeKind::Circle,
-            ShapeKind::Triangle,
-            ShapeKind::Parallelogram,
-            ShapeKind::Trapezoid,
-            ShapeKind::Line,
-            ShapeKind::Arrow,
-        ]
-        .into_iter()
-        .find(|kind| kind.id() == id)
+        ShapeKind::ALL.into_iter().find(|kind| kind.id() == id)
     }
+
+    /// A stroke with ends rather than a closed figure.
+    pub fn is_line(self) -> bool {
+        matches!(self, ShapeKind::Line | ShapeKind::Arrow)
+    }
+
+    /// The figure's height for a width of one, when no height is given:
+    /// what makes a square square and a triangle equilateral.
+    pub fn natural_height(self) -> f64 {
+        match self {
+            ShapeKind::Square | ShapeKind::Circle | ShapeKind::Polygon | ShapeKind::Star => 1.0,
+            ShapeKind::Triangle => 0.866,
+            ShapeKind::Heart => 0.9,
+            ShapeKind::Parallelogram | ShapeKind::Trapezoid => 0.6,
+            ShapeKind::Line | ShapeKind::Arrow => 0.0,
+        }
+    }
+}
+
+/// How a shape's inside is coloured past its one colour: a blend from
+/// `fill` into a second colour.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ShapeGradient {
+    /// Straight across at `angle`, or out from the middle.
+    pub radial: bool,
+    /// The colour the blend ends in, `#rrggbb[aa]`.
+    pub color: String,
+    /// Which way a straight blend runs, in degrees: 0 left to right, 90
+    /// top to bottom.
+    pub angle: f64,
+}
+
+impl Default for ShapeGradient {
+    fn default() -> ShapeGradient {
+        ShapeGradient {
+            radial: false,
+            color: "#000000".to_owned(),
+            angle: 90.0,
+        }
+    }
+}
+
+/// A shadow under a shape - or, with no distance and a bright colour, a
+/// glow around it.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ShapeShadow {
+    /// `#rrggbb[aa]`; its alpha is the shadow's strength.
+    pub color: String,
+    /// How soft, as a fraction of frame height.
+    pub blur: f64,
+    /// How far from the shape, as a fraction of frame height.
+    pub distance: f64,
+    /// Which way it falls, in degrees: 90 straight down.
+    pub angle: f64,
+}
+
+impl Default for ShapeShadow {
+    fn default() -> ShapeShadow {
+        ShapeShadow {
+            color: "#00000099".to_owned(),
+            blur: 0.02,
+            distance: 0.012,
+            angle: 90.0,
+        }
+    }
+}
+
+/// Where an outline sits on a figure's edge.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StrokeAlign {
+    /// Straddling the edge, half in and half out.
+    #[default]
+    Center,
+    /// All inside the edge: the figure keeps its size.
+    Inside,
+    /// All outside it: the fill keeps its size and the outline adds to it.
+    Outside,
+}
+
+/// The outline's pattern.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StrokeDash {
+    /// Unbroken.
+    #[default]
+    Solid,
+    /// Dashes three strokes long with two strokes between.
+    Dashed,
+    /// Round dots a stroke apart.
+    Dotted,
+}
+
+/// What a line wears on an end.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LineHead {
+    /// The line's own round end.
+    #[default]
+    None,
+    /// Two strokes, open.
+    Arrow,
+    /// A filled point.
+    Triangle,
+    /// A filled dot.
+    Circle,
+    /// A short bar across.
+    Bar,
+}
+
+impl LineHead {
+    /// Every head, in the order the inspector lists them.
+    pub const ALL: [LineHead; 5] = [
+        LineHead::None,
+        LineHead::Arrow,
+        LineHead::Triangle,
+        LineHead::Circle,
+        LineHead::Bar,
+    ];
 }
 
 /// How a shape clip is painted. Sizes are fractions of the frame's height,
@@ -1934,10 +2165,32 @@ pub struct ShapeStyle {
     /// The figure.
     #[serde(deserialize_with = "wire::shape_kind")]
     pub kind: ShapeKind,
-    /// The figure's longer side, as a fraction of frame height.
-    pub size: f64,
+    /// The figure's width, or a line's length, as a fraction of frame
+    /// height. `size` is what documents before a height called it.
+    #[serde(alias = "size")]
+    pub width: f64,
+    /// The figure's height as a fraction of frame height; zero - the
+    /// default - is the figure's own proportion of its width (see
+    /// [`ShapeKind::natural_height`]). A line has no height of its own.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub height: f64,
+    /// How round a figure's corners are, 0 sharp to 1 as round as the
+    /// shorter side allows. Every figure with corners takes it.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub corner_radius: f64,
+    /// A polygon's sides, 3 to 12.
+    pub sides: u32,
+    /// A star's points, 3 to 24.
+    pub points: u32,
+    /// How far out a star's inner corners sit, as a share of its outer
+    /// radius: low is spiky, high is nearly round.
+    pub inner_radius: f64,
     /// The inside's colour as `#rrggbb[aa]`; empty for an outline alone.
     pub fill: String,
+    /// The inside blended from `fill` into a second colour, or None for
+    /// `fill` alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gradient: Option<ShapeGradient>,
     /// The outline's colour, drawn when `stroke_width` is above zero. A
     /// line and an arrow are all stroke, drawn in this colour, and fall
     /// back to `fill` when it is empty.
@@ -1945,6 +2198,29 @@ pub struct ShapeStyle {
     /// The outline's thickness as a fraction of frame height; zero for a
     /// figure with no outline. A line's and an arrow's own thickness.
     pub stroke_width: f64,
+    /// Where the outline sits on the edge.
+    pub stroke_align: StrokeAlign,
+    /// The outline's pattern; a line's too.
+    pub dash: StrokeDash,
+    /// What a line's start wears; None is the kind's own: nothing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_head: Option<LineHead>,
+    /// What a line's end wears; None is the kind's own: an arrowhead on
+    /// an arrow, nothing on a line.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_head: Option<LineHead>,
+    /// A shadow or a glow, or None.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shadow: Option<ShapeShadow>,
+    /// The outline drawn from `trim_start` to `trim_end` of the way round,
+    /// 0 to 1: a ring part-drawn, a progress arc, a line partway along.
+    pub trim_start: f64,
+    /// See `trim_start`.
+    pub trim_end: f64,
+}
+
+fn is_zero(value: &f64) -> bool {
+    *value == 0.0
 }
 
 impl ShapeStyle {
@@ -1956,14 +2232,121 @@ impl ShapeStyle {
         }
     }
 
+    /// The look a library card places: a figure, and for the cards that
+    /// are a figure set a particular way - a rounded square, a hexagon -
+    /// that setting. None for an id no card has.
+    pub fn preset(id: &str) -> Option<ShapeStyle> {
+        if let Some(kind) = ShapeKind::parse(id) {
+            return Some(ShapeStyle::of(kind));
+        }
+        Some(match id {
+            "rounded" => ShapeStyle {
+                corner_radius: 0.35,
+                ..ShapeStyle::of(ShapeKind::Square)
+            },
+            "pill" => ShapeStyle {
+                height: 0.14,
+                corner_radius: 1.0,
+                ..ShapeStyle::of(ShapeKind::Square)
+            },
+            "pentagon" => ShapeStyle {
+                sides: 5,
+                ..ShapeStyle::of(ShapeKind::Polygon)
+            },
+            "ring" => ShapeStyle {
+                fill: String::new(),
+                stroke: "#ffffff".to_owned(),
+                stroke_width: 0.03,
+                ..ShapeStyle::of(ShapeKind::Circle)
+            },
+            "double-arrow" => ShapeStyle {
+                start_head: Some(LineHead::Arrow),
+                ..ShapeStyle::of(ShapeKind::Arrow)
+            },
+            _ => return None,
+        })
+    }
+
+    /// The figure's box, width by height, as fractions of frame height,
+    /// before any outline: a height of zero is the kind's own proportion,
+    /// and a line is as tall as its stroke and heads.
+    pub fn figure_box(&self) -> (f64, f64) {
+        let width = self.width;
+        if self.kind.is_line() {
+            let heads = self.start() != LineHead::None || self.end() != LineHead::None;
+            let height = if heads {
+                (self.stroke_width * 4.0).max(width * 0.18)
+            } else {
+                self.stroke_width
+            };
+            return (width, height);
+        }
+        let height = if self.height > 0.0 {
+            self.height
+        } else {
+            width * self.kind.natural_height()
+        };
+        (width, height)
+    }
+
+    /// What the line's start wears, the kind's own when none is set.
+    pub fn start(&self) -> LineHead {
+        self.start_head.unwrap_or(LineHead::None)
+    }
+
+    /// What the line's end wears, the kind's own when none is set.
+    pub fn end(&self) -> LineHead {
+        self.end_head.unwrap_or(if self.kind == ShapeKind::Arrow {
+            LineHead::Arrow
+        } else {
+            LineHead::None
+        })
+    }
+
+    /// Every number in the style, for a command's check that none is NaN
+    /// or infinite.
+    pub fn numbers(&self) -> Vec<f64> {
+        let mut numbers = vec![
+            self.width,
+            self.height,
+            self.corner_radius,
+            self.inner_radius,
+            self.stroke_width,
+            self.trim_start,
+            self.trim_end,
+        ];
+        if let Some(gradient) = &self.gradient {
+            numbers.push(gradient.angle);
+        }
+        if let Some(shadow) = &self.shadow {
+            numbers.extend([shadow.blur, shadow.distance, shadow.angle]);
+        }
+        numbers
+    }
+
     /// Every number back in its range; see [`TextStyle::tidy`].
     pub fn tidy(mut self) -> ShapeStyle {
         fn finite(value: f64, fallback: f64) -> f64 {
             if value.is_finite() { value } else { fallback }
         }
         let base = ShapeStyle::default();
-        self.size = finite(self.size, base.size).clamp(0.01, 2.0);
+        self.width = finite(self.width, base.width).clamp(0.01, 4.0);
+        self.height = finite(self.height, 0.0).clamp(0.0, 4.0);
+        self.corner_radius = finite(self.corner_radius, 0.0).clamp(0.0, 1.0);
+        self.sides = self.sides.clamp(3, 12);
+        self.points = self.points.clamp(3, 24);
+        self.inner_radius = finite(self.inner_radius, base.inner_radius).clamp(0.05, 0.95);
         self.stroke_width = finite(self.stroke_width, base.stroke_width).clamp(0.0, 0.5);
+        self.trim_start = finite(self.trim_start, 0.0).clamp(0.0, 1.0);
+        self.trim_end = finite(self.trim_end, 1.0).clamp(self.trim_start, 1.0);
+        if let Some(gradient) = self.gradient.as_mut() {
+            gradient.angle = finite(gradient.angle, 90.0).rem_euclid(360.0);
+        }
+        if let Some(shadow) = self.shadow.as_mut() {
+            shadow.blur = finite(shadow.blur, 0.0).clamp(0.0, 0.2);
+            shadow.distance = finite(shadow.distance, 0.0).clamp(0.0, 0.2);
+            shadow.angle = finite(shadow.angle, 90.0).rem_euclid(360.0);
+        }
         self
     }
 }
@@ -1974,13 +2357,26 @@ impl Default for ShapeStyle {
             kind: ShapeKind::Square,
             // A third of the frame's height: big enough to be the point of
             // the frame, small enough to leave the picture around it.
-            size: 0.35,
+            width: 0.35,
+            height: 0.0,
+            corner_radius: 0.0,
+            sides: 6,
+            points: 5,
+            inner_radius: 0.45,
             fill: "#ffffff".to_owned(),
+            gradient: None,
             stroke: String::new(),
             // A line or an arrow is nothing but its stroke, so the default
             // is a visible rule and not zero; a filled figure ignores it
             // until it is given an outline colour.
             stroke_width: 0.012,
+            stroke_align: StrokeAlign::Center,
+            dash: StrokeDash::Solid,
+            start_head: None,
+            end_head: None,
+            shadow: None,
+            trim_start: 0.0,
+            trim_end: 1.0,
         }
     }
 }
@@ -2433,6 +2829,7 @@ pub mod ranges {
 /// One placed piece of a timeline: a stretch of media (or a title) with its
 /// timing, mix, transform, and effects. Everything an edit decision touches
 /// lives here, which is why most commands are clip commands.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Clip {
@@ -2464,6 +2861,9 @@ pub struct Clip {
     pub fade_in: f64,
     /// Seconds of audio ramp-out to silence at the tail. Zero for none.
     pub fade_out: f64,
+    /// Quadratic gain ramps; absent in old documents preserves linear fades.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub quadratic_fades: bool,
     /// Independent visual entrance/exit, composed with transform and opacity keys.
     #[serde(default, skip_serializing_if = "CaptionMotion::is_default")]
     pub visual_motion: CaptionMotion,
@@ -2531,6 +2931,11 @@ pub struct Clip {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(deserialize_with = "wire::maybe")]
     pub stabilize: Option<Stabilize>,
+    /// The voice in the clip's sound set apart from everything else, each
+    /// at a level of its own; see [`VoiceMix`]. None plays it as recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "wire::maybe")]
+    pub voice: Option<VoiceMix>,
     /// Keep voices at their natural pitch when `speed` is not 1. On by
     /// default; off gives the tape-machine chipmunk/slow-motion sound.
     pub preserve_pitch: bool,
@@ -2653,6 +3058,7 @@ impl Clip {
             volume: 1.0,
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: true,
             visual_motion: CaptionMotion::default(),
             scale: 1.0,
             offset_x: 0.0,
@@ -2673,6 +3079,7 @@ impl Clip {
             masks: Vec::new(),
             motion: None,
             stabilize: None,
+            voice: None,
             filters: Vec::new(),
             video_effects: Vec::new(),
             audio_stream: None,
@@ -3161,6 +3568,7 @@ impl Clip {
 
 /// One timeline: a name and its lanes and clips. Every operation takes the
 /// project and works on whichever timeline is active.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Timeline {
@@ -3437,6 +3845,7 @@ impl VideoSettings {
 }
 
 /// A font the user added from disk.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CustomFont {
@@ -3449,6 +3858,7 @@ pub struct CustomFont {
 }
 
 /// A subtitle library asset. Its cues are relative to the file, not a timeline.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptionSource {
@@ -3538,6 +3948,7 @@ impl CaptionMotion {
 }
 
 /// The project document: shared libraries and its editable timelines.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
@@ -3823,5 +4234,46 @@ mod enhanced_compatibility_tests {
         let text = serde_json::to_string(&clip).unwrap();
         let restored: Clip = serde_json::from_str(&text).unwrap();
         assert_eq!(restored.enhanced.unwrap().offset, 4.0);
+    }
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use super::*;
+
+    #[test]
+    fn a_shape_written_before_heights_reads_as_it_was_drawn() {
+        let old: ShapeStyle =
+            serde_json::from_str(r##"{"kind":"arrow","size":0.5,"fill":"#ff0000"}"##)
+                .expect("reads");
+        assert_eq!(old.width, 0.5);
+        assert_eq!(old.end(), LineHead::Arrow, "an arrow keeps its head");
+        assert_eq!(old.start(), LineHead::None);
+        let square: ShapeStyle =
+            serde_json::from_str(r#"{"kind":"square","size":0.3}"#).expect("reads");
+        assert_eq!(square.figure_box(), (0.3, 0.3));
+    }
+
+    #[test]
+    fn a_shape_this_build_does_not_know_is_a_square_and_numbers_are_held_in_range() {
+        let style: ShapeStyle = serde_json::from_str(
+            r#"{"kind":"spiral","width":9,"sides":40,"points":1,"trimStart":0.8,"trimEnd":0.2}"#,
+        )
+        .expect("reads");
+        let style = style.tidy();
+        assert_eq!(style.kind, ShapeKind::Square);
+        assert_eq!((style.width, style.sides, style.points), (4.0, 12, 3));
+        assert!(style.trim_end >= style.trim_start);
+    }
+
+    #[test]
+    fn a_preset_is_a_figure_set_a_particular_way() {
+        assert_eq!(ShapeStyle::preset("pentagon").map(|s| s.sides), Some(5));
+        assert!(ShapeStyle::preset("rounded").is_some_and(|s| s.corner_radius > 0.0));
+        assert_eq!(
+            ShapeStyle::preset("double-arrow").map(|s| s.start()),
+            Some(LineHead::Arrow)
+        );
+        assert!(ShapeStyle::preset("nonsense").is_none());
     }
 }

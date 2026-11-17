@@ -115,6 +115,7 @@ fn make_test_clip(root: &Path, stem: &str, seconds: u32, rate: FrameRate) -> Pat
         volume_curve: Default::default(),
         fade_in: 0.0,
         fade_out: 0.0,
+        quadratic_fades: false,
         filter_chain: String::new(),
     };
     audio::mix_to_file(&[clip], f64::from(seconds), &aac).expect("mixes aac");
@@ -516,6 +517,7 @@ fn test_export_cancellation_latency_and_destination_preservation() {
         volume_curve: Default::default(),
         fade_in: 0.0,
         fade_out: 0.0,
+        quadratic_fades: false,
         filter_chain: String::new(),
     };
     let audio_out = root.join("test_audio_cancel.m4a");

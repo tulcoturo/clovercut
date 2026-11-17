@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Clovercut contributors
-import { TransitionChoiceData } from "__INSPECTOR__";
+import { TransitionChoiceData, ChainChoiceData } from "__INSPECTOR__";
 import { ExportData } from "__EXPORT__";
 import { SettingsData } from "__SETTINGS__";
 import { RelinkData } from "__RELINK__";
@@ -8,6 +8,7 @@ import { StartData } from "__START__";
 import { CaptionsSheetData } from "__CAPTIONS__";
 export component PublishProbe inherits Window {
     in property <TransitionChoiceData> choice;
+    in property <ChainChoiceData> chain-choice;
     in property <ExportData> exporting;
     in property <SettingsData> settings;
     in property <RelinkData> relink;

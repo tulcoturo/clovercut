@@ -24,6 +24,7 @@ mod ahead;
 pub mod chains;
 pub mod flatten;
 mod resolve;
+mod transition_layers;
 
 use resolve::{
     BuiltTimeline, TransitionSpan, Treatment, animation_of, build_timeline, quantise, quantise_at,
@@ -56,6 +57,8 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ClipKind {
+    /// A movable transition layer over the picture beneath its lane.
+    Transition,
     /// Footage: pictures over time, possibly with its own sound.
     Video,
     /// Sound only. Contributes to the mix and never to the picture.
@@ -102,10 +105,62 @@ impl PartialEq for GeneratedImage {
     }
 }
 
+/// A clip's sound split by voice isolation: the voice, and everything
+/// else, each a file at a gain of its own. The two files add up to the
+/// recording.
+#[derive(Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceStems {
+    /// The voice's file.
+    pub voice: String,
+    /// Everything else's file.
+    pub rest: String,
+    /// The voice's gain over the clip's own volume.
+    pub voice_gain: f64,
+    /// Everything else's.
+    pub rest_gain: f64,
+}
+
+/// Where voice isolation keeps stream `stream` (the first when `None`) of
+/// `media_path` split, under `project`: a folder named by a hash of the
+/// path, as the masks' and the stabilizer's are, holding `voice.wav` and
+/// `rest.wav`. The engine's version is in the name, so a better model
+/// makes its parts afresh rather than reading the old ones.
+pub fn voice_stems_dir(
+    project: &Path,
+    media_path: &str,
+    stream: Option<u32>,
+    kind: concat_project::model::VoiceKind,
+) -> PathBuf {
+    // FNV-1a, as concat-vision names its folders.
+    let hash = media_path
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    let stream = stream.map_or_else(|| "a".to_owned(), |index| index.to_string());
+    project.join("cache").join("voice").join(format!(
+        "{hash:016x}-{stream}-{}",
+        match kind {
+            concat_project::model::VoiceKind::Vocals => "spleeter2",
+            concat_project::model::VoiceKind::Speech => "dfn3",
+        }
+    ))
+}
+
 /// One clip, as the frontend's flattener describes it.
 #[derive(Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportClip {
+    /// Original shader clock for transition stand-ins: epoch and optional held local time.
+    #[serde(skip)]
+    pub effect_clock: Option<(f64, Option<f64>)>,
+    /// Internal stacking lane for a transition stand-in; never supplied on the wire.
+    #[serde(skip)]
+    pub stack_at: Option<usize>,
+    /// Internal transition span and incoming/outgoing membership.
+    #[serde(skip)]
+    pub roles: Vec<(usize, bool)>,
     #[serde(skip)]
     /// An in-process source; absent when the clip reads a media file.
     pub generated: Option<GeneratedImage>,
@@ -146,6 +201,9 @@ pub struct ExportClip {
     /// Audio fade out into the clip's end, in seconds.
     #[serde(default)]
     pub fade_out: f64,
+    /// Audio gain ramps; old flattened requests retain their linear envelope.
+    #[serde(default)]
+    pub quadratic_fades: bool,
     /// FFmpeg filter chain from the Filters tab, or empty.
     #[serde(default)]
     pub filter_chain: String,
@@ -284,6 +342,12 @@ pub struct ExportClip {
     /// flattener had no project folder to name it by.
     #[serde(default)]
     pub motion_dir: String,
+    /// The clip's sound as its voice and everything else, each at a level
+    /// of its own (the document's `Clip::voice`), when both parts have
+    /// been worked out; absent, the clip plays its file as recorded. Set
+    /// by the flattener, which knows where the parts are kept.
+    #[serde(default)]
+    pub voice: Option<VoiceStems>,
     /// A title's per-word reveal order, baked at rasterize time and set by
     /// the host - never by the wire format, like `transition_chain`. Every
     /// shader pass over this clip carries it, so a reveal effect can read
@@ -353,6 +417,9 @@ impl ExportClip {
     /// field added to this type is added in one place.
     pub fn blank(kind: ClipKind, start: f64, duration: f64, track: usize) -> ExportClip {
         ExportClip {
+            effect_clock: None,
+            stack_at: None,
+            roles: Vec::new(),
             caption_motion: Default::default(),
             path: String::new(),
             audio_stream: None,
@@ -367,6 +434,7 @@ impl ExportClip {
             volume: 1.0,
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             filter_chain: String::new(),
             speed: 1.0,
             preserve_pitch: true,
@@ -401,6 +469,7 @@ impl ExportClip {
             face_dir: String::new(),
             stabilize: None,
             motion_dir: String::new(),
+            voice: None,
             highlighted: false,
             reveal_map: None,
             generated: None,
@@ -707,6 +776,14 @@ fn resolve_transitions_at(
     rate: FrameRate,
     origin: f64,
 ) -> Vec<TransitionSpan> {
+    if clips.iter().any(|clip| {
+        clip.kind == ClipKind::Transition
+            && !clip.hidden
+            && clip.transition.is_some()
+            && clip.duration >= 0.5 / rate.fps().as_f64()
+    }) {
+        return transition_layers::resolve(clips, rate, origin);
+    }
     let mut spans: Vec<TransitionSpan> = Vec::new();
 
     let fps = rate.fps().as_f64();
@@ -891,6 +968,9 @@ fn resolve_transitions_at(
                 let start = quantise_at(b.start, rate, origin);
                 let end = quantise_at(b.start + d, rate, origin);
                 spans.push(TransitionSpan {
+                    layered: false,
+                    from: Default::default(),
+                    to: Default::default(),
                     start,
                     end,
                     to_track: b.track,
@@ -1504,13 +1584,46 @@ pub fn audio_buses(clips: &[ExportClip]) -> Vec<audio::AudioBus> {
 /// Tape-speed curves use constant-rate pieces, each consuming exactly its
 /// stretch of the source clock.
 pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
+    let Some(stems) = &clip.voice else {
+        return audio_pieces_of(clip, &clip.path, clip.audio_stream, 1.0);
+    };
+    [
+        (&stems.voice, stems.voice_gain),
+        (&stems.rest, stems.rest_gain),
+    ]
+    .into_iter()
+    .filter(|(_, gain)| gain.is_finite() && *gain > 0.0)
+    .flat_map(|(path, gain)| audio_pieces_of(clip, path, None, gain))
+    .collect()
+}
+
+fn audio_pieces_of(
+    clip: &ExportClip,
+    path: &str,
+    stream: Option<u32>,
+    gain: f64,
+) -> Vec<AudioClip> {
     let chain = clip.filter_chain.clone();
     let track = volume_track(clip);
+    let track = if gain == 1.0 {
+        track
+    } else {
+        AnimTrack::new(
+            track
+                .keys()
+                .iter()
+                .map(|key| AnimKey {
+                    value: key.value * gain,
+                    ..*key
+                })
+                .collect(),
+        )
+    };
     let retime = clip.retime();
     if retime.is_none() || clip.preserve_pitch {
         return vec![AudioClip {
-            path: PathBuf::from(&clip.path),
-            stream: clip.audio_stream.map(|index| index as usize),
+            path: PathBuf::from(path),
+            stream: stream.map(|index| index as usize),
             start: clip.start,
             duration: clip.duration,
             source_start: clip.source_start,
@@ -1520,10 +1633,11 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
                 curve,
                 duration: clip.duration,
             }),
-            volume: clip.volume,
+            volume: clip.volume * gain,
             volume_curve: track,
             fade_in: clip.fade_in,
             fade_out: clip.fade_out,
+            quadratic_fades: clip.quadratic_fades,
             filter_chain: chain,
         }];
     }
@@ -1545,18 +1659,19 @@ pub fn audio_pieces(clip: &ExportClip) -> Vec<AudioClip> {
             let fade_out_from = clip.start + clip.duration - clip.fade_out;
             let fade_out = (piece_end - fade_out_from.max(piece_start)).clamp(0.0, piece_duration);
             AudioClip {
-                path: PathBuf::from(&clip.path),
-                stream: clip.audio_stream.map(|index| index as usize),
+                path: PathBuf::from(path),
+                stream: stream.map(|index| index as usize),
                 start: piece_start,
                 duration: piece_duration,
                 source_start,
                 speed: audio::clamp_speed(mean),
                 preserve_pitch: clip.preserve_pitch,
                 retime: None,
-                volume: clip.volume,
+                volume: clip.volume * gain,
                 volume_curve: track_slice(&track, x0, x1),
                 fade_in: if clip.fade_in > 0.0 { fade_in } else { 0.0 },
                 fade_out: if clip.fade_out > 0.0 { fade_out } else { 0.0 },
+                quadratic_fades: clip.quadratic_fades,
                 filter_chain: chain.clone(),
             }
         })
@@ -1579,6 +1694,7 @@ fn filled(
     transitions: Vec<Transition>,
     stabilized: Option<&resolve::StabilizeJob>,
     motion: Option<&(concat_project::model::CaptionMotion, f64)>,
+    effect_clock: Option<&(f64, Option<f64>)>,
     time: Rational,
 ) -> PlannedLayer {
     let mut filled = PlannedLayer {
@@ -1588,6 +1704,12 @@ fn filled(
         transitions,
         ..layer.clone()
     };
+    if let Some((epoch, held)) = effect_clock {
+        filled.clip_start = match held {
+            Some(local) => time - Rational::approximate(*local).unwrap_or(Rational::ZERO),
+            None => Rational::approximate(*epoch).unwrap_or(layer.clip_start),
+        };
+    }
     if let Some((motion, length)) = motion {
         let (opacity, scale, offset_y) = motion.sample((time - layer.clip_start).as_f64(), *length);
         filled.opacity *= opacity as f32;
@@ -1899,6 +2021,7 @@ fn render_picture(
         reveal_maps,
         generated,
         caption_motions,
+        effect_clocks,
         cutouts,
         stabilized,
         highlight: _,
@@ -2102,6 +2225,7 @@ fn render_picture(
                         shapes_at(&shapes, layer, time, rate),
                         stabilized.get(&layer.clip),
                         caption_motions.get(&layer.clip),
+                        effect_clocks.get(&layer.clip),
                         time,
                     ));
                     continue;
@@ -2140,6 +2264,7 @@ fn render_picture(
                         shapes_at(&shapes, layer, time, rate),
                         stabilized.get(&layer.clip),
                         caption_motions.get(&layer.clip),
+                        effect_clocks.get(&layer.clip),
                         time,
                     ));
                 }
@@ -2800,10 +2925,13 @@ fn composite_treated(
     // incoming lane grades the combined picture, one below grades the
     // stacks being combined. Leaving the pairing to the dissolve turned
     // every transition under a filter layer into a plain fade.
-    if let Some(span) = transitions.iter().find(|span| span.covers(time))
-        && let Some(frame) = combine_transition(compositor, plan, span, &planned)
-    {
-        return frame;
+    if let Some(span) = transitions.iter().find(|span| span.covers(time)) {
+        if span.layered {
+            return transition_layers::composite(compositor, plan, span, &planned);
+        }
+        if let Some(frame) = combine_transition(compositor, plan, span, &planned) {
+            return frame;
+        }
     }
     compositor.render(&with_treatments(plan, planned))
 }
@@ -2928,6 +3056,9 @@ impl Device<'_> {
 /// stack, its own layer at full opacity so the shader - not the dissolve
 /// ramp - owns the blend.
 fn transition_stages(plan: &FramePlan, span: &TransitionSpan) -> (FramePlan, FramePlan) {
+    if span.layered {
+        return transition_layers::transition_stages(plan, span);
+    }
     let stage = |layers: Vec<PlannedLayer>| FramePlan {
         time: plan.time,
         width: plan.width,
@@ -3240,6 +3371,7 @@ pub fn preview_sources_of(
         reveal_maps,
         generated,
         caption_motions,
+        effect_clocks,
         cutouts,
         stabilized,
         highlight,
@@ -3316,6 +3448,7 @@ pub fn preview_sources_of(
                     shapes_at(shapes, layer, time, rate),
                     stabilized.get(&layer.clip),
                     caption_motions.get(&layer.clip),
+                    effect_clocks.get(&layer.clip),
                     time,
                 ))
             }
@@ -3553,6 +3686,59 @@ pub fn preview_moments(
 mod tests {
     use super::*;
     use concat_media::{Decoder, FrameSource};
+
+    #[test]
+    fn isolated_parts_share_timing_pitch_and_clip_gain() {
+        let mut clip = ExportClip::blank(ClipKind::Video, 2.0, 4.0, 0);
+        clip.path = "original.mov".into();
+        clip.source_start = 1.5;
+        clip.volume = 0.5;
+        clip.fade_in = 0.3;
+        clip.fade_out = 0.4;
+        clip.voice = Some(VoiceStems {
+            voice: "voice.wav".into(),
+            rest: "rest.wav".into(),
+            voice_gain: 0.8,
+            rest_gain: 0.2,
+        });
+        let parts = audio_pieces(&clip);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].path, PathBuf::from("voice.wav"));
+        assert_eq!(parts[1].path, PathBuf::from("rest.wav"));
+        assert_eq!((parts[0].volume, parts[1].volume), (0.4, 0.1));
+        for part in &parts {
+            assert_eq!(
+                (part.start, part.duration, part.source_start),
+                (2.0, 4.0, 1.5)
+            );
+            assert_eq!((part.fade_in, part.fade_out), (0.3, 0.4));
+            assert_eq!(part.stream, None);
+            assert_eq!(part.preserve_pitch, clip.preserve_pitch);
+        }
+        clip.animation = vec![
+            ExportKey {
+                property: "volume".into(),
+                at: 0.0,
+                value: 1.0,
+                ease: linear_ease(),
+            },
+            ExportKey {
+                property: "volume".into(),
+                at: 1.0,
+                value: 0.5,
+                ease: linear_ease(),
+            },
+        ];
+        let keyed = audio_pieces(&clip);
+        assert!((keyed[0].volume_curve.value_at(0.5, 0.0) - 0.6).abs() < 1e-9);
+        assert!((keyed[1].volume_curve.value_at(0.5, 0.0) - 0.15).abs() < 1e-9);
+        clip.voice.as_mut().unwrap().rest_gain = 0.0;
+        assert_eq!(audio_pieces(&clip).len(), 1);
+        clip.voice.as_mut().unwrap().voice_gain = 0.0;
+        assert!(audio_pieces(&clip).is_empty());
+        clip.voice = None;
+        assert_eq!(audio_pieces(&clip)[0].path, PathBuf::from("original.mov"));
+    }
 
     /// An Animate pick reaches the frame: a clip from the document with a
     /// Slide Left in and a Fade out is off to the side at its start, at
@@ -3814,6 +4000,9 @@ mod tests {
             }
         };
         let span = TransitionSpan {
+            layered: false,
+            from: Default::default(),
+            to: Default::default(),
             start: Rational::ZERO,
             end: Rational::from_int(2),
             to_track: 2,
@@ -5673,5 +5862,164 @@ mod tests {
                 }
             }
         }
+    }
+    fn transition_clip(kind: &str, start: f64, duration: f64, lane: usize) -> ExportClip {
+        ExportClip {
+            transition: spec(kind, duration),
+            ..ExportClip::blank(ClipKind::Transition, start, duration, lane)
+        }
+    }
+
+    /// A transition clip over a cut (#621) takes the clip going out and the
+    /// clip coming in as its sides, and carries each into its span by a
+    /// silent stand-in drawn where that clip is: the outgoing one on past
+    /// its out-point, the incoming one early from before its in-point, from
+    /// their own footage where the files have it.
+    #[test]
+    fn a_transition_clip_over_a_cut_takes_both_sides_into_its_span() {
+        let mut clips = vec![
+            clip("video", 0, 0.0, 2.0, 0.0),
+            clip("video", 0, 2.0, 2.0, 5.0),
+            transition_clip("concat.push", 1.5, 1.0, 1),
+        ];
+        for footage in &mut clips[..2] {
+            footage.media_duration = Some(10.0);
+        }
+        let spans = resolve_transitions(&mut clips, FrameRate::THIRTY);
+        assert_eq!(spans.len(), 1);
+        let span = &spans[0];
+        assert!((span.start.as_f64() - 1.5).abs() < 1e-6, "{:?}", span.start);
+        assert!((span.end.as_f64() - 2.5).abs() < 1e-6, "{:?}", span.end);
+        assert_eq!((span.to_track, span.id.as_str()), (1, "concat.push"));
+        assert_eq!(clips[0].roles, vec![(0, false)], "the outgoing side");
+        assert_eq!(clips[1].roles, vec![(0, true)], "the incoming side");
+
+        let stand_in = |incoming: bool| {
+            clips
+                .iter()
+                .find(|clip| clip.stack_at.is_some() && clip.roles == vec![(0, incoming)])
+                .unwrap_or_else(|| panic!("a stand-in for the {incoming} side"))
+        };
+        let after = stand_in(false);
+        assert_eq!(after.stack_at, Some(0), "drawn where the outgoing clip is");
+        assert!((after.start - 2.0).abs() < 1e-6 && (after.duration - 0.5).abs() < 1e-6);
+        assert!(!after.hold, "the file has footage past the out-point");
+        assert!(
+            (after.source_start - 2.0).abs() < 1e-6,
+            "{}",
+            after.source_start
+        );
+        assert!(after.muted, "a stand-in is silent");
+        let before = stand_in(true);
+        assert_eq!(before.stack_at, Some(0));
+        assert!((before.start - 1.5).abs() < 1e-6 && (before.duration - 0.5).abs() < 1e-6);
+        assert!(!before.hold, "the file has footage before the in-point");
+        assert!(
+            (before.source_start - 4.5).abs() < 1e-6,
+            "{}",
+            before.source_start
+        );
+        assert!(before.muted);
+    }
+
+    /// A clip with nothing past its out-point holds its last frame into the
+    /// span instead.
+    #[test]
+    fn a_side_with_no_footage_to_give_holds_its_frame() {
+        let mut clips = vec![
+            clip("video", 0, 0.0, 2.0, 0.0),
+            clip("video", 0, 2.0, 2.0, 0.0),
+            transition_clip("concat.push", 1.5, 1.0, 1),
+        ];
+        clips[0].media_duration = Some(2.0);
+        clips[1].media_duration = Some(10.0);
+        resolve_transitions(&mut clips, FrameRate::THIRTY);
+        let after = clips
+            .iter()
+            .find(|clip| clip.stack_at.is_some() && clip.roles == vec![(0, false)])
+            .expect("the outgoing stand-in");
+        assert!(after.hold, "the outgoing file ends at the cut");
+        let before = clips
+            .iter()
+            .find(|clip| clip.stack_at.is_some() && clip.roles == vec![(0, true)])
+            .expect("the incoming stand-in");
+        assert!(
+            before.hold,
+            "the incoming clip starts at its file's first frame"
+        );
+    }
+
+    /// With no cut under it, a transition clip plays its package over the
+    /// one shot: a span, and no sides or stand-ins.
+    #[test]
+    fn a_transition_clip_over_a_single_shot_has_no_sides() {
+        let mut clips = vec![
+            clip("video", 0, 0.0, 4.0, 0.0),
+            transition_clip("concat.zoom-transition", 1.0, 1.0, 1),
+        ];
+        let spans = resolve_transitions(&mut clips, FrameRate::THIRTY);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].to_track, 1);
+        assert!(clips[0].roles.is_empty());
+        assert_eq!(clips.len(), 2, "no stand-ins");
+    }
+
+    /// A transition clip that is hidden, has no package, or is shorter than
+    /// half a frame makes no span; the clips beneath play as a plain cut.
+    #[test]
+    fn a_hidden_empty_or_vanishing_transition_clip_is_a_plain_cut() {
+        let footage = || {
+            vec![
+                clip("video", 0, 0.0, 2.0, 0.0),
+                clip("video", 0, 2.0, 2.0, 0.0),
+            ]
+        };
+        let mut hidden = transition_clip("concat.push", 1.5, 1.0, 1);
+        hidden.hidden = true;
+        let mut empty = transition_clip("concat.push", 1.5, 1.0, 1);
+        empty.transition = None;
+        let tiny = transition_clip("concat.push", 2.0, 0.001, 1);
+        for one in [hidden, empty, tiny] {
+            let mut clips = footage();
+            clips.push(one);
+            assert!(resolve_transitions(&mut clips, FrameRate::THIRTY).is_empty());
+            assert!(clips.iter().all(|clip| clip.roles.is_empty()));
+        }
+    }
+    #[test]
+    fn a_documents_transition_clip_is_flattened_with_its_package() {
+        use concat_project::{Command, Editor};
+        let mut editor = Editor::new();
+        let id = editor
+            .apply(Command::AddTransitionClip {
+                track_id: None,
+                start: 3.0,
+                duration: Some(0.8),
+                transition_id: "concat.push".into(),
+                name: "Push".into(),
+            })
+            .expect("placed")
+            .created_id
+            .expect("an id");
+        let lane = {
+            let timeline = editor.project().active();
+            let clip = timeline.clip(&id).expect("exists");
+            timeline
+                .tracks
+                .iter()
+                .position(|track| track.id == clip.track_id)
+                .expect("its lane")
+        };
+        let flat = flatten::flatten_timeline(editor.project(), None);
+        let transition = flat
+            .iter()
+            .find(|clip| clip.kind == ClipKind::Transition)
+            .expect("flattened");
+        assert_eq!(transition.track, lane);
+        assert!((transition.start - 3.0).abs() < 1e-9 && (transition.duration - 0.8).abs() < 1e-9);
+        let spec = transition.transition.as_ref().expect("its package");
+        assert_eq!(spec.kind, "concat.push");
+        assert!((spec.duration - 0.8).abs() < 1e-9);
+        assert!(!transition.hidden && transition.muted);
     }
 }

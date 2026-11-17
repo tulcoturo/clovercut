@@ -203,6 +203,9 @@ fn import_edit_reopen_relink_export() {
                     check_media_selection(&shell);
                     studio = shell.studio.borrow_mut();
                     check_speed_selection(&mut studio);
+                    check_shapes_and_preview_hold(&mut studio);
+                    check_transition_layers(&mut studio);
+                    check_batch_inspector(&mut studio);
                     studio
                         .apply(Command::AddCaptionSource {
                             name: "journey.srt".into(),
@@ -644,4 +647,200 @@ fn check_speed_selection(state: &mut Studio) {
     assert_eq!(state.project(), &baseline);
     state.selection = selection;
     state.speed_choose(-1, false);
+}
+
+// Real inspector transactions, plus temporary preview hold and seek bounds.
+fn check_shapes_and_preview_hold(state: &mut Studio) {
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let playhead = state.playhead;
+    let axis = state.prefs.preview_axis;
+    let bounded = state.prefs.playhead_stops_at_end;
+    let id = state
+        .apply(Command::AddShapeClip {
+            track_id: None,
+            above: true,
+            start: 0.0,
+            style: Some(concat_project::model::ShapeStyle::default()),
+            duration: Some(1.0),
+            name: "Editable figure".into(),
+        })
+        .unwrap();
+    state.selection = vec![id.clone()];
+    let original = state.clip(&id).unwrap().shape.clone();
+    state.clip_shape_colour(0, slint::Color::from_argb_u8(128, 18, 52, 86));
+    state.clip_commit();
+    state.flush_commit();
+    let changed = state.clip(&id).unwrap().shape.clone().unwrap();
+    assert_eq!(changed.fill, "#12345680");
+    state.undo();
+    assert_eq!(
+        state.clip(&id).unwrap().shape,
+        original,
+        "one undo restores the shape's colour"
+    );
+    state.redo();
+    assert_eq!(state.clip(&id).unwrap().shape.as_ref(), Some(&changed));
+    state.undo();
+    state.undo();
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
+    state.prefs.preview_axis = true;
+    state.hover(0.25);
+    assert_eq!(state.hover, Some(0.25));
+    state.preview_held = true;
+    state.hover(0.75);
+    state.end_hover();
+    assert_eq!(
+        state.hover,
+        Some(0.25),
+        "Shift holds the currently shown hover frame"
+    );
+    state.preview_held = false;
+    state.hover(0.75);
+    assert_eq!(state.hover, Some(0.75));
+    state.end_hover();
+    state.prefs.playhead_stops_at_end = true;
+    state.seek(1_000_000.0);
+    assert!(state.playhead <= state.duration());
+    state.seek(-1.0);
+    assert_eq!(state.playhead, 0.0);
+    state.prefs.playhead_stops_at_end = bounded;
+    state.prefs.preview_axis = axis;
+    state.seek(playhead);
+}
+
+fn check_transition_layers(state: &mut Studio) {
+    use concat_project::commands::{ClipMove, TrimEdge};
+    use concat_project::model::{ClipKind, TrackKind};
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let playhead = state.playhead;
+    state.apply_transition("concat.push");
+    let id = state.sole_selection().expect("the transition is selected");
+    let clip = state.clip(&id).unwrap().clone();
+    assert_eq!(clip.kind, ClipKind::Transition);
+    assert_eq!(clip.video_effects[0].id, "concat.push");
+    assert_eq!(
+        state.timeline().track(&clip.track_id).unwrap().kind,
+        TrackKind::Filter
+    );
+    state.chain_add(false, "concat.zoom-transition");
+    assert_eq!(state.clip(&id).unwrap().video_effects.len(), 1);
+    assert_eq!(
+        state.clip(&id).unwrap().video_effects[0].id,
+        "concat.zoom-transition"
+    );
+    let before_copy = state.project().clone();
+    state.duplicate_selected();
+    let copied = state.sole_selection().expect("the copy is selected");
+    assert_ne!(copied, id);
+    assert_eq!(state.clip(&copied).unwrap().kind, ClipKind::Transition);
+    assert_eq!(
+        state.clip(&copied).unwrap().video_effects,
+        state.clip(&id).unwrap().video_effects
+    );
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_copy,
+        "one undo removes a transition duplicate"
+    );
+    state.selection = vec![id.clone()];
+    state.apply(Command::MoveClips {
+        moves: vec![ClipMove {
+            clip_id: id.clone(),
+            start: 3.0,
+            track_id: clip.track_id.clone(),
+        }],
+    });
+    state.apply(Command::TrimClip {
+        clip_id: id.clone(),
+        edge: TrimEdge::Start,
+        delta: -0.25,
+        ripple: false,
+    });
+    assert_eq!(state.clip(&id).unwrap().start, 2.75);
+    assert_eq!(state.clip(&id).unwrap().duration, 1.25);
+    for _ in 0..4 {
+        state.undo();
+    }
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
+    state.seek(playhead);
+}
+
+// Actual inspector commands affect compatible peers and undo as whole gestures.
+fn check_batch_inspector(state: &mut Studio) {
+    let baseline = state.project().clone();
+    let selection = state.selection.clone();
+    let ids: Vec<String> = (0..2)
+        .map(|number| {
+            state
+                .apply(Command::AddShapeClip {
+                    track_id: None,
+                    above: true,
+                    start: 0.0,
+                    style: None,
+                    duration: Some(1.0),
+                    name: format!("Batch shape {number}"),
+                })
+                .unwrap()
+        })
+        .collect();
+    state.selection = ids.clone();
+    assert_eq!(state.edit_targets(), ids);
+    let before_width = state.project().clone();
+    state.clip_set(crate::ui::ClipField::ShapeWidth, 0.4);
+    state.clip_commit();
+    assert!(
+        ids.iter()
+            .all(|id| (state.clip(id).unwrap().shape.as_ref().unwrap().width - 0.4).abs() < 1e-6)
+    );
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_width,
+        "one undo restores the complete shape gesture"
+    );
+    state.selection = ids.clone();
+    state.apply_catalogue("concat.adjust", true);
+    assert!(
+        ids.iter()
+            .all(|id| state.clip(id).unwrap().video_effects.len() == 1)
+    );
+    let before_knob = state.project().clone();
+    state.chain_set_param(false, 0, "contrast", 0.75);
+    state.clip_commit();
+    assert!(ids.iter().all(|id| {
+        state.clip(id).unwrap().video_effects[0]
+            .params
+            .get("contrast")
+            == Some(&0.75)
+    }));
+    state.undo();
+    assert_eq!(
+        state.project(),
+        &before_knob,
+        "one undo restores every peer's effect knob"
+    );
+    state.selection = ids.clone();
+    state.chain_toggle(false, 0);
+    assert!(
+        ids.iter()
+            .all(|id| !state.clip(id).unwrap().video_effects[0].enabled)
+    );
+    state.undo();
+    state.selection = ids.clone();
+    state.chain_remove(false, 0);
+    assert!(
+        ids.iter()
+            .all(|id| state.clip(id).unwrap().video_effects.is_empty())
+    );
+    state.undo();
+    state.undo(); // both catalogue additions
+    state.undo(); // second shape
+    state.undo(); // first shape
+    assert_eq!(state.project(), &baseline);
+    state.selection = selection;
 }

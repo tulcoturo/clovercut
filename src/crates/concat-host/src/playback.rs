@@ -145,6 +145,9 @@ pub struct ClipSpec {
     pub fade_in: f64,
     /// Fade-out length in seconds.
     pub fade_out: f64,
+    /// Quadratic audio envelope, or the legacy linear ramp when absent.
+    #[serde(default)]
+    pub quadratic_fades: bool,
     /// Playback speed; 1.0 is the source's own.
     pub speed: f64,
     /// Whether a speed change keeps the pitch.
@@ -225,6 +228,7 @@ impl ClipSpec {
             volume_curve: track_of(&self.volume_curve),
             fade_in: self.fade_in,
             fade_out: self.fade_out,
+            quadratic_fades: self.quadratic_fades,
             filter_chain: self.chain.clone(),
         }
     }
@@ -264,6 +268,7 @@ pub fn audible(clips: &[concat_export::ExportClip]) -> Vec<ClipSpec> {
                 .collect(),
             fade_in: piece.fade_in,
             fade_out: piece.fade_out,
+            quadratic_fades: piece.quadratic_fades,
             speed: piece.speed,
             preserve_pitch: piece.preserve_pitch,
             retime: piece.retime,
@@ -350,6 +355,7 @@ pub fn with_sound_layers(
                 volume_curve: Vec::new(),
                 fade_in: 0.0,
                 fade_out: 0.0,
+                quadratic_fades: false,
                 speed: 1.0,
                 preserve_pitch: true,
                 chain: String::new(),
@@ -477,6 +483,7 @@ struct ActiveClip {
     volume_curve: Track,
     fade_in: f64,
     fade_out: f64,
+    quadratic_fades: bool,
     pcm: Arc<Pcm>,
     /// The frame of `pcm` the clip's first instant is: zero for the clip's
     /// own decode, and where the clip falls inside a span that stands in
@@ -527,10 +534,13 @@ fn gain_at(clip: &ActiveClip, local: f64) -> f32 {
         clip.volume_curve.value_at(x, f64::from(clip.volume))
     };
     if clip.fade_in > 0.0 {
-        gain *= (local / clip.fade_in).min(1.0);
+        gain *= concat_media::audio::fade_gain(clip.quadratic_fades, local / clip.fade_in);
     }
     if clip.fade_out > 0.0 {
-        gain *= ((clip.duration - local) / clip.fade_out).min(1.0);
+        gain *= concat_media::audio::fade_gain(
+            clip.quadratic_fades,
+            (clip.duration - local) / clip.fade_out,
+        );
     }
     gain.max(0.0) as f32
 }
@@ -1084,6 +1094,7 @@ impl Playback {
                     volume_curve: track_of(&spec.volume_curve),
                     fade_in: spec.fade_in,
                     fade_out: spec.fade_out,
+                    quadratic_fades: spec.quadratic_fades,
                     pcm: Arc::clone(&entry.pcm),
                     lead,
                     covered: if spec.bus.is_some() {
@@ -1314,6 +1325,9 @@ fn decode_key(spec: &ClipSpec) -> String {
         eat(&spec.start.to_bits().to_le_bytes());
         eat(&spec.duration.to_bits().to_le_bytes());
         for clip in &bus.clips {
+            if clip.quadratic_fades {
+                eat(b"quadratic-fades");
+            }
             eat(decode_key(clip).as_bytes());
             for number in [
                 clip.start,
@@ -1982,6 +1996,54 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn live_fade_curve_matches_export_and_changes_only_baked_mix_cache_keys() {
+        let map = memmap2::MmapMut::map_anon(4)
+            .unwrap()
+            .make_read_only()
+            .unwrap();
+        let mut clip = super::ActiveClip {
+            start: 0.0,
+            duration: 4.0,
+            volume: 1.0,
+            volume_curve: super::Track::default(),
+            fade_in: 2.0,
+            fade_out: 2.0,
+            quadratic_fades: false,
+            pcm: std::sync::Arc::new(super::Pcm {
+                map,
+                start: 0,
+                frames: 1,
+            }),
+            lead: 0,
+            covered: std::sync::Arc::from([]),
+        };
+        assert_eq!(super::gain_at(&clip, 1.0), 0.5);
+        assert_eq!(super::gain_at(&clip, 3.0), 0.5);
+        clip.quadratic_fades = true;
+        assert_eq!(super::gain_at(&clip, 1.0), 0.25);
+        assert_eq!(super::gain_at(&clip, 3.0), 0.25);
+        let plain = tone_spec(std::path::Path::new("/curve-fixture.wav"), 0.0, 4.0);
+        let mut curved = plain.clone();
+        curved.quadratic_fades = true;
+        assert_eq!(
+            super::decode_key(&plain),
+            super::decode_key(&curved),
+            "ordinary decode excludes its live envelope"
+        );
+        let mix = |spec| {
+            super::with_sound_layers(vec![spec], &[layer(0.0, 4.0)])
+                .into_iter()
+                .find(|spec| spec.bus.is_some())
+                .unwrap()
+        };
+        assert_ne!(
+            super::decode_key(&mix(plain)),
+            super::decode_key(&mix(curved)),
+            "a baked bus mix includes its curve"
+        );
+    }
+
     use super::{COAST, Shared, sweep_plan, wav_data_range};
     use std::sync::atomic::Ordering;
 
@@ -2045,6 +2107,7 @@ mod tests {
                 volume_curve: vec![],
                 fade_in: 0.0,
                 fade_out: 0.0,
+                quadratic_fades: false,
                 chain: String::new(),
             },
             dir.path(),
@@ -2091,6 +2154,7 @@ mod tests {
                     volume_curve: vec![],
                     fade_in: 0.0,
                     fade_out: 0.0,
+                    quadratic_fades: false,
                     chain: String::new(),
                 };
                 let pcm = decode(&spec, dir.path(), &decode_key(&spec), None).unwrap();
@@ -2145,6 +2209,7 @@ mod tests {
                 volume_curve: vec![],
                 fade_in: 0.0,
                 fade_out: 0.0,
+                quadratic_fades: false,
                 chain: String::new(),
             };
             let pcm = decode(&spec, dir.path(), &decode_key(&spec), None).unwrap();
@@ -2213,6 +2278,7 @@ mod tests {
             volume_curve: vec![],
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             chain: String::new(),
         };
         let curved = decode(&spec, dir.path(), &decode_key(&spec), None).unwrap();
@@ -2335,6 +2401,7 @@ mod tests {
             volume_curve: Vec::new(),
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             speed: 1.0,
             retime: None,
             bus: None,
@@ -2769,6 +2836,7 @@ mod tests {
             volume_curve: super::Track::default(),
             fade_in: 0.0,
             fade_out: 0.0,
+            quadratic_fades: false,
             pcm: std::sync::Arc::new(pcm),
             lead: 0,
             covered: std::sync::Arc::from(vec![(1.0, 2.0)]),

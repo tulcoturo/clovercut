@@ -6,6 +6,7 @@
 //! grid's own two verbs.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use concat_host::projects;
 
@@ -46,6 +47,8 @@ pub enum StartMsg {
     Open,
     /// The folder the Open picker answered with.
     OpenChosen(PathBuf),
+    /// Import a CapCut draft into a separate project.
+    ImportCapcut,
     OpenRecent(String),
     ForgetRecent(String),
     /// Show a project's folder in the file manager.
@@ -115,6 +118,7 @@ pub struct StartPane {
     /// every project before it had.
     pub canvas: [u8; 4],
     pub busy: bool,
+    import_task: Option<Arc<()>>,
     pub error: String,
     /// The projects' search, as typed; empty shows them all.
     pub query: String,
@@ -142,6 +146,7 @@ impl Default for StartPane {
             custom_rate: (30, 1),
             canvas: [0, 0, 0, 255],
             busy: false,
+            import_task: None,
             error: String::new(),
             query: String::new(),
             sort: SORT_RECENT,
@@ -294,7 +299,22 @@ impl StartPane {
             StartMsg::FolderChosen(folder) => self.location = folder,
             StartMsg::Create => self.create(studio),
             StartMsg::Open => self.open(),
-            StartMsg::OpenChosen(folder) => Self::open_chosen(&folder, studio),
+            StartMsg::OpenChosen(folder) => self.open_chosen(&folder, studio),
+            StartMsg::ImportCapcut => {
+                if self.busy {
+                    return;
+                }
+                let title = t("start.importCapcut");
+                let initial = concat_host::capcut::drafts_folder()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| self.location.clone());
+                crate::host::after_dialog(
+                    move || platform::pick_folder(&title, &initial),
+                    |studio, _, _, folder| {
+                        studio.handle(crate::panes::Msg::Start(StartMsg::OpenChosen(folder)))
+                    },
+                );
+            }
             // Both of the grid's verbs report through the toast, as Open
             // does: the sheet is down while a card is pressed, and a notice
             // inside it would go unseen.
@@ -376,10 +396,13 @@ impl StartPane {
         if self.busy {
             return;
         }
-        if let Some(folder) = paths.iter().find(|path| projects::is_project(path)) {
+        if let Some(folder) = paths
+            .iter()
+            .find(|path| projects::is_project(path) || concat_host::capcut::is_draft(path))
+        {
             self.dropped.clear();
             self.composing = false;
-            Self::open_chosen(folder, studio);
+            self.open_chosen(folder, studio);
             return;
         }
         let media: Vec<PathBuf> = paths.into_iter().filter(|path| path.is_file()).collect();
@@ -472,7 +495,14 @@ impl StartPane {
     }
 
     /// The folder Open was answered with: checked, then opened.
-    fn open_chosen(folder: &Path, studio: &mut Studio) {
+    fn open_chosen(&mut self, folder: &Path, studio: &mut Studio) {
+        if self.busy {
+            return;
+        }
+        if !projects::is_project(folder) && concat_host::capcut::is_draft(folder) {
+            self.import_capcut(folder);
+            return;
+        }
         let path = folder.to_string_lossy().into_owned();
         if !projects::is_project(folder) {
             studio.notify(&tf("start.notConcatProjectFolder", &[&path]), true);
@@ -481,6 +511,50 @@ impl StartPane {
         if let Err(error) = projects::open(&path).and_then(|info| studio.open_project(info)) {
             studio.notify(&error, true);
         }
+    }
+
+    /// Parse, probe and write on a worker; a late answer cannot replace a newer project.
+    fn import_capcut(&mut self, folder: &Path) {
+        let token = Arc::new(());
+        self.import_task = Some(Arc::clone(&token));
+        self.busy = true;
+        let folder = folder.to_owned();
+        let location = self.location.clone();
+        let epoch = crate::host::project_epoch();
+        crate::host::spawn(
+            move || concat_host::capcut::import(&folder, &location),
+            move |studio, _, _, result| {
+                if !studio
+                    .start
+                    .import_task
+                    .as_ref()
+                    .is_some_and(|active| Arc::ptr_eq(active, &token))
+                {
+                    return;
+                }
+                studio.start.import_task = None;
+                studio.start.busy = false;
+                if crate::host::project_epoch() != epoch {
+                    return;
+                }
+                match result {
+                    Ok(import) => {
+                        let left = import.notes.len();
+                        if let Err(error) = studio.open_project(import.project) {
+                            studio.notify(&error, true);
+                            return;
+                        }
+                        let said = if left == 0 {
+                            t("start.capcutImported")
+                        } else {
+                            tf("start.capcutImportedSome", &[&left])
+                        };
+                        studio.notify(&said, false);
+                    }
+                    Err(error) => studio.notify(&tf("start.capcutImportFailed", &[&error]), true),
+                }
+            },
+        );
     }
 
     /// The first untitled name with no folder of that name where the sheet

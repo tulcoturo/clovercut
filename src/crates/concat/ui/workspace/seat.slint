@@ -172,6 +172,8 @@ export component Seat inherits Rectangle {
             pane-removable: Editor.seats.length > 1;
             pane-removed => { root.removed(); }
 
+            fullscreen: Editor.preview-fullscreen-seat >= 0;
+            fullscreen-toggled => { Editor.preview-fullscreen(root.index); }
             previewing: Editor.library-audition != "";
             preview-ended => { Editor.library-audition-filter(Editor.library-audition); }
             output-width: Editor.output-width;
@@ -196,6 +198,7 @@ export component Seat inherits Rectangle {
             stroke-width: Editor.stroke-width;
             stroke-erase: Editor.stroke-erase;
             painting: Editor.painting && Editor.selected-clip.cutout == 2;
+            picking: Editor.picking-colour && !SourcePreview.open;
 
             play-toggled => { Editor.play-toggled(); }
             seek(seconds) => {
@@ -250,6 +253,7 @@ export component Seat inherits Rectangle {
             remove-effect(id) => { Editor.remove-effect(id); }
 
             catalogue-effects: Editor.catalogue-effects;
+            catalogue-transitions: Editor.catalogue-transitions;
             catalogue-audio: Editor.catalogue-audio;
             effect-groups: Editor.effect-groups;
             audio-groups: Editor.audio-groups;
@@ -265,6 +269,9 @@ export component Seat inherits Rectangle {
             visual-wheels: Editor.visual-wheels;
             visual-curves: Editor.visual-curves;
             visual-colours: Editor.visual-colours;
+            visual-choices: Editor.visual-choices;
+            chain-pick-colour(index, key) => { Editor.chain-pick-colour(index, key); }
+            chain-auto-colour(index, key) => { Editor.chain-auto-colour(index, key); }
             chain-set-colour(index, key, value) => { Editor.chain-set-colour(index, key, value); }
             curve-point(entry, key, point, x, y) => { Editor.curve-point(entry, key, point, x, y); }
             curve-remove(entry, key, point) => { Editor.curve-remove(entry, key, point); }
@@ -317,6 +324,7 @@ export component Seat inherits Rectangle {
             clip-select-words(anchor, cursor) => { Editor.clip-select-words(anchor, cursor); }
             clip-reset-words => { Editor.clip-reset-words(); }
             clip-set-colour(field, value) => { Editor.clip-set-colour(field, value); }
+            clip-shape-colour(which, value) => { Editor.clip-shape-colour(which, value); }
             clip-commit => { Editor.clip-commit(); }
             font-families: Editor.font-families;
             import-font => { Editor.import-font(); }

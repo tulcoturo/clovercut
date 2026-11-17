@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 
 // `DataTransfer` is what a drag carries. Slint keeps the platform's drag
 // object opaque and leaves building and reading one to the host language.
@@ -71,6 +71,7 @@ mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
 mod preview_interaction;
+mod preview_workers;
 mod project_browser;
 mod request_owner;
 mod source;
@@ -339,6 +340,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     // offered: a drag in from the system is a desk's (see platform.rs).
     app.set_app_version(env!("CARGO_PKG_VERSION").into());
     app.set_can_drop(cfg!(not(any(target_os = "android", target_os = "ios"))));
+    app.set_capcut(!cfg!(target_os = "android"));
 
     // The user's own packages - imported looks, and any effect folder they
     // or the community wrote - sit beside the built-ins from the first
@@ -511,6 +513,7 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         editor.set_visual_wheels(ModelRc::from(models.visual_wheels.clone()));
         editor.set_visual_curves(ModelRc::from(models.visual_curves.clone()));
         editor.set_visual_colours(ModelRc::from(models.visual_colours.clone()));
+        editor.set_visual_choices(ModelRc::from(models.visual_choices.clone()));
         app.global::<Keyframes>()
             .set_rows(ModelRc::from(models.key_rows.clone()));
         app.global::<KeyEditor>()
@@ -830,6 +833,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_start_open(on_window!(|state| {
         state.handle(Msg::Start(StartMsg::Open));
     }));
+    app.on_start_import_capcut(on_window!(|state| {
+        state.handle(Msg::Start(StartMsg::ImportCapcut));
+    }));
     app.on_start_open_recent(on_window!(|state, path: SharedString| {
         state.handle(Msg::Start(StartMsg::OpenRecent(path.to_string())));
     }));
@@ -889,7 +895,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
         // library or the inspector into it. The wide dock waits, whole,
         // for the window to widen again; every dock operation works on
         // whichever is showing.
-        state.set_compact(width < studio::COMPACT_WIDTH);
+        if !state.preview_fullscreen {
+            state.set_compact(width < studio::COMPACT_WIDTH);
+        }
     }));
     editor.on_dock_set(on_dock!(|state, seat: i32, kind: PaneKind| {
         let Some(path) = state.dock.leaf_path(seat.max(0) as usize) else {
@@ -1617,6 +1625,51 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_clip_reset_words(on_lanes!(|state| {
         state.reset_words();
     }));
+    editor.on_clip_shape_colour(on_lanes!(|state, which: i32, value: slint::Color| {
+        state.clip_shape_colour(which, value);
+    }));
+    editor.on_preview_held(on_window!(|state, held: bool| {
+        state.preview_held = held;
+        if !held {
+            state.end_hover();
+        }
+    }));
+    editor.on_preview_fullscreen({
+        let app = app.as_weak();
+        let prior = std::cell::Cell::new(false);
+        move |seat: i32| {
+            if let Some(app) = app.upgrade() {
+                let editor = app.global::<Editor>();
+                let seat = if seat == -2 {
+                    if editor.get_preview_fullscreen_seat() >= 0 {
+                        -1
+                    } else if let Some(preview) = editor
+                        .get_seats()
+                        .iter()
+                        .find(|seat| seat.kind == PaneKind::Preview)
+                    {
+                        preview.index
+                    } else {
+                        return;
+                    }
+                } else {
+                    seat
+                };
+                let entering = seat >= 0 && editor.get_preview_fullscreen_seat() < 0;
+                Shell::with(|shell, _| {
+                    shell.studio.borrow_mut().preview_fullscreen = entering;
+                });
+                if seat < 0 || editor.get_preview_fullscreen_seat() >= 0 {
+                    editor.set_preview_fullscreen_seat(-1);
+                    app.window().set_fullscreen(prior.get());
+                } else {
+                    prior.set(app.window().is_fullscreen());
+                    editor.set_preview_fullscreen_seat(seat);
+                    app.window().set_fullscreen(true);
+                }
+            }
+        }
+    });
     editor.on_clip_set_colour(on_lanes!(
         |state, field: ClipTextField, value: slint::Color| {
             state.clip_set_colour(field, value);
@@ -1656,6 +1709,13 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     editor.on_adjust_group_reset(on_lanes!(|state, group: SharedString| {
         state.reset_adjust_group(group.as_str());
     }));
+    editor.on_chain_pick_colour(on_window!(|state, index: i32, key: SharedString| {
+        state.chain_pick_colour(index, key.as_str());
+    }));
+    editor.on_chain_auto_colour(on_window!(|state, index: i32, key: SharedString| {
+        state.chain_auto_colour(index, key.as_str());
+    }));
+
     editor.on_adjust_set(on_lanes!(|state, key: SharedString, value: f32| {
         state.adjust_set(key.as_str(), value);
     }));
@@ -2092,6 +2152,11 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
             let Some(chord) = chord else {
                 return;
             };
+            if chord == "escape" && shell.studio.borrow_mut().cancel_colour_pick() {
+                handled = true;
+                shell.studio.borrow().publish(&app, &shell.models);
+                return;
+            }
             if on_start {
                 // The launch screen has no project to act on. Capture
                 // is handled above, so its keys work there too.
@@ -2208,6 +2273,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
 
     app.on_relink_remove(on_window!(|state, id: SharedString| {
         state.handle(Msg::Relink(RelinkMsg::Remove(id.to_string())));
+    }));
+    app.on_relink_locate(on_window!(|state, id: SharedString| {
+        state.handle(Msg::Relink(RelinkMsg::Locate(id.to_string())));
     }));
     app.on_relink_all(on_window!(|state| {
         state.handle(Msg::Relink(RelinkMsg::RelinkAll));

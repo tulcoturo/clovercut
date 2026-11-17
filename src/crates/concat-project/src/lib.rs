@@ -21,11 +21,13 @@
 //! document model needs serde, and concat-core's zero-dependency rule is worth
 //! more than the adjacency.
 
+pub mod capcut;
 pub mod captions;
 pub mod clipboard;
 pub mod commands;
 pub mod doc;
 pub mod editor;
+pub mod inspector;
 pub mod model;
 pub mod placement;
 pub mod runs;
@@ -5365,7 +5367,7 @@ mod tests {
                 track_id: None,
                 start: 0.0,
                 style: Some(ShapeStyle {
-                    size: 40.0,
+                    width: 40.0,
                     stroke_width: -1.0,
                     ..ShapeStyle::default()
                 }),
@@ -5377,7 +5379,7 @@ mod tests {
             .expect("id");
         let clip = editor.project().active().clip(&wild).expect("exists");
         let shape = clip.shape.as_ref().expect("figure");
-        assert_eq!((shape.size, shape.stroke_width), (2.0, 0.0));
+        assert_eq!((shape.width, shape.stroke_width), (4.0, 0.0));
         assert_eq!(
             clip.name, "square",
             "an empty name falls back to the figure's"
@@ -5731,6 +5733,90 @@ mod tests {
         let gone = ["nobody".to_owned()];
         assert!(
             crate::delete_to_playhead(timeline, &gone, 5.0, PlayheadSide::Left, false).is_none()
+        );
+    }
+    /// A transition placed as a clip (#621) goes over the footage like a
+    /// layer, carries its package as its one link, is a second long unless
+    /// told otherwise, and survives the document.
+    #[test]
+    fn a_transition_clip_goes_over_the_footage_and_survives_the_document() {
+        let (mut editor, _, footage) = fixture();
+        let video_track = editor
+            .project()
+            .active()
+            .clip(&footage)
+            .expect("the footage")
+            .track_id
+            .clone();
+        let id = editor
+            .apply(Command::AddTransitionClip {
+                track_id: None,
+                start: 1.5,
+                duration: None,
+                transition_id: "concat.push".into(),
+                name: "Push".into(),
+            })
+            .expect("placed")
+            .created_id
+            .expect("id");
+        let timeline = editor.project().active();
+        let clip = timeline.clip(&id).expect("exists");
+        assert_eq!(clip.kind, ClipKind::Transition);
+        assert_eq!(clip.name, "Push");
+        assert!((clip.duration - 1.0).abs() < 1e-9, "{}", clip.duration);
+        assert_eq!(clip.video_effects.len(), 1);
+        assert_eq!(clip.video_effects[0].id, "concat.push");
+        assert!(clip.media_id.is_empty());
+        let row = |id: &str| timeline.tracks.iter().position(|t| t.id == id);
+        assert!(
+            row(&clip.track_id) > row(&video_track),
+            "a transition acts on what is beneath it"
+        );
+
+        assert_eq!(
+            timeline.track(&clip.track_id).unwrap().kind,
+            crate::model::TrackKind::Filter
+        );
+
+        let document = editor.to_document(&settings());
+        assert_eq!(
+            document["timelines"][0]["clips"]
+                .as_array()
+                .expect("clips")
+                .iter()
+                .find(|clip| clip["id"] == id.as_str())
+                .expect("written")["kind"],
+            "transition"
+        );
+        let loaded = Editor::from_document(&document).expect("loads");
+        assert_eq!(loaded.project(), editor.project());
+
+        // Never shorter than a tenth of a second, and nothing that is not a
+        // number.
+        let short = editor
+            .apply(Command::AddTransitionClip {
+                track_id: None,
+                start: 4.0,
+                duration: Some(0.0),
+                transition_id: "concat.cross-fade".into(),
+                name: String::new(),
+            })
+            .expect("placed")
+            .created_id
+            .expect("id");
+        let short = editor.project().active().clip(&short).expect("exists");
+        assert!(short.duration >= crate::model::ranges::MIN_TRANSITION - 1e-9);
+        assert_eq!(short.name, "concat.cross-fade", "named for its package");
+        assert!(
+            editor
+                .apply(Command::AddTransitionClip {
+                    track_id: None,
+                    start: f64::NAN,
+                    duration: None,
+                    transition_id: "concat.push".into(),
+                    name: String::new(),
+                })
+                .is_err()
         );
     }
 }

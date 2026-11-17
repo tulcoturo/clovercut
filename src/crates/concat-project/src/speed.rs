@@ -22,6 +22,17 @@ pub fn curve_of(points: &[SpeedPoint]) -> Option<SpeedCurve> {
     SpeedCurve::with_slopes(&raw, slopes.as_deref())
 }
 
+/// Source seconds at a clip-local timeline instant, including its speed curve.
+pub fn source_at(clip: &Clip, local: f64) -> f64 {
+    let duration = clip.duration.max(0.0);
+    let local = local.clamp(0.0, duration);
+    let consumed = match clip.speed_curve.as_deref().and_then(curve_of) {
+        Some(curve) if duration > 0.0 => duration * curve.consumed(local / duration),
+        _ => local * clip.speed,
+    };
+    clip.source_start + consumed
+}
+
 /// Points stored in order and in range, preserving the requested slopes.
 pub fn normalize(points: &[SpeedPoint]) -> Option<Vec<SpeedPoint>> {
     let bent = is_smooth(points);
@@ -253,6 +264,18 @@ pub fn rewindow_clip(clip: &mut Clip, old: f64, from: f64, to: f64) -> Option<f6
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn public_source_clock_holds_edges_and_integrates_the_actual_curve() {
+        let mut clip = curved(&[(0.0, 0.5), (1.0, 2.0)], 4.0);
+        clip.source_start = 2.0;
+        assert_eq!(super::source_at(&clip, -1.0), 2.0);
+        assert!((super::source_at(&clip, 2.0) - 3.75).abs() < 1e-9);
+        assert!((super::source_at(&clip, 99.0) - 7.0).abs() < 1e-9);
+        clip.speed_curve = None;
+        clip.speed = 2.0;
+        assert_eq!(super::source_at(&clip, 1.0), 4.0);
+    }
+
     use super::*;
     use crate::model::ClipKind;
 

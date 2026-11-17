@@ -69,10 +69,31 @@ pub fn flatten_timeline_in(
                     volume: 0.0,
                     fade_in: clip.fade_in,
                     fade_out: clip.fade_out,
+                    quadratic_fades: clip.quadratic_fades,
                     effects: clip.video_effects.clone(),
                     opacity: clip.opacity,
                     has_audio: Some(false),
                     ..ExportClip::blank(ClipKind::Layer, clip.start, clip.duration, index)
+                });
+            }
+
+            // A transition placed as a clip (#621): no file, its package and
+            // knobs the one link of its chain, its length the clip's.
+            // `resolve_transitions` finds the cut beneath it, if any. One
+            // whose link is gone or switched off draws nothing.
+            if clip.kind == ModelClipKind::Transition {
+                let package = clip.video_effects.first()?;
+                return Some(ExportClip {
+                    hidden: !track.visible || !package.enabled,
+                    muted: true,
+                    volume: 0.0,
+                    has_audio: Some(false),
+                    transition: Some(TransitionSpec {
+                        kind: package.id.clone(),
+                        duration: clip.duration,
+                        params: package.params.clone(),
+                    }),
+                    ..ExportClip::blank(ClipKind::Transition, clip.start, clip.duration, index)
                 });
             }
 
@@ -86,6 +107,7 @@ pub fn flatten_timeline_in(
                     volume: 0.0,
                     fade_in: clip.fade_in,
                     fade_out: clip.fade_out,
+                    quadratic_fades: clip.quadratic_fades,
                     filter_chain: audio_filter_chain(&clip.filters),
                     opacity: export_base(clip, KeyProperty::Opacity),
                     animation: export_keys(clip),
@@ -105,7 +127,8 @@ pub fn flatten_timeline_in(
                 ModelClipKind::Text
                 | ModelClipKind::Layer
                 | ModelClipKind::SoundLayer
-                | ModelClipKind::Shape => return None,
+                | ModelClipKind::Shape
+                | ModelClipKind::Transition => return None,
             };
             Some(ExportClip {
                 caption_motion: clip.visual_motion,
@@ -118,6 +141,7 @@ pub fn flatten_timeline_in(
                 volume: export_base(clip, KeyProperty::Volume),
                 fade_in: clip.fade_in,
                 fade_out: clip.fade_out,
+                quadratic_fades: clip.quadratic_fades,
                 filter_chain: audio_filter_chain(&clip.filters),
                 speed: clip.speed,
                 preserve_pitch: clip.preserve_pitch,
@@ -215,6 +239,22 @@ pub fn flatten_timeline_in(
                     _ => String::new(),
                 },
                 stabilize: clip.stabilize.filter(|_| kind == ClipKind::Video),
+                voice: match (&clip.voice, project_dir) {
+                    (Some(mix), Some(dir)) if kind != ClipKind::Image => {
+                        let stems =
+                            crate::voice_stems_dir(dir, &media.path, clip.audio_stream, mix.kind);
+                        let (voice, rest) = (stems.join("voice.wav"), stems.join("rest.wav"));
+                        // Until both parts are there the clip plays as
+                        // recorded, and the host is making them.
+                        (voice.is_file() && rest.is_file()).then(|| crate::VoiceStems {
+                            voice: voice.to_string_lossy().into_owned(),
+                            rest: rest.to_string_lossy().into_owned(),
+                            voice_gain: mix.voice,
+                            rest_gain: mix.background,
+                        })
+                    }
+                    _ => None,
+                },
                 motion_dir: match (&clip.stabilize, project_dir) {
                     (Some(_), Some(dir)) if kind == ClipKind::Video => {
                         concat_vision::stabilize::motion_dir(dir, &media.path)

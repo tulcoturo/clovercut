@@ -217,6 +217,7 @@ impl StabilizeJob {
 /// An engine timeline plus the per-clip facts the decoders need that the
 /// engine's model has no field for.
 pub(crate) struct BuiltTimeline {
+    pub(crate) effect_clocks: HashMap<ClipId, (f64, Option<f64>)>,
     pub(crate) caption_motions: HashMap<ClipId, (concat_project::model::CaptionMotion, f64)>,
     pub(crate) generated: HashMap<ClipId, crate::GeneratedImage>,
     pub(crate) timeline: Timeline,
@@ -265,6 +266,9 @@ pub(crate) struct TransitionSpan {
     pub(crate) start: Rational,
     pub(crate) end: Rational,
     pub(crate) to_track: usize,
+    pub(crate) layered: bool,
+    pub(crate) from: std::collections::HashSet<ClipId>,
+    pub(crate) to: std::collections::HashSet<ClipId>,
     pub(crate) id: String,
     pub(crate) params: BTreeMap<String, f64>,
 }
@@ -337,7 +341,7 @@ pub(crate) fn build_timeline(
     request: &ExportRequest,
     rate: FrameRate,
     visible: &[&ExportClip],
-    transitions: Vec<TransitionSpan>,
+    mut transitions: Vec<TransitionSpan>,
 ) -> BuiltTimeline {
     let mut timeline = Timeline::new(request.width, request.height, rate);
     timeline.canvas = request.canvas;
@@ -350,6 +354,7 @@ pub(crate) fn build_timeline(
     let mut ranges: HashMap<ClipId, concat_media::ColorRange> = HashMap::new();
     let mut chains: HashMap<ClipId, Vec<AppliedFilter>> = HashMap::new();
     let mut generated = HashMap::new();
+    let mut effect_clocks = HashMap::new();
     let mut caption_motions = HashMap::new();
     let mut reveal_maps: HashMap<ClipId, Arc<RevealMap>> = HashMap::new();
     let mut cutouts: HashMap<ClipId, CutoutJob> = HashMap::new();
@@ -372,6 +377,10 @@ pub(crate) fn build_timeline(
         let start = quantise_at(clip.start, rate, request.effect_time_offset);
         let duration = clip_end(clip, rate, request.effect_time_offset) - start;
         if duration.is_zero() {
+            continue;
+        }
+
+        if clip.kind == ClipKind::Transition {
             continue;
         }
 
@@ -442,7 +451,19 @@ pub(crate) fn build_timeline(
         engine_clip.video_fade_in = quantise(clip.video_fade_in, rate);
 
         if let Some(id) = timeline.add_clip(tracks[clip.track], engine_clip) {
-            tracks_of.insert(id, clip.track);
+            if let Some(clock) = clip.effect_clock {
+                effect_clocks.insert(id, clock);
+            }
+            tracks_of.insert(id, clip.stack_at.unwrap_or(clip.track));
+            for &(span, incoming) in &clip.roles {
+                if let Some(span) = transitions.get_mut(span) {
+                    if incoming {
+                        span.to.insert(id);
+                    } else {
+                        span.from.insert(id);
+                    }
+                }
+            }
             if clip.caption_motion.entrance != 0 || clip.caption_motion.exit != 0 {
                 caption_motions.insert(id, (clip.caption_motion, clip.duration));
             }
@@ -506,6 +527,7 @@ pub(crate) fn build_timeline(
     }
 
     BuiltTimeline {
+        effect_clocks,
         caption_motions,
         generated,
         timeline,

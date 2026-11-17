@@ -25,6 +25,13 @@ fn add(editor: &mut Editor, kind: ClipKind, track: &str, start: f64) -> String {
             duration: Some(4.0),
             name: "Sticker".into(),
         },
+        ClipKind::Transition => Command::AddTransitionClip {
+            track_id: Some(track.into()),
+            start,
+            duration: Some(4.0),
+            transition_id: "concat.push".into(),
+            name: "Push".into(),
+        },
         ClipKind::Layer | ClipKind::SoundLayer => Command::AddLayerClip {
             sound: kind == ClipKind::SoundLayer,
             track_id: Some(track.into()),
@@ -88,7 +95,7 @@ fn fixture(kind: ClipKind) -> (Editor, String, String) {
     let track_kind = match kind {
         ClipKind::Text => TrackKind::Text,
         ClipKind::Shape | ClipKind::Image => TrackKind::Sticker,
-        ClipKind::Layer | ClipKind::SoundLayer => TrackKind::Filter,
+        ClipKind::Layer | ClipKind::SoundLayer | ClipKind::Transition => TrackKind::Filter,
         ClipKind::Audio => TrackKind::Audio,
         _ => TrackKind::Video,
     };
@@ -111,6 +118,7 @@ fn still_and_generated_heads_extend_left_keep_existing_animation_and_undo() {
         ClipKind::Text,
         ClipKind::Shape,
         ClipKind::Layer,
+        ClipKind::Transition,
         ClipKind::SoundLayer,
     ] {
         let (mut editor, _, id) = fixture(kind);
@@ -164,6 +172,7 @@ fn free_heads_stop_at_zero_and_at_the_preceding_clip() {
         ClipKind::Text,
         ClipKind::Shape,
         ClipKind::Layer,
+        ClipKind::Transition,
     ] {
         let (mut editor, _, id) = fixture(kind);
         editor

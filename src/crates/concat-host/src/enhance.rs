@@ -514,6 +514,7 @@ fn footage_with(
                     volume_curve: concat_core::animate::Track::new(Vec::new()),
                     fade_in: 0.0,
                     fade_out: 0.0,
+                    quadratic_fades: false,
                     filter_chain: String::new(),
                 };
                 let muxed = concat_media::audio::mix_to_file_cancelling(
