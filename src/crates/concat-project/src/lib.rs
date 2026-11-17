@@ -21,6 +21,7 @@
 //! document model needs serde, and concat-core's zero-dependency rule is worth
 //! more than the adjacency.
 
+pub mod capcut;
 pub mod captions;
 pub mod clipboard;
 pub mod commands;
@@ -32,6 +33,10 @@ pub mod runs;
 pub mod speed;
 pub mod srt;
 
+pub use capcut::{
+    CapcutDecodedDraft, CapcutEncoding, CapcutError, CapcutImportResult, decode_capcut_draft,
+    import_capcut_draft,
+};
 pub use commands::{
     Command, CommandError, Outcome, PlayheadSide, consolidation_clips, delete_to_playhead,
     why_not_merge,
