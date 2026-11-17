@@ -3368,6 +3368,40 @@ impl Default for VideoSettings {
 }
 
 impl VideoSettings {
+    /// Standard aspect ratio string ("16:9", "9:16", "1:1", "4:3", "21:9") or reduced "W:H".
+    pub fn aspect_ratio_label(&self) -> String {
+        if self.width == 0 || self.height == 0 {
+            return "0:0".to_owned();
+        }
+        let (w, h) = (self.width, self.height);
+        let ratio = w as f64 / h as f64;
+        if (ratio - 16.0 / 9.0).abs() < 0.015 {
+            return "16:9".to_owned();
+        }
+        if (ratio - 9.0 / 16.0).abs() < 0.015 {
+            return "9:16".to_owned();
+        }
+        if (ratio - 1.0).abs() < 0.01 {
+            return "1:1".to_owned();
+        }
+        if (ratio - 4.0 / 3.0).abs() < 0.015 {
+            return "4:3".to_owned();
+        }
+        if (ratio - 21.0 / 9.0).abs() < 0.06 || (ratio - 64.0 / 27.0).abs() < 0.02 {
+            return "21:9".to_owned();
+        }
+        fn gcd(mut a: u32, mut b: u32) -> u32 {
+            while b != 0 {
+                let t = b;
+                b = a % b;
+                a = t;
+            }
+            a
+        }
+        let div = gcd(w, h);
+        format!("{}:{}", w / div, h / div)
+    }
+
     /// The rate as a number, for anything that draws or counts frames.
     pub fn rate(self) -> f64 {
         self.rate_num as f64 / self.rate_den.max(1) as f64
@@ -3794,6 +3828,51 @@ impl Timeline {
             .map(|clip| clip.start + clip.duration)
             .fold(0.0, f64::max)
     }
+
+    /// Summary statistics of what is placed on the timeline.
+    pub fn stats(&self) -> TimelineStats {
+        let mut video_clips = 0;
+        let mut audio_clips = 0;
+        let mut text_clips = 0;
+        let mut other_clips = 0;
+        for clip in &self.clips {
+            match clip.kind {
+                ClipKind::Video => video_clips += 1,
+                ClipKind::Audio => audio_clips += 1,
+                ClipKind::Text => text_clips += 1,
+                _ => other_clips += 1,
+            }
+        }
+        TimelineStats {
+            duration: self.duration(),
+            total_clips: self.clips.len(),
+            video_clips,
+            audio_clips,
+            text_clips,
+            other_clips,
+            tracks: self.tracks.len(),
+        }
+    }
+}
+
+/// Summary metrics of a timeline's contents.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimelineStats {
+    /// Total duration in seconds up to the end of the latest clip.
+    pub duration: f64,
+    /// Total number of clips placed on the timeline.
+    pub total_clips: usize,
+    /// Video clip count.
+    pub video_clips: usize,
+    /// Audio clip count.
+    pub audio_clips: usize,
+    /// Subtitle and text clip count.
+    pub text_clips: usize,
+    /// Layer, soundLayer, shape and other clip count.
+    pub other_clips: usize,
+    /// Number of tracks.
+    pub tracks: usize,
 }
 
 #[cfg(test)]
@@ -3804,6 +3883,93 @@ mod tests {
     fn default_text_style_uses_bundled_hanken_grotesk_family() {
         let style = TextStyle::default();
         assert_eq!(style.font_family, "Hanken Grotesk");
+    }
+
+    #[test]
+    fn video_settings_aspect_ratio_labels() {
+        let v16_9 = VideoSettings {
+            width: 1920,
+            height: 1080,
+            rate_num: 30,
+            rate_den: 1,
+            color_space: ColorSpace::Sdr,
+            canvas: [0, 0, 0, 255],
+        };
+        assert_eq!(v16_9.aspect_ratio_label(), "16:9");
+
+        let v9_16 = VideoSettings {
+            width: 1080,
+            height: 1920,
+            ..v16_9
+        };
+        assert_eq!(v9_16.aspect_ratio_label(), "9:16");
+
+        let v1_1 = VideoSettings {
+            width: 1080,
+            height: 1080,
+            ..v16_9
+        };
+        assert_eq!(v1_1.aspect_ratio_label(), "1:1");
+
+        let v4_3 = VideoSettings {
+            width: 1440,
+            height: 1080,
+            ..v16_9
+        };
+        assert_eq!(v4_3.aspect_ratio_label(), "4:3");
+
+        let v21_9 = VideoSettings {
+            width: 2560,
+            height: 1080,
+            ..v16_9
+        };
+        assert_eq!(v21_9.aspect_ratio_label(), "21:9");
+
+        let v3440 = VideoSettings {
+            width: 3440,
+            height: 1440,
+            ..v16_9
+        };
+        assert_eq!(v3440.aspect_ratio_label(), "21:9");
+    }
+
+    #[test]
+    fn timeline_statistics_counts_types_and_duration() {
+        let mut proj = Project::new();
+        let tl = proj.active_mut();
+        tl.clips.push(Arc::new(Clip::blank(
+            "c1",
+            "T1",
+            ClipKind::Video,
+            "Vid",
+            0.0,
+            5.0,
+        )));
+        tl.clips.push(Arc::new(Clip::blank(
+            "c2",
+            "T1",
+            ClipKind::Audio,
+            "Aud",
+            2.0,
+            4.0,
+        )));
+        tl.clips.push(Arc::new(Clip::blank(
+            "c3",
+            "T1",
+            ClipKind::Text,
+            "Txt",
+            1.0,
+            2.0,
+        )));
+
+        let stats = tl.stats();
+        assert_eq!(stats.duration, 6.0);
+        assert_eq!(stats.total_clips, 3);
+        assert_eq!(stats.video_clips, 1);
+        assert_eq!(stats.audio_clips, 1);
+        assert_eq!(stats.text_clips, 1);
+        assert_eq!(stats.other_clips, 0);
+        assert_eq!(stats.tracks, 1);
     }
 }
 
