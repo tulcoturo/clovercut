@@ -28,8 +28,9 @@ use crate::model::ranges::{
     MIN_STRETCH, MIN_TRANSITION, wrap_rotation,
 };
 use crate::model::{
-    Background, Clip, ClipKey, ClipKind, ColorSpace, Crop, KeyEase, KeyProperty, MediaItem, MediaKind,
-    Project, SpeedPoint, TextAlign, TextStyle, Timeline, Track, TrackKind, VideoSettings,
+    Background, Clip, ClipKey, ClipKind, ColorSpace, Crop, KeyEase, KeyProperty, MediaItem,
+    MediaKind, Project, SpeedPoint, TextAlign, TextStyle, Timeline, Track, TrackKind,
+    VideoSettings,
 };
 use crate::placement::TOUCH;
 
@@ -1773,10 +1774,6 @@ mod tests {
         assert_eq!(import(&draft).err(), Some(CapcutError::Empty));
     }
 
-
-
-
-
     const KNOWN_PLAINTEXT: &str = "{\"tracks\":[],\"materials\":{},\"canvas_config\":{\"width\":640,\"height\":360},\"name\":\"synthetic known answer\"}";
     const KNOWN_CARRIER: &str = "0123IzU4567wv7PB7ea189abC6CoWBHy7cdefVJ60123MXE4567d+5y6i4k89ab0lycdefdHue9DabcdzpVgix4FTefghgXdTnoijklRGF8I+juVz/ImvyrNR6yRZG0mnop9K7b2dxceBMXzzDO6Xez5ExE37K0QXfSadgw97nrkaKdBMXsIqZzT42SY9G39Zqw6uAgTdt74UfU=";
 
@@ -1883,5 +1880,4 @@ mod tests {
         assert_eq!(txt_clip.duration, 1.5);
         assert_eq!(txt_clip.text.as_ref().unwrap().content, "Hello Clovercut");
     }
-
 }
