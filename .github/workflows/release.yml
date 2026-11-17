@@ -13,6 +13,10 @@ name: Clovercut release
         description: Full commit SHA, branch or tag to prepare (empty builds the existing tag)
         required: false
         default: ''
+      skip_ci:
+        description: Skip engine CI if already validated
+        type: boolean
+        default: false
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -60,6 +64,7 @@ jobs:
   engine:
     name: CI
     needs: check
+    if: ${{ (github.event_name != 'workflow_dispatch' || !inputs.skip_ci) && !contains(github.event.head_commit.message, '[skip-engine]') }}
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ needs.check.outputs.commit }}
@@ -86,6 +91,7 @@ jobs:
     # Only build the six desktop packages after the source checks pass.
     # A failed engine gate must not spend another complete package matrix.
     needs: [check, engine, headless, effects, packaging]
+    if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/build-app.yml
     with:
       ref: ${{ needs.check.outputs.commit }}
@@ -99,6 +105,7 @@ jobs:
     - headless
     - packaging
     - build
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
