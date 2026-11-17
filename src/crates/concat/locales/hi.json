@@ -479,6 +479,7 @@
   "modal.copied": "कॉपी हो गया",
   "monitor.drawnSlowly": "पुनः शुरू होने तक Clovercut पूर्वावलोकन को धीमे मोड में, बिना प्रभावों के बना रहा है।",
   "monitor.previewFailed": "प्रीव्यू विफल: {0}",
+  "monitor.previewMissing": "प्रीव्यू विफल: {0} गुम है।",
   "motion.amount": "मात्रा",
   "motion.animate": "एनिमेट",
   "motion.breathe": "साँस",

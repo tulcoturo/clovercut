@@ -479,6 +479,7 @@
   "modal.copied": "Kopirano",
   "monitor.drawnSlowly": "Clovercut iscrtava pregled sporijim načinom, bez efekata, do ponovnog pokretanja.",
   "monitor.previewFailed": "Pregled nije uspio: {0}",
+  "monitor.previewMissing": "Pregled nije uspio: {0} nedostaje.",
   "motion.amount": "Jačina",
   "motion.animate": "Animacija",
   "motion.breathe": "Disanje",

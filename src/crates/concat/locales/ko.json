@@ -479,6 +479,7 @@
   "modal.copied": "복사됨",
   "monitor.drawnSlowly": "Clovercut을 다시 시작할 때까지 미리보기를 효과 없이 느린 모드로 그립니다.",
   "monitor.previewFailed": "미리보기 실패: {0}",
+  "monitor.previewMissing": "미리보기 실패: {0} 파일이 누락되었습니다.",
   "motion.amount": "양",
   "motion.animate": "애니메이션",
   "motion.breathe": "숨쉬기",

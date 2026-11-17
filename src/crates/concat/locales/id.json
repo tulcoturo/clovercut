@@ -479,6 +479,7 @@
   "modal.copied": "Disalin",
   "monitor.drawnSlowly": "Clovercut menggambar pratinjau dalam mode lambat, tanpa efek, hingga dimulai ulang.",
   "monitor.previewFailed": "Pratinjau gagal: {0}",
+  "monitor.previewMissing": "Pratinjau gagal: {0} hilang.",
   "motion.amount": "Jumlah",
   "motion.animate": "Animasi",
   "motion.breathe": "Bernapas",

@@ -479,6 +479,7 @@
   "modal.copied": "Copiado",
   "monitor.drawnSlowly": "O Clovercut está desenhando a prévia pelo modo lento, sem efeitos, até ser reiniciado.",
   "monitor.previewFailed": "A pré-visualização falhou: {0}",
+  "monitor.previewMissing": "A pré-visualização falhou: {0} está ausente.",
   "motion.amount": "Intensidade",
   "motion.animate": "Animar",
   "motion.breathe": "Respirar",

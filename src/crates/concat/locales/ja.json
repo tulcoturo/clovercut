@@ -479,6 +479,7 @@
   "modal.copied": "コピーしました",
   "monitor.drawnSlowly": "Clovercutを再起動するまで、プレビューはエフェクトなしの低速モードで描画されます。",
   "monitor.previewFailed": "プレビューに失敗しました : {0}",
+  "monitor.previewMissing": "プレビューに失敗しました: {0} が見つかりません。",
   "motion.amount": "量",
   "motion.animate": "アニメーション",
   "motion.breathe": "呼吸",

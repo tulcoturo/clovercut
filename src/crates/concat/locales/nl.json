@@ -479,6 +479,7 @@
   "modal.copied": "Gekopieerd",
   "monitor.drawnSlowly": "Clovercut tekent het voorbeeld tot de herstart in de trage modus, zonder effecten.",
   "monitor.previewFailed": "Voorvertoning mislukt: {0}",
+  "monitor.previewMissing": "Voorvertoning mislukt: {0} ontbreekt.",
   "motion.amount": "Hoeveelheid",
   "motion.animate": "Animeren",
   "motion.breathe": "Ademen",

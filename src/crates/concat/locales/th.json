@@ -479,6 +479,7 @@
   "modal.copied": "คัดลอกแล้ว",
   "monitor.drawnSlowly": "Clovercut กำลังแสดงตัวอย่างในโหมดช้าโดยไม่มีเอฟเฟกต์จนกว่าจะเริ่มใหม่",
   "monitor.previewFailed": "แสดงตัวอย่างไม่สำเร็จ: {0}",
+  "monitor.previewMissing": "แสดงตัวอย่างไม่สำเร็จ: ไฟล์ {0} หายไป",
   "motion.amount": "ปริมาณ",
   "motion.animate": "แอนิเมชัน",
   "motion.breathe": "หายใจ",

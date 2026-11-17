@@ -479,6 +479,7 @@
   "modal.copied": "Copié",
   "monitor.drawnSlowly": "Clovercut utilise le rendu lent pour l’aperçu, sans effets, jusqu’à son redémarrage.",
   "monitor.previewFailed": "L'aperçu a échoué : {0}",
+  "monitor.previewMissing": "L'aperçu a échoué : {0} est manquant.",
   "motion.amount": "Intensité",
   "motion.animate": "Animer",
   "motion.breathe": "Respiration",

@@ -479,6 +479,7 @@
   "modal.copied": "Kopyalandı",
   "monitor.drawnSlowly": "Clovercut yeniden başlatılana kadar önizlemeyi yavaş modda, efektler olmadan çiziyor.",
   "monitor.previewFailed": "Önizleme başarısız: {0}",
+  "monitor.previewMissing": "Önizleme başarısız: {0} eksik.",
   "motion.amount": "Miktar",
   "motion.animate": "Canlandır",
   "motion.breathe": "Nefes",

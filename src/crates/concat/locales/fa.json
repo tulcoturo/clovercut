@@ -479,6 +479,7 @@
   "modal.copied": "کپی شد",
   "monitor.drawnSlowly": "Clovercut تا راه‌اندازی مجدد، پیش‌نمایش را در حالت کند و بدون جلوه‌ها نمایش می‌دهد.",
   "monitor.previewFailed": "پیش‌نمایش ناموفق بود: {0}",
+  "monitor.previewMissing": "پیش‌نمایش ناموفق بود: {0} گم شده است.",
   "motion.amount": "مقدار",
   "motion.animate": "پویانمایی",
   "motion.breathe": "نفس",

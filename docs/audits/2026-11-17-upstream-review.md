@@ -3,78 +3,76 @@
 **Date:** 2026-11-17  
 **Audited range:** `0ef1e12521f5727b9c9703c39bc0f607831fbb9c` .. `a7cda105c55cf4a5413dd747e16b0980ff2555c1`  
 **Total commits:** 31  
-**Upstream baseline:** Concat tag `v0.2.11` and following maintenance commits up to `upstream/main`.  
+**Upstream baseline:** Concat tag `v0.2.11` and subsequent maintenance commits up to `upstream/main`.  
 **Clovercut baseline:** Clovercut (`feat/capcut-draft-import` / `main`).
 
 ---
 
-## 1. Resumo Executivo
+## 1. Executive Summary
 
-Desde o último acompanhamento (`0ef1e125`), o upstream Concat lançou a versão `v0.2.11` e introduziu 31 commits. Como o **Clovercut já se distanciou substancialmente da arquitetura do Concat** (sistema próprio de legendas separadas de texto, efeitos de IA visual local, decodificador nativo de rascunhos CapCut, templates com slots, edição em 3 pontos e slip editing), grande parte dos commits upstream foi filtrada.
+Since the last sync point (`0ef1e125`), upstream Concat tagged `v0.2.11` and added 31 commits. Because **Clovercut has diverged substantially from Concat's architecture** (dedicated subtitles track separate from text titles, local visual AI effects, native CapCut draft decoder, template slot system, three-point editing, and slip editing), the vast majority of upstream commits are either inapplicable or already superseded by Clovercut's implementations.
 
-Identificámos **4 correções técnicas de alto impacto** que beneficiam diretamente a robustez e qualidade do Clovercut:
+We identified **4 high-impact technical fixes** that directly improve Clovercut's robustness and quality:
 
-1. **Correção de Precisão no Arraste de Múltiplos Clipes (`40f13a6a`):**
-   - No Concat/Clovercut anterior, o arraste de um grupo de clipes contíguos convertia os tempos para `f32` antes da soma. Ao final de timelines longas, o erro de arredondamento causava micro-sobreposições (~2e-5 s > `TOUCH`), fazendo com que o motor recusasse silenciosamente a movimentação.
-   - Solução: função `shifted_starts` com aritmética pura em `f64` em [`placement.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-project/src/placement.rs).
-2. **Correção de Localização com Vírgula Decimal em Filtros FFmpeg (`577e8532`):**
-   - O FFmpeg lê parâmetros de filtros (ex: `atempo=1.5`) usando `strtod`, que respeita `LC_NUMERIC`. Em sistemas configurados em Português (pt-PT / pt-BR) ou outros idiomas europeus que usam vírgula como separador decimal, `atempo=1.5` falhava com `"Invalid argument"`, quebrando a velocidade de reprodução de áudio.
-   - Solução: salvaguarda de `LC_NUMERIC` em [`concat-media`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-media/src/audio.rs) antes de invocar grafos de filtros.
-3. **Resiliência do Detetor de Voz (VAD) para Transcrição Whisper (`ff9f7e74`):**
-   - O detetor de voz anterior descartava áudio quando a fala estava misturada com música ou ruído de fundo, perdendo até 90% do conteúdo a transcrever.
-   - Solução: o VAD mede a energia do sinal descartado; se descartar som tão audível quanto a voz, desativa o corte e entrega o áudio completo ao Whisper.
-4. **Renderização de Títulos na Resolução de Exportação & Inicialização Assíncrona (`8b497918`):**
-   - Títulos e legendas passam a ser rasterizados na resolução real do ficheiro de exportação (ex: 4K UHD) em vez da resolução de pré-visualização, eliminando legendas desfocadas ou pixelizadas na renderização final.
+1. **Multi-Clip Drag Precision in `f64` (`40f13a6a`):**
+   - Previously, dragging contiguous multi-clip selections converted clip positions to `f32` before summing deltas. At the tail end of long timelines, floating point rounding errors caused spurious micro-overlaps (~2e-5 s > `TOUCH`), causing the engine to silently reject the drag.
+   - Solution: pure `f64` arithmetic via `shifted_starts` in [`placement.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-project/src/placement.rs).
+2. **FFmpeg Filter Decimal Comma Locale Guard (`577e8532`):**
+   - FFmpeg parses filter arguments (e.g. `atempo=1.5`) using `strtod`, which respects `LC_NUMERIC`. On systems configured with Portuguese (pt-PT / pt-BR) or European locales where comma is the decimal separator, `atempo=1.5` failed with `"Invalid argument"`, crashing audio playback rate adjustments.
+   - Solution: explicit `LC_NUMERIC` guard (`keep_c_numbers()`) in [`concat-media`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-media/src/audio.rs) before invoking FFmpeg filter graphs.
+3. **Voice Activity Detector (VAD) Energy Resilience for Whisper (`ff9f7e74`):**
+   - The Silero VAD speech detector on clips with background music or noise prematurely discarded audio, in some cases losing over 90% of speech to transcribe (#763).
+   - Solution: energy-based validation (`Doubt`); if discarded audio power is comparable to speech, bypass VAD trimming and transcribe the full chunk.
+4. **Export-Resolution Title Rasterization & Async Pipeline Prep (`8b497918`):**
+   - Subtitles and titles are rasterized at the actual export output resolution (e.g. 4K UHD) rather than the preview canvas size, preventing blurry or pixelated text in final exports.
 
 ---
 
-## 2. Inventário Completo de Commits e Decisões de Triagem
+## 2. Commit Inventory & Triage Decisions
 
-| Commit | Categoria | Sumário Upstream | Decisão Clovercut & Estratégia de Adaptação |
+| Commit | Category | Upstream Summary | Clovercut Decision & Adaptation Strategy |
 | :--- | :--- | :--- | :--- |
-| `a7cda105` | CI / Workflows | Disparo manual de compilação de bundles desktop sem necessidade de tag | **Adaptar**: Permite testar empacotamento completo em CI sob demanda via `workflow_dispatch`. |
-| `9d26aac8` | CI / Smoke | Smoke tests de exportação em Linux, Windows e macOS | **Adotar**: Validação automatizada de exportação em CI. |
-| `218247fc` | CI / Android | Remoção de line tables em builds Android para poupar RAM do runner | **Adotar para Android**: Previne OOM durante a compilação do APK. |
-| `76585480` | CLI / Smoke | Flags `--smoke-export` para testar exportação não-interativa | **Adotar**: Muito útil para testes headless e scripts de benchmark. |
-| `552517cb` | Media / Android | Ajuste de parâmetros de cabeçalho do MediaCodec no primeiro pacote (#747, #786) | **Adotar para Android**: Evita travamento da renderização MP4 em Android 15 (API 35). |
-| `3a10dc47` | CI / Android | Compilar tabelas de símbolos apenas no APK de release | **Adotar para Android**: Reduz tempo de compilação. |
-| `6f04670d` | CI / Android | Ajuste de memória de swap para build Android | **Adotar para Android**: Estabilidade de CI. |
-| `020d8cad` | CI / Dependencies | Bump de actions GitHub | **Adotar**: Manutenção preventiva de CI. |
-| `517ac579` | i18n | Novas strings de aviso de projeto em 25 idiomas | **Adotar**: Mantém dicionários de tradução atualizados. |
-| `f22453d8` | Android / Debug | Preservar símbolos da biblioteca como artefato para backtraces | **Adotar para Android**: Ajuda a diagnosticar crashes em dispositivos móveis. |
-| `e72afe4c` | Logging | Alerta de última execução cita o erro real mais recente | **Adotar**: Maior clareza nos logs de recuperação. |
-| `8b497918` | Host / Export | Títulos rasterizados na resolução de exportação e preparação assíncrona (#747) | **Adotar (ALTO IMPACTO)**: Elimina legendas borradas em exportações 4K e não bloqueia a UI ao iniciar renderização. |
-| `ac843caa` | Android / UI | Início de exportação assíncrono em Android para não congelar janela | **Adotar para Android**: Mantém responsividade mobile. |
-| `6d4b6710` | Branding | Ícones e banners do gato Concat em SVG e PNG | **NÃO APLICÁVEL**: O Clovercut possui identidade visual própria (trevo de 4 folhas). |
-| `9d77f43b` | Logging | Log esclarece motivo de fallback para renderizador de software | **Adotar**: Transparência diagnóstica na GPU. |
-| `942194dc` | Projeto / Core | Preservação de campos desconhecidos (`extra`) ao abrir projetos | **Adotar**: O Clovercut já tem suporte avançado a `extra: Map<String, Value>`. |
-| `de9a6192` | CI / Governance | Políticas de fechamento de PRs no Concat | **NÃO APLICÁVEL**: Governança específica do upstream. |
-| `ff9f7e74` | Speech / AI | VAD robusto: não descarta fala com volume similar ao ruído de fundo (#763) | **Adotar (ALTO IMPACTO)**: Melhora radicalmente a precisão do Whisper em clipes com música. |
-| `577e8532` | Media / Áudio | Reseta `LC_NUMERIC` para evitar erro de vírgula decimal em filtros FFmpeg (#762) | **Adotar (CRÍTICO)**: Imprescindível para utilizadores em Portugal/Brasil/Europa. |
-| `73ef32c1` | Docs / MCP | Documentação de ferramentas MCP | **Adotar**: Sincronização da documentação do servidor MCP. |
-| `25e300e0` | Crash Reporter | Correção de falso positivo de crash em execuções do 0.2.8 | **NÃO APLICÁVEL**: Específico da árvore de migração do Concat. |
-| `e6e85769` | GitHub | Formulário de bug report do Concat | **NÃO APLICÁVEL**: Infraestrutura do repositório upstream. |
-| `40f13a6a` | Projeto / Timeline | Resolução precisa em `f64` ao arrastar grupos de clipes contíguos | **Adotar (ALTO IMPACTO)**: Corrige bug silencioso de colisão ao mover múltiplos clipes. |
-| `b8d66e36` | UI / Slint | Correção de padding de primeiro caractere em caixas de redimensionamento | **Adotar**: Ajuste visual simples na interface Slint. |
-| `6c9558aa` | UI / Monitor | Mensagem explícita na pré-visualização indicando arquivo em falta (#455) | **Adotar**: Usabilidade para relink de arquivos. |
-| `30b33fc1` | UI / Notificações | Toast em cartão com suporte a multilinhas, cópia e botão de fechar (#455) | **Adaptar Seletivamente**: Adaptar a lógica de tempo e persistência de erros sem quebrar o layout já remediado do Clovercut. |
-| `6584d349` | Release | Tag de versão 0.2.11 e READMEs de documentação | **NÃO APLICÁVEL**: Versionamento independente do Clovercut. |
-| `de4f94bf` | i18n | 5 novas strings traduzidas | **Adotar**: Dicionários de idioma. |
-| `798a57b1` | Style | Formatação de arquivos rustfmt | **Adotar**: Higiene de código. |
-| `3f9798c6` | Testes / Texto | Teste de quebra de sequências de emojis no Windows | **Adotar**: Teste unitário. |
-| `51699741` | Testes / Export | Leitura numérica de frames no teste de consolidação contra ruído de encoder (#756) | **Adotar**: Estabilidade da suíte de testes de consolidação. |
+| `a7cda105` | CI / Workflows | Manual dispatch for desktop packaging without requiring release tags | **Adapt**: Allows manual desktop bundle packaging in CI via `workflow_dispatch`. |
+| `9d26aac8` | CI / Smoke | Export smoke tests across Linux, Windows, and macOS | **Adopt**: Automated export validation in CI. |
+| `218247fc` | CI / Android | Strip debug line tables on Android builds to conserve runner RAM | **Adopt for Android**: Prevents OOM crashes during APK builds. |
+| `76585480` | CLI / Smoke | `--smoke-export` CLI flags for headless export verification | **Adopt**: Useful for headless integration test harnesses. |
+| `552517cb` | Media / Android | Tune MediaCodec header parameters in first audio packet (#747, #786) | **Adopt for Android**: Fixes MP4 video render lockup on Android 15 (API 35). |
+| `3a10dc47` | CI / Android | Strip symbol tables in release APK | **Adopt for Android**: Faster packaging time. |
+| `6f04670d` | CI / Android | Adjust swap space for Android build runner | **Adopt for Android**: Runner stability. |
+| `020d8cad` | CI / Dependencies | Bump GitHub actions versions | **Adopt**: Standard CI dependency hygiene. |
+| `517ac579` | i18n | Warning strings across 25 locales | **Adopt**: Keep translation tables up to date. |
+| `f22453d8` | Android / Debug | Preserve unstripped native libraries as CI artifact for backtraces | **Adopt for Android**: Crash diagnostics. |
+| `e72afe4c` | Logging | Last run alert cites newest root error | **Adopt**: Clearer error reporting on startup crash recovery. |
+| `8b497918` | Host / Export | Rasterize titles at export resolution; async pipeline initialization (#747) | **Adopt (HIGH IMPACT)**: Crisp titles at 4K export and non-blocking export startup. |
+| `ac843caa` | Android / UI | Async export start on Android to prevent UI freeze | **Adopt for Android**: Mobile UI responsiveness. |
+| `6d4b6710` | Branding | Concat cat SVG & PNG branding assets | **NOT APPLICABLE**: Clovercut has its own 4-leaf clover identity. |
+| `9d77f43b` | Logging | Clarify reason for fallback to software renderer | **Adopt**: Helpful GPU diagnostics. |
+| `942194dc` | Project / Core | Preserve unrecognized project fields (`extra`) on load | **Adopt**: Clovercut already features flexible `extra` metadata preservation. |
+| `de9a6192` | CI / Governance | Upstream PR close/reopen bot policies | **NOT APPLICABLE**: Concat-specific repo governance. |
+| `ff9f7e74` | Speech / AI | VAD resilience: prevent dropping speech comparable to background noise (#763) | **Adopt (HIGH IMPACT)**: Crucial Whisper accuracy fix on clips with music/noise. |
+| `577e8532` | Media / Audio | Decimal comma locale guard for FFmpeg filters (#762) | **Adopt (CRITICAL)**: Prevents filter graph failure on European/comma locale systems. |
+| `73ef32c1` | Docs / MCP | Documentation for MCP tools | **Adopt**: MCP documentation sync. |
+| `25e300e0` | Crash Reporter | Fix false positive crash detector from 0.2.8 | **NOT APPLICABLE**: Concat migration artifact. |
+| `e6e85769` | GitHub | Concat issue templates | **NOT APPLICABLE**: Upstream repo configuration. |
+| `40f13a6a` | Project / Timeline | Pure `f64` multi-clip drag resolution | **Adopt (HIGH IMPACT)**: Eliminates silent drag collision bug on long timelines. |
+| `b8d66e36` | UI / Slint | Slint text box first-character padding adjustment | **Adopt**: Slint styling tweak. |
+| `6c9558aa` | UI / Monitor | Explicit missing file notice on video monitor canvas (#455) | **Adopt**: Better UX when media files are missing. |
+| `30b33fc1` | UI / Notifications | Multi-line notification toast card with copy & close buttons (#455) | **Adapt Selectively**: Incorporate multi-line toast without regressing Clovercut layout. |
+| `6584d349` | Release | Version 0.2.11 tag and release docs | **NOT APPLICABLE**: Clovercut has independent versioning. |
+| `de4f94bf` | i18n | 5 translated strings | **Adopt**: Translation catalogs. |
+| `798a57b1` | Style | rustfmt formatting pass | **Adopt**: Code hygiene. |
+| `3f9798c6` | Tests / Text | Unit test for emoji grapheme cluster segmentation on Windows | **Adopt**: Unit test coverage. |
+| `51699741` | Tests / Export | Numeric frame comparison in export test to tolerate encoder jitter (#756) | **Adopt**: Test harness stability. |
 
 ---
 
-## 3. Plano de Ação Recomendado para o Clovercut
+## 3. Recommended Action Plan for Clovercut
 
-Podemos aplicar de imediato as correções cirúrgicas de maior valor sem nenhum risco de quebrar as inovações que já implementámos no Clovercut:
-
-1. **Fase 1 (Motor & Timeline - `concat-project`):**
-   - Integrar a função `shifted_starts` e precisão `f64` do commit `40f13a6a` em [`placement.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-project/src/placement.rs) e [`studio/gestures.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat/src/studio/gestures.rs).
-2. **Fase 2 (Media & Áudio - `concat-media`):**
-   - Integrar a salvaguarda de `LC_NUMERIC` do commit `577e8532` para blindar todos os filtros FFmpeg contra sistemas configurados em Português / Europa.
-3. **Fase 3 (VAD / Whisper - `concat-speech`):**
-   - Integrar a lógica de energia acústica do commit `ff9f7e74` em [`transcribe.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-speech/src/transcribe.rs) para evitar perda de palavras em músicas e diálogos suaves.
-4. **Fase 4 (Exportação em Alta Resolução - `concat-host`):**
-   - Garantir que a renderização de títulos use a resolução nativa da exportação (`8b497918`).
+1. **Phase 1 (Engine & Timeline - `concat-project`):** [DONE]
+   - Integrated `shifted_starts` and `f64` precision from `40f13a6a` in [`placement.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-project/src/placement.rs) and [`studio.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat/src/studio.rs).
+2. **Phase 2 (Media & Audio - `concat-media`):** [DONE]
+   - Integrated `keep_c_numbers()` from `577e8532` in [`ffi.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-media/src/ffi.rs), invoked via `ffi::begin()` in [`audio.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-media/src/audio.rs) and [`treat.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-media/src/treat.rs).
+3. **Phase 3 (High-Resolution Title Rendering - `concat-host` & `concat`):** [DONE]
+   - Passed output export resolution to `titles.clips()` during export in [`panes/export.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat/src/panes/export.rs) and added `request_for()` in [`export.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-host/src/export.rs).
+4. **Phase 4 (VAD / Whisper Speech Resilience - `concat-speech`):** [IN PROGRESS]
+   - Integrate `Doubt` energy-based VAD validation from `ff9f7e74` in [`speech_reel.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-speech/src/speech_reel.rs) and [`transcribe.rs`](file:///home/turotulco/Projetos/clovercut/src/crates/concat-speech/src/transcribe.rs).

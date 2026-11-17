@@ -479,6 +479,7 @@
   "modal.copied": "کاپی ہو گیا",
   "monitor.drawnSlowly": "دوبارہ شروع ہونے تک Clovercut پیش منظر کو سست موڈ میں، اثرات کے بغیر دکھا رہا ہے۔",
   "monitor.previewFailed": "پیش منظر ناکام: {0}",
+  "monitor.previewMissing": "پیش منظر ناکام: {0} گمشدہ ہے۔",
   "motion.amount": "مقدار",
   "motion.animate": "اینیمیٹ",
   "motion.breathe": "سانس",

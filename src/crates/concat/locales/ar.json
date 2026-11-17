@@ -479,6 +479,7 @@
   "modal.copied": "تم النسخ",
   "monitor.drawnSlowly": "يرسم Clovercut المعاينة بالوضع البطيء، دون تأثيرات، حتى إعادة تشغيله.",
   "monitor.previewFailed": "فشلت المعاينة: {0}",
+  "monitor.previewMissing": "فشلت المعاينة: الملف {0} مفقود.",
   "motion.amount": "المقدار",
   "motion.animate": "تحريك",
   "motion.breathe": "تنفّس",

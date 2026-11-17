@@ -479,6 +479,7 @@
   "modal.copied": "הועתק",
   "monitor.drawnSlowly": "Clovercut מצייר את התצוגה המקדימה במצב איטי, ללא אפקטים, עד להפעלה מחדש.",
   "monitor.previewFailed": "התצוגה המקדימה נכשלה: {0}",
+  "monitor.previewMissing": "התצוגה המקדימה נכשלה: {0} חסר.",
   "motion.amount": "עוצמה",
   "motion.animate": "הנפשה",
   "motion.breathe": "נשימה",

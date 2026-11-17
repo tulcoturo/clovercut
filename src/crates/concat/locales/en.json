@@ -479,6 +479,7 @@
   "modal.copied": "Copied",
   "monitor.drawnSlowly": "Clovercut is drawing the preview the slow way, without effects, until it restarts.",
   "monitor.previewFailed": "Preview failed: {0}",
+  "monitor.previewMissing": "Preview failed: {0} is missing.",
   "motion.amount": "Amount",
   "motion.animate": "Animate",
   "motion.breathe": "Breathe",

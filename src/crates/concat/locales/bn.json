@@ -479,6 +479,7 @@
   "modal.copied": "কপি করা হয়েছে",
   "monitor.drawnSlowly": "পুনরায় চালু না হওয়া পর্যন্ত Clovercut ধীর মোডে, ইফেক্ট ছাড়া পূর্বরূপ দেখাচ্ছে।",
   "monitor.previewFailed": "প্রিভিউ ব্যর্থ: {0}",
+  "monitor.previewMissing": "প্রিভিউ ব্যর্থ হয়েছে: {0} হারিয়ে গেছে।",
   "motion.amount": "পরিমাণ",
   "motion.animate": "অ্যানিমেট",
   "motion.breathe": "শ্বাস",

@@ -3285,10 +3285,42 @@ fn safe_start() -> (Option<concat_host::jobs::Tripwire>, bool) {
     let mark = dirs.data.join("startup");
     let mut preferences = prefs::Preferences::load(&dirs);
     let died = concat_host::jobs::Tripwire::tripped(&mark);
-    if preferences.settle_start(died, &concat_host::machine::build()) {
+    let changed = preferences.settle_start(died, &concat_host::machine::build());
+    if changed {
         preferences.save(&dirs);
     }
-    if preferences.draws_in_software() && std::env::var_os("CONCAT_GPU").is_none() {
+    let how = if cfg!(target_os = "android") {
+        "drawing on OpenGL ES in place of Vulkan"
+    } else {
+        "drawing in software"
+    };
+    let gpu_env = std::env::var("CLOVERCUT_GPU").or_else(|_| std::env::var("CONCAT_GPU"));
+    match gpu_env {
+        Ok(value) if value.trim().eq_ignore_ascii_case("software") => {
+            log::info!("start: {how} · GPU=software was set in the environment");
+        }
+        Ok(value) => {
+            if preferences.draws_in_software() {
+                log::info!(
+                    "start: GPU={} set in the environment wins over the setting that would draw in software",
+                    value.trim()
+                );
+            }
+        }
+        Err(_) if preferences.software_gpu => {
+            log::info!(
+                "start: {how} · the setting that draws on the GPU is off (turned off in Settings, by --software, or after a start that failed)"
+            );
+        }
+        Err(_) if preferences.software_after_crash.is_some() && !changed => {
+            log::warn!("start: {how} · the last launch of this build closed while starting");
+        }
+        Err(_) => {}
+    }
+    if preferences.draws_in_software()
+        && std::env::var_os("CLOVERCUT_GPU").is_none()
+        && std::env::var_os("CONCAT_GPU").is_none()
+    {
         // SAFETY: on a desk the process is single-threaded here, as for the
         // scale above. On Android the activity's glue thread is running, but
         // it is Java's and reads no environment; Rust's own readers take

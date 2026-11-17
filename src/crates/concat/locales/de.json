@@ -479,6 +479,7 @@
   "modal.copied": "Kopiert",
   "monitor.drawnSlowly": "Clovercut zeichnet die Vorschau bis zum Neustart im langsamen Modus ohne Effekte.",
   "monitor.previewFailed": "Vorschau fehlgeschlagen: {0}",
+  "monitor.previewMissing": "Vorschau fehlgeschlagen: {0} fehlt.",
   "motion.amount": "Stärke",
   "motion.animate": "Animieren",
   "motion.breathe": "Atmen",

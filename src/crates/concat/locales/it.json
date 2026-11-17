@@ -479,6 +479,7 @@
   "modal.copied": "Copiato",
   "monitor.drawnSlowly": "Clovercut sta disegnando l’anteprima in modalità lenta, senza effetti, fino al riavvio.",
   "monitor.previewFailed": "Anteprima fallita: {0}",
+  "monitor.previewMissing": "Anteprima fallita: manca {0}.",
   "motion.amount": "Intensità",
   "motion.animate": "Anima",
   "motion.breathe": "Respiro",

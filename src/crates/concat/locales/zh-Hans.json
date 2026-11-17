@@ -479,6 +479,7 @@
   "modal.copied": "已复制",
   "monitor.drawnSlowly": "Clovercut 正在以较慢的模式绘制预览，不含效果，直到重新启动。",
   "monitor.previewFailed": "预览失败：{0}",
+  "monitor.previewMissing": "预览失败：{0} 缺失。",
   "motion.amount": "幅度",
   "motion.animate": "动画",
   "motion.breathe": "呼吸",
