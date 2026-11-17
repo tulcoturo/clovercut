@@ -198,6 +198,11 @@ jobs:
         run: |
           clippy-driver --edition 2024 --test -D warnings crates/concat/src/request_owner.rs -o /tmp/clovercut-request-owner-tests
           /tmp/clovercut-request-owner-tests
+      - name: Interactive preview isolation from busy background workers
+        working-directory: src
+        run: |
+          clippy-driver --edition 2024 --test -D warnings crates/concat/src/preview_workers.rs -o /tmp/clovercut-preview-worker-tests
+          /tmp/clovercut-preview-worker-tests
       - name: Background title ownership and cache regressions
         run: |
           clippy-driver --edition 2024 --test -D warnings scripts/fixtures/title-preview/main.rs -o /tmp/clovercut-title-preview-tests

@@ -71,6 +71,7 @@ mod phase5_ui_walkthrough;
 mod prefs;
 mod presets;
 mod preview_interaction;
+mod preview_workers;
 mod project_browser;
 mod request_owner;
 mod source;

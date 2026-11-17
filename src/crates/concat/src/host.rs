@@ -147,43 +147,17 @@ impl Shell {
     }
 }
 
-/// The workers every background job runs on: a few threads kept for the
-/// life of the process, fed from one queue. A thread per job was a thread
-/// per monitor frame, thirty a second during playback.
-fn workers() -> &'static std::sync::mpsc::Sender<Box<dyn FnOnce() + Send>> {
-    static WORKERS: std::sync::OnceLock<std::sync::mpsc::Sender<Box<dyn FnOnce() + Send>>> =
+/// Reused media workers. Interactive frames have their own queue so a
+/// thumbnail batch or analysis cannot occupy every worker ahead of a click.
+fn workers() -> &'static crate::preview_workers::PreviewWorkers {
+    static WORKERS: std::sync::OnceLock<crate::preview_workers::PreviewWorkers> =
         std::sync::OnceLock::new();
-    WORKERS.get_or_init(|| {
-        let (sender, receiver) = std::sync::mpsc::channel::<Box<dyn FnOnce() + Send>>();
-        let receiver = std::sync::Arc::new(std::sync::Mutex::new(receiver));
-        // Three: the monitor's frame, its prefetch, and whatever thumbnail
-        // or analysis is running, without any of them queuing behind the
-        // others.
-        for index in 0..3 {
-            let receiver = std::sync::Arc::clone(&receiver);
-            std::thread::Builder::new()
-                .name(format!("concat-worker-{index}"))
-                .spawn(move || {
-                    loop {
-                        let job = receiver
-                            .lock()
-                            .unwrap_or_else(|poisoned| poisoned.into_inner())
-                            .recv();
-                        match job {
-                            Ok(job) => job(),
-                            Err(_) => return,
-                        }
-                    }
-                })
-                .expect("a worker thread");
-        }
-        sender
-    })
+    WORKERS.get_or_init(|| crate::preview_workers::PreviewWorkers::new(3))
 }
 
 /// Runs `work` on a worker with nothing to report: a prefetch, a warm-up.
 pub fn spawn_detached(work: impl FnOnce() + Send + 'static) {
-    let _ = workers().send(Box::new(work));
+    workers().background(work);
 }
 
 /// Runs `work` on a worker, then `then` on the event-loop thread with the
@@ -254,12 +228,21 @@ pub fn spawn_frame<T: Send + 'static>(
 ) {
     use std::sync::atomic::{AtomicBool, Ordering};
     let epoch = project_epoch();
-    spawn_detached(move || {
+    let queued = std::time::Instant::now();
+    workers().frame(move || {
+        let queue_wait = queued.elapsed();
+        let started = std::time::Instant::now();
+        let result = work();
+        log::debug!(
+            "preview worker: queue={:.1} ms work={:.1} ms",
+            queue_wait.as_secs_f64() * 1000.0,
+            started.elapsed().as_secs_f64() * 1000.0,
+        );
         let toasted = Arc::new(AtomicBool::new(false));
         let noted = Arc::clone(&toasted);
         deliver_then(
             Some(epoch),
-            work(),
+            result,
             move |studio, app, models, result| {
                 let toast = studio.toast.token;
                 then(studio, app, models, result);
