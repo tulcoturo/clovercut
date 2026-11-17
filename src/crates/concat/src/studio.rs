@@ -939,7 +939,7 @@ macro_rules! same_with_models {
 same_with_models! {
     same_transition_choice: crate::ui::TransitionChoiceData => options, values;
     same_chain_choice: crate::ui::ChainChoiceData => options, values;
-    same_export: crate::ui::ExportData => resolutions, rates, rate_details;
+    same_export: crate::ui::ExportData => resolutions, rates, rate_details, range_options, range_details;
     same_settings: crate::ui::SettingsData => shortcuts;
     same_relink: crate::ui::RelinkData => items;
     same_start: crate::ui::StartData => rate_options;
@@ -15410,25 +15410,72 @@ impl Studio {
         // One slot, two verbs: the sound is either on its picture or off it.
         // Shown on every video clip, so the verb is where a person looks for
         // it, and greyed rather than gone when the file has no sound.
-        let (can_detach, can_reattach) = self.sound_placement(clip);
-        if can_reattach {
-            rows.push(action(
-                "reattach",
-                t("studio.reattachAudio"),
-                Glyph::Merge,
-                "",
-                !locked,
-            ));
-            rows.push(rule());
-        } else if clip.kind == model::ClipKind::Video {
-            rows.push(action(
-                "detach",
-                t("studio.detachAudio"),
-                Glyph::Waveform,
-                "",
-                !locked && can_detach && self.clip_has_sound(clip),
-            ));
-            rows.push(rule());
+        let selected_clips: Vec<&Clip> =
+            if self.selection.len() > 1 && self.selection.iter().any(|held| held == &clip.id) {
+                self.selection
+                    .iter()
+                    .filter_map(|held| self.clip(held))
+                    .collect()
+            } else {
+                vec![clip]
+            };
+
+        if selected_clips.len() > 1 {
+            let any_can_reattach = selected_clips
+                .iter()
+                .any(|c| self.sound_placement(c).1 && !self.locked(&c.track_id));
+            let any_can_detach = selected_clips.iter().any(|c| {
+                c.kind == model::ClipKind::Video
+                    && self.sound_placement(c).0
+                    && self.clip_has_sound(c)
+                    && !self.locked(&c.track_id)
+            });
+
+            if any_can_reattach {
+                rows.push(action(
+                    "reattach",
+                    t("studio.reattachAudio"),
+                    Glyph::Merge,
+                    "",
+                    true,
+                ));
+                rows.push(rule());
+            }
+            if any_can_detach
+                || selected_clips
+                    .iter()
+                    .any(|c| c.kind == model::ClipKind::Video)
+            {
+                rows.push(action(
+                    "detach",
+                    t("studio.detachAudio"),
+                    Glyph::Waveform,
+                    "",
+                    any_can_detach,
+                ));
+                rows.push(rule());
+            }
+        } else {
+            let (can_detach, can_reattach) = self.sound_placement(clip);
+            if can_reattach {
+                rows.push(action(
+                    "reattach",
+                    t("studio.reattachAudio"),
+                    Glyph::Merge,
+                    "",
+                    !locked,
+                ));
+                rows.push(rule());
+            } else if clip.kind == model::ClipKind::Video {
+                rows.push(action(
+                    "detach",
+                    t("studio.detachAudio"),
+                    Glyph::Waveform,
+                    "",
+                    !locked && can_detach && self.clip_has_sound(clip),
+                ));
+                rows.push(rule());
+            }
         }
         // The clip's sound, written out as it plays, as a file of its own
         // in the bin. For anything with sound in it; a clip whose track is
@@ -16138,62 +16185,94 @@ impl Studio {
     /// One of the clip menu's verbs on clip `id`. The menu's rows and the
     /// keyboard's chords both land here, so a shortcut and the row that
     /// advertises it cannot disagree.
-    /// Takes a video clip's sound off onto a lane of its own, and selects
-    /// what came off: the lane it lands on may be a new one, out of view,
-    /// and a detach that changed nothing anyone could see read as one that
-    /// did nothing. One that cannot happen says why instead of nothing.
+    /// Takes video clips' sounds off onto lanes of their own, and selects
+    /// what came off. Supports detaching audio from multiple selected clips.
     /// https://github.com/jub0t/Concat/issues/310
-    fn detach_audio(&mut self, clip: &Clip) {
-        let has_audio = self
-            .project()
-            .media_by_id(&clip.media_id)
-            .is_some_and(|media| media.has_audio);
-        let detached = self
-            .timeline()
-            .clips
-            .iter()
-            .any(|other| other.detached_from.as_deref() == Some(clip.id.as_str()));
-        let detach = Command::DetachAudio {
-            clip_id: clip.id.clone(),
-        };
-        let command = match detach_plan(clip, has_audio, detached) {
-            DetachPlan::NoSound => {
-                self.notify(&t("studio.detachNoSound"), false);
-                return;
+    fn detach_audio(&mut self, clips: &[Clip]) {
+        if clips.is_empty() {
+            return;
+        }
+
+        let mut commands = Vec::new();
+        let mut target_video_ids = std::collections::HashSet::new();
+        let mut any_had_audio = false;
+        let mut any_already_detached = false;
+
+        for clip in clips {
+            if clip.kind != model::ClipKind::Video || self.locked(&clip.track_id) {
+                continue;
             }
-            DetachPlan::Already => {
-                self.notify(&t("studio.detachAlready"), false);
-                return;
+            let has_audio = self
+                .project()
+                .media_by_id(&clip.media_id)
+                .is_some_and(|media| media.has_audio);
+            if !has_audio {
+                continue;
             }
-            DetachPlan::Detach => detach,
-            // Its sound was taken off once and that clip deleted, which
-            // left the picture silent with nothing to reattach. Unmuted
-            // and taken off again, as one step: the sound comes back as a
-            // clip, which is what was asked for.
-            DetachPlan::Again => Command::Batch {
-                commands: vec![
-                    Command::UpdateClip {
+            any_had_audio = true;
+            let detached = self
+                .timeline()
+                .clips
+                .iter()
+                .any(|other| other.detached_from.as_deref() == Some(clip.id.as_str()));
+            if detached {
+                any_already_detached = true;
+                continue;
+            }
+            let detach = Command::DetachAudio {
+                clip_id: clip.id.clone(),
+            };
+            match detach_plan(clip, has_audio, detached) {
+                DetachPlan::NoSound => {}
+                DetachPlan::Already => {}
+                DetachPlan::Detach => {
+                    commands.push(detach);
+                    target_video_ids.insert(clip.id.clone());
+                }
+                DetachPlan::Again => {
+                    commands.push(Command::UpdateClip {
                         clip_id: clip.id.clone(),
                         patch: ClipPatch {
                             muted: Some(false),
                             ..Default::default()
                         },
-                    },
-                    detach,
-                ],
-            },
-        };
+                    });
+                    commands.push(detach);
+                    target_video_ids.insert(clip.id.clone());
+                }
+            }
+        }
+
+        if commands.is_empty() {
+            if !any_had_audio {
+                self.notify(&t("studio.detachNoSound"), false);
+            } else if any_already_detached {
+                self.notify(&t("studio.detachAlready"), false);
+            }
+            return;
+        }
+
         let token = self.toast.token;
-        self.apply(command);
+        if commands.len() == 1 {
+            self.apply(commands.remove(0));
+        } else {
+            self.apply(Command::Batch { commands });
+        }
+
         let sounds: Vec<String> = self
             .timeline()
             .clips
             .iter()
-            .filter(|other| other.detached_from.as_deref() == Some(clip.id.as_str()))
+            .filter(|other| {
+                other
+                    .detached_from
+                    .as_ref()
+                    .is_some_and(|parent| target_video_ids.contains(parent))
+            })
             .map(|other| other.id.clone())
             .collect();
+
         if sounds.is_empty() {
-            // A failure has said so already.
             if self.toast.token == token {
                 self.notify(&t("studio.detachNoSound"), false);
             }
@@ -16292,11 +16371,41 @@ impl Studio {
                 });
                 self.set_voice((!on).then_some(wanted));
             }
-            "detach" => self.detach_audio(&clip),
+            "detach" => {
+                let target_clips =
+                    if self.selection.len() > 1 && self.selection.iter().any(|held| held == id) {
+                        self.selection
+                            .iter()
+                            .filter_map(|held| self.clip(held).cloned())
+                            .collect()
+                    } else {
+                        vec![clip]
+                    };
+                self.detach_audio(&target_clips);
+            }
             "reattach" => {
-                self.apply(Command::ReattachAudio {
-                    clip_id: id.to_owned(),
-                });
+                let target_clips =
+                    if self.selection.len() > 1 && self.selection.iter().any(|held| held == id) {
+                        self.selection
+                            .iter()
+                            .filter_map(|held| self.clip(held).cloned())
+                            .collect()
+                    } else {
+                        vec![clip]
+                    };
+                let commands: Vec<Command> = target_clips
+                    .into_iter()
+                    .filter(|c| {
+                        let (_, can_reattach) = self.sound_placement(c);
+                        can_reattach && !self.locked(&c.track_id)
+                    })
+                    .map(|c| Command::ReattachAudio { clip_id: c.id })
+                    .collect();
+                if commands.len() == 1 {
+                    self.apply(commands.into_iter().next().unwrap());
+                } else if !commands.is_empty() {
+                    self.apply(Command::Batch { commands });
+                }
             }
             "mute" => {
                 let volume = if clip.volume <= 0.0 { 1.0 } else { 0.0 };

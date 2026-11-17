@@ -1,0 +1,19 @@
+id = "reacut.breaking"
+name = "Breaking News Banner"
+language = "Latin"
+order = 6
+offsetY = 0.35
+sample = "NEWS"
+
+[style]
+content = "BREAKING NEWS"
+fontFamily = "Hanken Grotesk"
+fontWeight = 800
+fontSize = 0.06
+color = "#ffffff"
+background = "#e50914"
+backgroundRadius = 4.0
+backgroundPaddingX = 24.0
+backgroundPaddingY = 12.0
+align = "center"
+shadow = true

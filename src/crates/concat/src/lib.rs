@@ -2449,6 +2449,9 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_export_rate_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Export(ExportMsg::RateChanged(index)));
     }));
+    app.on_export_range_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Export(ExportMsg::RangeChanged(index.max(0) as usize)));
+    }));
     app.on_export_codec_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Export(ExportMsg::CodecChanged(index)));
     }));

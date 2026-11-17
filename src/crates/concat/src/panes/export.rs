@@ -39,6 +39,8 @@ pub enum ExportMsg {
     TenBitChanged(bool),
     /// For an HDR timeline: written HDR (true), or tone-mapped to SDR.
     HdrChanged(bool),
+    /// Export whole timeline (0) or selected clips / range (1).
+    RangeChanged(usize),
     /// The target bitrate field, in Mbps: the bitrate becomes a custom one.
     BitrateChanged(f32),
     /// Back to the form after a finished or failed render.
@@ -75,6 +77,8 @@ pub struct ExportPane {
     pub folder: String,
     pub resolution: usize,
     pub rate: usize,
+    /// Export whole timeline (0) or selected clips / range (1).
+    pub range_mode: usize,
     /// The bitrate is the typed one, not the recommended one for the
     /// frame and the rate.
     pub custom: bool,
@@ -113,6 +117,7 @@ impl Default for ExportPane {
             }),
             resolution: 2,
             rate: 0,
+            range_mode: 0,
             custom: false,
             codec: 0,
             ten_bit: false,
@@ -161,6 +166,7 @@ impl ExportPane {
             ExportMsg::RateChanged(index) => {
                 self.rate = (index.max(0) as usize).min(Self::rates(studio).len() - 1);
             }
+            ExportMsg::RangeChanged(mode) => self.range_mode = mode.min(1),
             // A codec this device cannot encode is not taken: the picker
             // says so under it, and the choice before stands.
             ExportMsg::CodecChanged(index) => {
@@ -406,11 +412,52 @@ impl ExportPane {
         ((kbps / 500.0).round() * 500.0).max(500.0) as u32
     }
 
+    /// The time range `[start, end]` of selected clips on the timeline, if any.
+    pub fn selected_range(&self, studio: &Studio) -> Option<[f64; 2]> {
+        if studio.selection.is_empty() {
+            return None;
+        }
+        let timeline = studio.timeline();
+        let selected_clips: Vec<&concat_project::model::Clip> = studio
+            .selection
+            .iter()
+            .filter_map(|id| timeline.clip(id))
+            .collect();
+        if selected_clips.is_empty() {
+            return None;
+        }
+        let start = selected_clips
+            .iter()
+            .map(|c| c.start)
+            .fold(f64::INFINITY, f64::min);
+        let end = selected_clips
+            .iter()
+            .map(|c| c.start + c.duration)
+            .fold(f64::NEG_INFINITY, f64::max);
+        if end > start && start >= 0.0 {
+            Some([start, end])
+        } else {
+            None
+        }
+    }
+
+    /// The effective duration to export, respecting `range_mode`.
+    pub fn duration_seconds(&self, studio: &Studio) -> f64 {
+        if self.range_mode == 1
+            && let Some([start, end]) = self.selected_range(studio)
+        {
+            (end - start).max(0.0)
+        } else {
+            studio.duration().max(0.0)
+        }
+    }
+
     /// The file's size, in bytes: the bitrate is an average the encoder
     /// keeps to, so this is what is written, give or take.
     pub fn size_bytes(&self, studio: &Studio) -> f32 {
         let video = self.target_kbps(studio) as f32 * 1000.0;
-        (video + AUDIO_BPS) * studio.duration().max(1.0) as f32 / 8.0
+        let duration = self.duration_seconds(studio);
+        (video + AUDIO_BPS) * duration.max(1.0) as f32 / 8.0
     }
 
     /// The codec a sheet opens on follows the canvas (#456): a timeline
@@ -550,7 +597,12 @@ impl ExportPane {
             .into_iter()
             .map(|title| title.clip)
             .collect();
-        let mut request = export::request(session, &spec, titles);
+        let time_range = if self.range_mode == 1 {
+            self.selected_range(studio)
+        } else {
+            None
+        };
+        let mut request = export::request_range(session, &spec, titles, time_range);
         request.width = width;
         request.height = height;
         request.rate_num = num;
@@ -648,7 +700,7 @@ impl ExportPane {
             .into(),
             format: format!("{width} × {height} · {rate:.2} fps").into(),
             duration: {
-                let whole = studio.duration().max(0.0) as i32;
+                let whole = self.duration_seconds(studio).max(0.0) as i32;
                 format!("{}:{:02}", whole / 60, whole % 60).into()
             },
             contents: if titles > 0 {
@@ -747,6 +799,29 @@ impl ExportPane {
             message: self.message.as_str().into(),
             done_size: bytes(self.size_bytes(studio)).into(),
             empty: clips == 0,
+            range_mode: self.range_mode as i32,
+            has_selection: self.selected_range(studio).is_some(),
+            range_options: {
+                let options = vec![
+                    t("export.entireTimeline").into(),
+                    t("export.selectedRange").into(),
+                ];
+                ModelRc::new(VecModel::from(options))
+            },
+            range_details: {
+                let whole_timeline = studio.duration().max(0.0) as i32;
+                let timeline_label = format!("{}:{:02}", whole_timeline / 60, whole_timeline % 60);
+                let range_label = match self.selected_range(studio) {
+                    Some([start, end]) => {
+                        let s = start.max(0.0) as i32;
+                        let e = end.max(0.0) as i32;
+                        format!("{}:{:02} - {}:{:02}", s / 60, s % 60, e / 60, e % 60)
+                    }
+                    None => t("export.noSelectionUsingTimeline"),
+                };
+                let details = vec![timeline_label.into(), range_label.into()];
+                ModelRc::new(VecModel::from(details))
+            },
         }
     }
 }

@@ -1,0 +1,15 @@
+id = "reacut.chapter"
+name = "Chapter Heading"
+language = "Latin"
+order = 3
+offsetY = -0.1
+sample = "CH. 01"
+
+[style]
+content = "CHAPTER 01\nTHE BEGINNING"
+fontFamily = "Hanken Grotesk"
+fontWeight = 700
+fontSize = 0.065
+color = "#ffd69a"
+align = "center"
+shadow = true

@@ -1,0 +1,16 @@
+id = "reacut.neon"
+name = "Neon Glow Title"
+language = "Latin"
+order = 8
+sample = "NEON"
+
+[style]
+content = "CYBER\nPULSE"
+fontFamily = "Hanken Grotesk"
+fontWeight = 900
+fontSize = 0.09
+color = "#00f0ff"
+strokeColor = "#ff007f"
+strokeWidth = 0.015
+align = "center"
+shadow = true

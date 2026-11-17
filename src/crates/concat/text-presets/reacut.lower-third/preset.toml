@@ -1,0 +1,19 @@
+id = "reacut.lower-third"
+name = "Minimal Lower Third"
+language = "Latin"
+order = 7
+offsetY = 0.32
+sample = "Name"
+
+[style]
+content = "SPEAKER NAME\nCreative Director"
+fontFamily = "Hanken Grotesk"
+fontWeight = 600
+fontSize = 0.05
+color = "#ffffff"
+background = "#1a1a1a"
+backgroundRadius = 6.0
+backgroundPaddingX = 20.0
+backgroundPaddingY = 10.0
+align = "left"
+shadow = false

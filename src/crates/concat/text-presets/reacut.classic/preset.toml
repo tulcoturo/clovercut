@@ -1,0 +1,14 @@
+id = "reacut.classic"
+name = "Classic Title"
+language = "Latin"
+order = 2
+sample = "CLASSIC"
+
+[style]
+content = "Bold Title"
+fontFamily = "Hanken Grotesk"
+fontWeight = 800
+fontSize = 0.085
+color = "#ffffff"
+align = "center"
+shadow = true

@@ -1,0 +1,14 @@
+id = "reacut.cinema"
+name = "Cinema Title"
+language = "Latin"
+order = 1
+sample = "CINEMA"
+
+[style]
+content = "A JOURNEY\nINTO LIGHT"
+fontFamily = "Hanken Grotesk"
+fontWeight = 600
+fontSize = 0.08
+color = "#fff0d5"
+align = "center"
+shadow = true

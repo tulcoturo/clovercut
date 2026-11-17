@@ -1,0 +1,14 @@
+id = "reacut.editorial"
+name = "Minimalist Editorial"
+language = "Latin"
+order = 4
+sample = "Vol. 1"
+
+[style]
+content = "Observation\nVol. 01"
+fontFamily = "Hanken Grotesk"
+fontWeight = 400
+fontSize = 0.07
+color = "#ffffff"
+align = "left"
+shadow = false

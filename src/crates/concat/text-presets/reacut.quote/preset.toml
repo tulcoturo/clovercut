@@ -1,0 +1,15 @@
+id = "reacut.quote"
+name = "Quote Block"
+language = "Latin"
+order = 5
+sample = "“Quote”"
+
+[style]
+content = "\"Design is thinking\nmade visual.\""
+fontFamily = "Hanken Grotesk"
+fontWeight = 400
+fontSize = 0.065
+italic = true
+color = "#e6edf3"
+align = "center"
+shadow = true

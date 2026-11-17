@@ -92,6 +92,11 @@ export struct ExportData {
     done-size: string,
     /// nothing on the timeline to export
     empty: bool,
+    /// Export whole timeline (0) or selected clips / range (1).
+    range-mode: int,
+    has-selection: bool,
+    range-options: [string],
+    range-details: [string],
 }
 
 // One tile of the summary block.
@@ -302,8 +307,19 @@ component OutputSection inherits DialogSection {
     callback codec-changed(index: int);
     callback ten-bit-changed(on: bool);
     callback hdr-changed(on: bool);
+    callback range-changed(index: int);
 
     title: I18n.t("export.output") + " · " + I18n.t("common.video");
+
+    DialogRow {
+        label: I18n.t("export.timeRange");
+        Select {
+            current: root.data.range-mode;
+            options: root.data.range-options;
+            details: root.data.range-details;
+            changed(index) => { root.range-changed(index); }
+        }
+    }
 
     DialogRow {
         label: I18n.t("export.resolution");
@@ -626,6 +642,7 @@ export component ExportDialog inherits Rectangle {
     callback name-edited(name: string);
     callback browse();
     callback rate-changed(index: int);
+    callback range-changed(index: int);
     callback codec-changed(index: int);
     callback ten-bit-changed(on: bool);
     callback hdr-changed(on: bool);
@@ -778,6 +795,7 @@ export component ExportDialog inherits Rectangle {
                             data: root.data;
                             bitrate-changed(mbps) => { root.bitrate-changed(mbps); }
                             rate-changed(index) => { root.rate-changed(index); }
+                            range-changed(index) => { root.range-changed(index); }
                             codec-changed(index) => { root.codec-changed(index); }
                             ten-bit-changed(on) => { root.ten-bit-changed(on); }
                             hdr-changed(on) => { root.hdr-changed(on); }
@@ -818,6 +836,7 @@ export component ExportDialog inherits Rectangle {
                                 data: root.data;
                                 bitrate-changed(mbps) => { root.bitrate-changed(mbps); }
                                 rate-changed(index) => { root.rate-changed(index); }
+                                range-changed(index) => { root.range-changed(index); }
                                 codec-changed(index) => { root.codec-changed(index); }
                                 ten-bit-changed(on) => { root.ten-bit-changed(on); }
                                 hdr-changed(on) => { root.hdr-changed(on); }

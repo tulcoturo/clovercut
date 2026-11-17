@@ -293,6 +293,23 @@ fn parse(text: &str, folder: Option<&Path>) -> Option<(i64, TextPreset)> {
 /// overridden without a second card for it.
 pub fn all(dirs: &AppDirs) -> Vec<TextPreset> {
     let mut presets = builtin();
+    for title_preset in concat_project::all_title_presets() {
+        let reacut_id = format!("reacut.{}", title_preset.id);
+        if !presets
+            .iter()
+            .any(|p| p.id == title_preset.id || p.id == reacut_id)
+        {
+            presets.push(TextPreset {
+                id: title_preset.id.to_string(),
+                name: title_preset.name.to_string(),
+                style: title_preset.style,
+                offset_y: Some(title_preset.offset_y),
+                font: None,
+                language: "Latin".to_string(),
+                sample: "Aa".to_string(),
+            });
+        }
+    }
     for preset in user(dirs) {
         match presets.iter().position(|held| held.id == preset.id) {
             Some(index) => presets[index] = preset,
