@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.2.7] - 2026-11-17
+
+Modern CapCut Desktop draft decryption and import, atomic multi-clip audio detach and reattach, ReaCut typography preset templates, export selected time range selection, and visual/typography bug fixes.
+
+### Added
+- **Modern CapCut Desktop Draft Decryption & Import:** Direct decryption and import of modern CapCut Desktop projects (`draft_content.json`). Supports AES-256-GCM 12-split carrier decryption, folder and direct file selection, timeline tracks, media clips, text styles, and supported effects without requiring external conversion tools.
+- **Atomic Multi-clip Detach & Reattach Audio:** Batch detach audio from multiple selected video clips into synchronized sound clips on dedicated audio tracks in a single atomic transaction with unified undo/redo. Reattach audio restores audio tracks back to their parent video clips cleanly.
+- **ReaCut Text Preset Library:** Bundled 8 production ReaCut title styles into the preset library: Cinema, Classic, Chapter, Minimalist Editorial, Quote, Breaking News, Minimal Lower Third, and Neon Glow.
+- **Export Selected Time Range:** New range selection in the export dialog allowing exports of either the entire timeline or the selected clips / In-Out range, with dynamic real-time recalculation of duration and estimated output file size. Full localization support across all 25 locales.
+- **3-Point Editing and Slip Editing:** Added monitor Insert and Overwrite 3-point editing commands, as well as Slip Clip editing with detached audio sync awareness.
+
+### Fixed
+- **Pure White Color Range (#61):** Ensured full color range (0-255) when rasterizing painted shapes and title overlays on the timeline, preventing clipped highlights and crushed white levels.
+- **Captions Editor Text Padding and Word Wrapping (#63):** Fixed text truncation and clipping at horizontal boundaries within the subtitle/captions editor with proper word-wrapping and boundary padding.
+
+See [complete release notes](docs/releases/0.2.7.md).
+
+## 0.2.6
+
+Titles paint in background workers; colour emoji are cached and layered colour fonts retain their gradients.
+The Animate inspector provides fourteen entrance/exit motions and nine loops for video, pictures, titles and captions.
+Shapes have editable colours, gradients, outlines, corners, dimensions, polygon/star settings, line heads, trim and shadows.
+Full-screen preview opens from the monitor button or F11 and closes with Esc.
+Clips support multiple masks with independent keyframes. Shake, Beat Shake, Impact and Prism Shake join the effects catalogue.
+Voice isolation separates speech from noise or singing from accompaniment. Advanced Chroma Key detects green/blue screens automatically.
+See [release notes](docs/releases/0.2.6.md).
+
 ## 0.2.4
 
 Person-aware neon/electric effects, tracked sunglasses and dog accessories, animated

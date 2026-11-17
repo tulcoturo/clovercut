@@ -36,7 +36,7 @@ editors, these are the priorities Clovercut is built around:
 
 Clovercut focuses on desktop editing, creator tools and local processing. The facial accessories are 2D effects;
 tracking quality depends on the footage and hardware. See the
-[release notes](docs/releases/0.2.4.md) for the current scope and qualification.
+[release notes](docs/releases/0.2.7.md) for the current scope and qualification.
 
 ## What Clovercut adds
 
@@ -46,7 +46,15 @@ Its main additions and workflow differences are:
 - **An organised timeline.** A fixed main video track anchors the edit, with
   overlays, titles, captions and stickers above it and audio below. Track types
   have distinct colours; adjustment layers stay within the visual zone. Cuts
-  follow the selection or active track, and optional linkage respects track locks.
+  follow the selection or active track, atomic multi-clip audio detach/reattach,
+  and optional linkage respects track locks.
+- **CapCut Desktop draft import.** Directly decrypt and import modern CapCut
+  Desktop drafts (`draft_content.json`), converting tracks, media, text, speed
+  curves, and transitions into a native Clovercut project.
+- **Curated title presets.** Bundled ReaCut text presets for cinematic titles,
+  minimalist editorials, lower thirds, quotes, and neon glow effects.
+- **Export range selection.** Choose between exporting the entire timeline or
+  only selected clips and In-Out ranges, with real-time size and duration calculations.
 - **Workspace and shortcut presets.** Layouts for vertical video, audio editing,
   media browsing and detailed inspection. Shortcut profiles for CapCut,
   Premiere Pro, Final Cut Pro and DaVinci Resolve, with custom bindings.
@@ -71,8 +79,8 @@ upstream improvements to its own timeline and project behaviour; the
 
 ## Download and install
 
-[**Download Clovercut 0.2.4**](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.4)
-— [Release notes](docs/releases/0.2.4.md)
+[**Download Clovercut 0.2.7**](https://github.com/tulcoturo/clovercut/releases/tag/v0.2.7)
+— [Release notes](docs/releases/0.2.7.md)
 
 | Platform | Packages | Architectures |
 |---|---|---|
